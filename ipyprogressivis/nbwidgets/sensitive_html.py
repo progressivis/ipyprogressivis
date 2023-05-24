@@ -15,10 +15,10 @@ class SensitiveHTML(widgets.DOMWidget):
     _model_name = Unicode("SensitiveHTMLModel").tag(sync=True)
 
     # Name of the front-end module containing widget view
-    _view_module = Unicode("progressivis-nb-widgets").tag(sync=True)
+    _view_module = Unicode("jupyter-progressivis").tag(sync=True)
 
     # Name of the front-end module containing widget model
-    _model_module = Unicode("progressivis-nb-widgets").tag(sync=True)
+    _model_module = Unicode("jupyter-progressivis").tag(sync=True)
 
     # Version of the front-end module containing widget view
     _view_module_version = Unicode("^0.1.0").tag(sync=True)

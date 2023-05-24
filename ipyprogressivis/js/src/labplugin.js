@@ -2,11 +2,11 @@ const plugin = require('./index');
 const base = require('@jupyter-widgets/base');
 
 module.exports = {
-  id: 'progressivis-nb-widgets',
+  id: 'jupyter-progressivis',
   requires: [base.IJupyterWidgetRegistry],
   activate: (app, widgets) => {
     widgets.registerWidget({
-      name: 'progressivis-nb-widgets',
+      name: 'jupyter-progressivis',
       version: plugin.version,
       exports: plugin,
     });

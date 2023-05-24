@@ -7,14 +7,14 @@
 // dynamically.
 __webpack_public_path__ =
   document.querySelector('body').getAttribute('data-base-url') +
-  'nbextensions/progressivis-nb-widgets';
+  'nbextensions/jupyter-progressivis';
 
 // Configure requirejs
 if (window.require) {
   window.require.config({
     map: {
       '*': {
-        'progressivis-nb-widgets': 'nbextensions/progressivis-nb-widgets/index',
+        'jupyter-progressivis': 'nbextensions/jupyter-progressivis/index',
       },
     },
   });

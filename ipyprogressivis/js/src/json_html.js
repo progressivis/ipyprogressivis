@@ -10,8 +10,8 @@ export const JsonHTMLModel = widgets.DOMWidgetModel.extend({
   defaults: _.extend(widgets.DOMWidgetModel.prototype.defaults(), {
     _model_name: 'JsonHTMLModel',
     _view_name: 'JsonHTMLView',
-    _model_module: 'progressivis-nb-widgets',
-    _view_module: 'progressivis-nb-widgets',
+    _model_module: 'jupyter-progressivis',
+    _view_module: 'jupyter-progressivis',
     _model_module_version: '0.1.0',
     _view_module_version: '0.1.0',
     data: '{}',

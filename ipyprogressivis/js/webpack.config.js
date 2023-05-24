@@ -44,7 +44,7 @@ module.exports = [
         externals: ['@jupyter-widgets/base'],
         mode: 'production'
     },
-    {// Embeddable progressivis-nb-widgets bundle
+    {// Embeddable jupyter-progressivis bundle
      //
      // This bundle is generally almost identical to the notebook bundle
      // containing the custom widget views and models.
@@ -63,7 +63,7 @@ module.exports = [
             filename: 'index.js',
             path: path.resolve(__dirname, 'dist'),
             libraryTarget: 'amd',
-            publicPath: 'https://unpkg.com/progressivis-nb-widgets@' + version + '/dist/'
+            publicPath: 'https://unpkg.com/jupyter-progressivis@' + version + '/dist/'
         },
         devtool: 'source-map',
         module: {

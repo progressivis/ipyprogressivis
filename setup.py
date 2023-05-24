@@ -162,14 +162,14 @@ setup_args = {
     "include_package_data": True,
     "data_files": [
         (
-            "share/jupyter/nbextensions/progressivis-nb-widgets",
+            "share/jupyter/nbextensions/jupyter-progressivis",
             [
                 "ipyprogressivis/nbwidgets/static/extension.js",
                 "ipyprogressivis/nbwidgets/static/index.js",
                 "ipyprogressivis/nbwidgets/static/index.js.map",
             ],
         ),
-        ("etc/jupyter/nbconfig/notebook.d", ["progressivis-nb-widgets.json"]),
+        ("etc/jupyter/nbconfig/notebook.d", ["jupyter-progressivis.json"]),
     ],
     "install_requires": []
     if CONDA_PREFIX

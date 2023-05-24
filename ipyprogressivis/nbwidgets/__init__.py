@@ -43,7 +43,7 @@ def _jupyter_nbextension_paths() -> List[Dict[str, str]]:
         {
             "section": "notebook",
             "src": "static",
-            "dest": "progressivis-nb-widgets",
-            "require": "progressivis-nb-widgets/extension",
+            "dest": "jupyter-progressivis",
+            "require": "jupyter-progressivis/extension",
         }
     ]
