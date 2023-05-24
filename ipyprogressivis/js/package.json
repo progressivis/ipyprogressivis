@@ -1,12 +1,12 @@
 {
-  "name": "progressivis-nb-widgets",
+  "name": "jupyter-progressivis",
   "version": "0.1.0",
   "description": "A Custom Jupyter Widget Library for Progressivis",
   "author": "Jean-Daniel Fekete",
   "main": "lib/index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/progressivis/progressivis/progressivis_nb_widgets"
+    "url": "https://github.com/progressivis/ipyprogressivis"
   },
   "keywords": [
     "jupyter",

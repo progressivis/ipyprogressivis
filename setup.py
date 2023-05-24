@@ -16,7 +16,7 @@ PROGRESSIVIS_CXX = os.getenv("PROGRESSIVIS_CXX")
 # MY_BINDER = os.getenv('BINDER_REQUEST')
 
 here = os.path.dirname(os.path.abspath(__file__))
-node_root = os.path.join(here, "progressivis_nb_widgets", "js")
+node_root = os.path.join(here, "ipyprogressivis", "js")
 is_repo = os.path.exists(os.path.join(here, ".git"))
 
 npm_path = os.pathsep.join(
@@ -32,7 +32,7 @@ log.info("setup.py entered")
 log.info("$PATH=%s" % os.environ["PATH"])
 
 LONG_DESCRIPTION = "A Custom Jupyter Widget Library for Progressivis"
-PACKAGES = ["progressivis_nb_widgets", "progressivis_nb_widgets.nbwidgets"]
+PACKAGES = ["ipyprogressivis", "ipyprogressivis.nbwidgets"]
 
 
 def js_prerelease(command, strict=False):
@@ -81,10 +81,10 @@ class NPM(Command):
 
     targets = [
         os.path.join(
-            here, "progressivis_nb_widgets", "nbwidgets", "static", "extension.js"
+            here, "ipyprogressivis", "nbwidgets", "static", "extension.js"
         ),
         os.path.join(
-            here, "progressivis_nb_widgets", "nbwidgets", "static", "index.js"
+            here, "ipyprogressivis", "nbwidgets", "static", "index.js"
         ),
     ]
 
@@ -150,12 +150,12 @@ class NPM(Command):
 
 version_ns = {}
 with open(
-    os.path.join(here, "progressivis_nb_widgets", "nbwidgets", "_version.py")
+    os.path.join(here, "ipyprogressivis", "nbwidgets", "_version.py")
 ) as f:
     exec(f.read(), {}, version_ns)
 
 setup_args = {
-    "name": "progressivis_nb_widgets",
+    "name": "ipyprogressivis",
     "version": version_ns["__version__"],
     "description": "A Custom Jupyter Widget Library for Progressivis",
     "long_description": LONG_DESCRIPTION,
@@ -164,9 +164,9 @@ setup_args = {
         (
             "share/jupyter/nbextensions/progressivis-nb-widgets",
             [
-                "progressivis_nb_widgets/nbwidgets/static/extension.js",
-                "progressivis_nb_widgets/nbwidgets/static/index.js",
-                "progressivis_nb_widgets/nbwidgets/static/index.js.map",
+                "ipyprogressivis/nbwidgets/static/extension.js",
+                "ipyprogressivis/nbwidgets/static/index.js",
+                "ipyprogressivis/nbwidgets/static/index.js.map",
             ],
         ),
         ("etc/jupyter/nbconfig/notebook.d", ["progressivis-nb-widgets.json"]),
@@ -184,7 +184,7 @@ setup_args = {
     },
     "author": "Jean-Daniel Fekete",
     "author_email": "Jean-Daniel.Fekete@inria.fr",
-    "url": "https://github.com/progressivis/progressivis/tree/master/progressivis_nb_widgets",
+    "url": "https://github.com/progressivis/ipyprogressivis",
     "keywords": [
         "ipython",
         "jupyter",

@@ -1,4 +1,4 @@
-# progressivis_nb_widgets: A Custom Jupyter Widget Library for Progressivis
+# ipyprogressivis: A Custom Jupyter Widget Library for Progressivis
 
 ## Installation (by now, dev mode only)
 NB: You are assumed to have previously installed *progressivis* library
@@ -16,13 +16,13 @@ https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html
   $ conda install -c conda-forge ipywidgets
 
 ### Development installation for notebook (requires npm),
-    $ cd progressivis_nb_widgets
+    $ cd ipyprogressivis
     $ pip install -e . 
-    $ cd progressivis_nb_widgets/js
+    $ cd ipyprogressivis/js
     $ npm install 
     $ npm run build
-    $ jupyter nbextension install --py --symlink --sys-prefix progressivis_nb_widgets.nbwidgets
-    $ jupyter nbextension enable --py --sys-prefix progressivis_nb_widgets.nbwidgets
+    $ jupyter nbextension install --py --symlink --sys-prefix ipyprogressivis.nbwidgets
+    $ jupyter nbextension enable --py --sys-prefix ipyprogressivis.nbwidgets
 
 ### Development installation for jupyterlab
 
@@ -31,7 +31,7 @@ https://jupyterlab.readthedocs.io/en/stable/developer/extension_tutorial.html#se
 
 In addition to previous steps (i.e. notebook steps) 
 
-    $ cd progressivis_nb_widgets
+    $ cd ipyprogressivis
     $ jupyter labextension install js
 
 
