@@ -11,9 +11,8 @@ import sys
 import platform
 from distutils import log
 
-CONDA_PREFIX = os.getenv("CONDA_PREFIX")
+
 PROGRESSIVIS_CXX = os.getenv("PROGRESSIVIS_CXX")
-# MY_BINDER = os.getenv('BINDER_REQUEST')
 
 here = os.path.dirname(os.path.abspath(__file__))
 node_root = os.path.join(here, "ipyprogressivis", "js")
@@ -171,9 +170,7 @@ setup_args = {
         ),
         ("etc/jupyter/nbconfig/notebook.d", ["jupyter-progressivis.json"]),
     ],
-    "install_requires": []
-    if CONDA_PREFIX
-    else ["ipywidgets>=7.0.0", "ipydatawidgets==4.0.1", "sidecar"],
+    "install_requires": ["progressivis", "ipywidgets>=7.0.0", "ipydatawidgets>=4.0.1", "sidecar"],
     "packages": PACKAGES,
     "zip_safe": False,
     "cmdclass": {
