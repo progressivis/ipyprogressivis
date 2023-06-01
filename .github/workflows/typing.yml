@@ -35,5 +35,5 @@ jobs:
         git submodule update	
         python -m pip install .
         cd ..
-        python -m pip install .
+        #python -m pip install .
         mypy --strict ipyprogressivis/
