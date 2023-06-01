@@ -22,8 +22,8 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from progressivis.core.scheduler import Scheduler
-    from progressivis.core.module import Module, JSon
+    from progressivis.core import Scheduler
+    from progressivis.core import Module, JSon
 
 WidgetType = Any
 

@@ -144,7 +144,7 @@ def get_schema(sniffer: Sniffer) -> AnyType:
         if col in parse_dates:
             return "datetime64"
         return dataframe_dshape(np.dtype(dt))
-
+    assert hasattr(sniffer, "_df")
     assert sniffer._df is not None
     norm_cols = dict(zip(sniffer._df.columns, normalize_columns(sniffer._df.columns)))
     dtypes = {col: _ds(col, dt) for (col, dt) in sniffer._df.dtypes.to_dict().items()}
