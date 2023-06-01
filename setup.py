@@ -12,8 +12,6 @@ import platform
 from distutils import log
 
 
-PROGRESSIVIS_CXX = os.getenv("PROGRESSIVIS_CXX")
-
 here = os.path.dirname(os.path.abspath(__file__))
 node_root = os.path.join(here, "ipyprogressivis", "js")
 is_repo = os.path.exists(os.path.join(here, ".git"))
