@@ -308,7 +308,7 @@ def get_flag_status(dt: str, op: str) -> bool:
 def make_tab_observer(tab: "TreeTab", sched: Scheduler) -> Callable[..., None]:
     def _tab_observer(wg: AnyType) -> None:
         key = tab.get_selected_title()
-        sched._module_selection = tab.mod_dict.get(key)  # type: ignore
+        sched._module_selection = tab.mod_dict.get(key)
 
     return _tab_observer
 
@@ -318,10 +318,10 @@ def make_tab_observer_2l(tab: "DynViewer", sched: Scheduler) -> Callable[..., No
         subtab = tab.get_selected_child()
         if isinstance(subtab, TreeTab):
             key = subtab.get_selected_title()
-            sched._module_selection = subtab.mod_dict.get(key)  # type: ignore
+            sched._module_selection = subtab.mod_dict.get(key)
         else:
             key = tab.get_selected_title()
-            sched._module_selection = tab.mod_dict.get(key)  # type: ignore
+            sched._module_selection = tab.mod_dict.get(key)
 
     return _tab_observer
 
@@ -558,7 +558,7 @@ class DynViewer(TreeTab):
         self._hist_tab.mod_dict[name] = selection
 
     def set_module_selection(self, sel: Optional[Set[str]]) -> None:
-        self._registry_mod.scheduler()._module_selection = sel   # type: ignore
+        self._registry_mod.scheduler()._module_selection = sel
 
     def set_h2d_widget(self, name: str, h2d_mod: Histogram2dPattern) -> None:
         if name in self._h2d_dict and self._h2d_dict[name][0] is h2d_mod:
@@ -596,10 +596,10 @@ class DynViewer(TreeTab):
             self.conf_box = ipw.VBox([selm, gb, self.make_btn_bar()])
             self.lock_conf()
             self.set_tab(SETTINGS_TAB_TITLE, self.conf_box)
-        if self._registry_mod._matrix is None:  # type: ignore
+        if self._registry_mod._matrix is None:
             return
-        mod_matrix = self._registry_mod._matrix  # type: ignore
-        mod_h2d_matrix = self._registry_mod._h2d_matrix  # type: ignore
+        mod_matrix = self._registry_mod._matrix
+        mod_h2d_matrix = self._registry_mod._h2d_matrix
         if self.previous_visible_cols != self.visible_cols:
             # rebuild results grid cause cols list changes
             lst = [ipw.Label("")] + [
@@ -699,9 +699,9 @@ class DynViewer(TreeTab):
             self._h2d_sel = set()
         # corr
         if self._last_df is not None and np.any(self._last_df.loc[:, "corr"]):
-            if "corr" not in self._registry_mod._multi_col_modules:  # type: ignore
+            if "corr" not in self._registry_mod._multi_col_modules:
                 return
-            corr_mod = cast(Corr, self._registry_mod._multi_col_modules["corr"])  # type: ignore
+            corr_mod = cast(Corr, self._registry_mod._multi_col_modules["corr"])
             assert corr_mod
             assert corr_mod.columns
             corr_sel = corr_mod.columns[:]

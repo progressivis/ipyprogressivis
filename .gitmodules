@@ -1,0 +1,3 @@
+[submodule "progressivis"]
+	path = progressivis
+	url = https://github.com/progressivis/progressivis.git

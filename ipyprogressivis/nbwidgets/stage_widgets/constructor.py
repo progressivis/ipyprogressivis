@@ -24,7 +24,7 @@ from typing import (
 
 async def _wake_up(sc: Scheduler, sec: float) -> None:
     while True:
-        if sc._stopped:  # type: ignore
+        if sc._stopped:
             return
         await aio.sleep(sec)
         await sc.wake_up()
