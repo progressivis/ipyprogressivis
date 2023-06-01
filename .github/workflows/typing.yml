@@ -30,4 +30,6 @@ jobs:
         python -m pip install -r requirements_typing.txt
         git submodule init
         git submodule update
+        python -m pip install progressivis
+        python -m pip install .
         mypy --strict ipyprogressivis/
