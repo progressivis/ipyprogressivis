@@ -110,7 +110,8 @@ class NPM(Command):
         has_npm = self.has_npm()
         if not has_npm:
             log.error(
-                "`npm` unavailable.  If you're running this command using sudo, make sure `npm` is available to sudo"
+                "`npm` unavailable.  If you're running this command using sudo,"
+                " make sure `npm` is available to sudo"
             )
 
         env = os.environ.copy()

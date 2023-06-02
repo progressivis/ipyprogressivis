@@ -101,8 +101,8 @@ class HandyTab(ipw.Tab):
             return
         pos = all_titles.index(title)
         children_ = list(self.children)
-        children_ = children_[:pos] + children_[pos + 1 :]
-        titles_ = all_titles[:pos] + all_titles[pos + 1 :]
+        children_ = children_[:pos] + children_[pos + 1:]
+        titles_ = all_titles[:pos] + all_titles[pos + 1:]
         self.children = tuple(children_)
         for i, t in enumerate(titles_):
             self.set_title(i, t)
@@ -357,7 +357,9 @@ class ChainingMixin:
             disabled=False,
         )
         btn = make_button("Chain it", disabled=True, cb=fnc(self, sel, add_new_stage))
-        del_btn = make_button("Remove subtree", disabled=False, cb=make_remove(self))  # type: ignore
+        del_btn = make_button("Remove subtree",
+                              disabled=False,
+                              cb=make_remove(self))  # type: ignore
 
         def _on_sel_change(change: Any) -> None:
             if change["new"]:

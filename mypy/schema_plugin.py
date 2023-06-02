@@ -1,8 +1,8 @@
 from mypy.plugin import Plugin, ClassDefContext
 from sqlmypy import add_var_to_class, CB  # type: ignore
-from mypy.nodes import TypeInfo, NameExpr, StrExpr, CallExpr
-from mypy.types import Instance, UnionType, NoneTyp
-from typing import Any, Union, Optional, List, cast
+from mypy.nodes import TypeInfo, NameExpr, StrExpr
+from mypy.types import Instance
+from typing import Any, Union, Optional
 
 Expr = Union[NameExpr, StrExpr]
 

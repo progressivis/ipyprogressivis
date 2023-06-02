@@ -24,7 +24,8 @@ from typing import Any as AnyType, Optional, Tuple, List, Dict, Callable, Union
 
 WidgetType = AnyType
 
-DTYPES = [np.dtype(e).name for lst in np.sctypes.values() for e in lst] + ["datetime64"]  # type: ignore
+DTYPES = ([np.dtype(e).name for lst in np.sctypes.values() for e in lst] +  # type: ignore
+          ["datetime64"])
 UFUNCS: Dict[str, Callable[..., AnyType]] = {
     k: v for (k, v) in np.__dict__.items() if isinstance(v, np.ufunc) and v.nin == 1
 }

@@ -17,19 +17,19 @@ https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html
 
 ### Development installation for notebook (requires npm),
     $ cd ipyprogressivis
-    $ pip install -e . 
+    $ pip install -e .
     $ cd ipyprogressivis/js
-    $ npm install 
+    $ npm install
     $ npm run build
     $ jupyter nbextension install --py --symlink --sys-prefix ipyprogressivis.nbwidgets
     $ jupyter nbextension enable --py --sys-prefix ipyprogressivis.nbwidgets
 
 ### Development installation for jupyterlab
 
-NB: be sure to run jupyterlab2. If needed, create a dedicated environment as explained here : 
+NB: be sure to run jupyterlab2. If needed, create a dedicated environment as explained here :
 https://jupyterlab.readthedocs.io/en/stable/developer/extension_tutorial.html#set-up-a-development-environment
 
-In addition to previous steps (i.e. notebook steps) 
+In addition to previous steps (i.e. notebook steps)
 
     $ cd ipyprogressivis
     $ jupyter labextension install js

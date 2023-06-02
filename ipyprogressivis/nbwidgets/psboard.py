@@ -62,7 +62,7 @@ def module_choice_hof(psboard: PsBoard) -> Callable[[Any], Any]:
         assert isinstance(psboard.htable.value, dict)
         assert isinstance(psboard.htable.sensitive_css_class, str)
         psboard.current_module.module_name = psboard.htable.value[
-            len(psboard.htable.sensitive_css_class) + 1 :
+            len(psboard.htable.sensitive_css_class) + 1:
         ]
         psboard.current_module.selection_changed = True
         assert psboard.current_module.module_name is not None
