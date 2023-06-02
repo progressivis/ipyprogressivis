@@ -113,7 +113,7 @@ function layout_dict_entry(view_) {
     return layout;
   }
 
-  
+
   for (const k of sparkl) {
     procs[k] = sparkline_disp;
   }
