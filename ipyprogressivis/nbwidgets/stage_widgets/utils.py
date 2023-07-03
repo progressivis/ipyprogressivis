@@ -9,7 +9,7 @@ from progressivis.core.utils import normalize_columns
 from progressivis.io.csv_sniffer import CSVSniffer
 from IPython.display import Javascript, display  # type: ignore
 from collections import defaultdict
-import dagWidget  # type: ignore
+import ipydagwidget  # type: ignore
 from typing import (
     Any,
     Union,
@@ -27,8 +27,7 @@ from typing import (
 from typing_extensions import TypeAlias  # python 3.9
 
 Sniffer = CSVSniffer
-# DAGWidget: TypeAlias = dagWidget.HelloWorld
-DAGWidget: TypeAlias = dagWidget.DagWidgetController
+DAGWidget: TypeAlias = ipydagwidget.DagWidgetController
 dag_widget: Optional[DAGWidget] = None
 
 
@@ -735,14 +734,14 @@ def _none_wg(wg: Optional[ipw.DOMWidget]) -> ipw.DOMWidget:
     return dongle_widget() if wg is None else wg
 
 
-class SchemaBase:
+class TypedBase:
     def __init__(self) -> None:
-        self._main: Optional[ReferenceType["SchemaBox"]] = None
+        self._main: Optional[ReferenceType["TypedBox"]] = None
 
     @property
-    def main(self) -> "SchemaBox":
+    def main(self) -> "TypedBox":
         assert self._main is not None
-        return cast("SchemaBox", self._main())
+        return cast("TypedBox", self._main())
 
     def __setattr__(self, name: str, value: ipw.DOMWidget) -> None:
         super().__setattr__(name, value)
@@ -760,11 +759,12 @@ class SchemaBase:
             self.main.set_child(name, value)
 
 
-class SchemaBox:
-    Schema = SchemaBase
+class TypedBox:
+    Typed: type
 
     def __init__(self) -> None:
-        self.child = self.Schema()
+        self.child = self.Typed()
+        self.c_ = self.child
         self.child._main = ref(self)
         self.children: Sequence[ipw.DOMWidget] = ()
 
@@ -775,28 +775,20 @@ class SchemaBox:
         children[i] = child
         self.children = tuple(children)
 
-    @property
-    def c_(self) -> SchemaBase:  # shortcut for self.child
-        return self.child
 
-    @c_.setter
-    def c_(self, value: SchemaBase) -> None:
-        self.child = value
-
-
-class VBoxSchema(VBox, SchemaBox):
+class VBoxTyped(VBox, TypedBox):
     def __init__(self, *args: Any, **kw: Any) -> None:
         VBox.__init__(self, *args, **kw)
-        SchemaBox.__init__(self)
+        TypedBox.__init__(self)
 
 
-class IpyVBoxSchema(ipw.VBox, SchemaBox):
+class IpyVBoxTyped(ipw.VBox, TypedBox):
     def __init__(self, *args: Any, **kw: Any) -> None:
         ipw.VBox.__init__(self, *args, **kw)
-        SchemaBox.__init__(self)
+        TypedBox.__init__(self)
 
 
-class IpyHBoxSchema(ipw.HBox, SchemaBox):
+class IpyHBoxTyped(ipw.HBox, TypedBox):
     def __init__(self, *args: Any, **kw: Any) -> None:
         ipw.HBox.__init__(self, *args, **kw)
-        SchemaBox.__init__(self)
+        TypedBox.__init__(self)

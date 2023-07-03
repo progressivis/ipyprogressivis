@@ -1,4 +1,4 @@
-from .utils import make_button, stage_register, VBoxSchema, SchemaBase
+from .utils import make_button, stage_register, VBoxTyped, TypedBase
 from ..utils import historized_widget
 from ._multi_series import histogram1d_no_data
 import ipywidgets as ipw
@@ -20,8 +20,8 @@ HVegaWidget: TypeAlias = cast(Type[AnyType],
                               historized_widget(VegaWidget, "update"))  # noqa: F821
 
 
-class HistogramW(VBoxSchema):
-    class Schema(SchemaBase):
+class HistogramW(VBoxTyped):
+    class Typed(TypedBase):
         grid: ipw.GridBox
         btn_apply: ipw.Button
         vega: HVegaWidget

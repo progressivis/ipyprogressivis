@@ -1,4 +1,4 @@
-from .utils import make_button, stage_register, dongle_widget, VBoxSchema, SchemaBase
+from .utils import make_button, stage_register, dongle_widget, VBoxTyped, TypedBase
 from ..utils import historized_widget
 from ._multi_series import multi_series_no_data
 import ipywidgets as ipw
@@ -18,8 +18,8 @@ HVegaWidget: TypeAlias = cast(Type[AnyType],
                               historized_widget(VegaWidget, "update"))  # noqa: F821
 
 
-class MultiSeriesW(VBoxSchema):
-    class Schema(SchemaBase):
+class MultiSeriesW(VBoxTyped):
+    class Typed(TypedBase):
         grid: ipw.GridBox
         btn_apply: ipw.Button
         vega: HVegaWidget

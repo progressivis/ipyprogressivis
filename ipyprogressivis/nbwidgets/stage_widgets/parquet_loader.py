@@ -4,7 +4,7 @@ import pyarrow.parquet as pq
 from progressivis.table.dshape import dataframe_dshape, ExtensionDtype
 from progressivis.core import Module
 from progressivis.io import ParquetLoader
-from .utils import make_button, VBoxSchema, SchemaBase
+from .utils import make_button, VBoxTyped, TypedBase
 import os
 
 from typing import Any, Any as AnyType, Optional, Dict, Union
@@ -76,8 +76,8 @@ class Sniffer(ipw.HBox):
         self.details.children = [col]
 
 
-class ParquetLoaderW(VBoxSchema):
-    class Schema(SchemaBase):
+class ParquetLoaderW(VBoxTyped):
+    class Typed(TypedBase):
         url: ipw.Text
         sniff_btn: ipw.Button
         sniffer: Sniffer

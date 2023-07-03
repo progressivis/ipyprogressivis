@@ -6,7 +6,7 @@ from progressivis.core import asynchronize, aio, Sink
 from progressivis.io import DynVar
 from progressivis.stats.scaling import MinMaxScaler
 from typing import Any, Dict, List, Callable, cast
-from .utils import make_button, stage_register, VBoxSchema, SchemaBase
+from .utils import make_button, stage_register, VBoxTyped, TypedBase
 
 spec_no_data = {
     "data": {"name": "data"},
@@ -275,8 +275,8 @@ class IScalerOut(ipw.HBox):
         return ret
 
 
-class ScalerW(VBoxSchema):
-    class Schema(SchemaBase):
+class ScalerW(VBoxTyped):
+    class Typed(TypedBase):
         inp: IScalerIn
         out: IScalerOut
         start_btn: ipw.Button

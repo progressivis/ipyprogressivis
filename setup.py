@@ -92,9 +92,9 @@ class NPM(Command):
         pass
 
     def get_npm_name(self):
-        npmName = "npm"
+        npmName = "yarn"
         if platform.system() == "Windows":
-            npmName = "npm.cmd"
+            npmName = "yarn.cmd"
 
         return npmName
 
@@ -169,7 +169,10 @@ setup_args = {
         ),
         ("etc/jupyter/nbconfig/notebook.d", ["jupyter-progressivis.json"]),
     ],
-    "install_requires": ["progressivis", "ipywidgets>=7.0.0", "ipydatawidgets>=4.0.1", "sidecar"],
+    "install_requires": ["progressivis",
+                         "ipywidgets>=7.0.0",
+                         "vega>=4.0.0",
+                         "ipydatawidgets>=4.0.1"],
     "packages": PACKAGES,
     "zip_safe": False,
     "cmdclass": {

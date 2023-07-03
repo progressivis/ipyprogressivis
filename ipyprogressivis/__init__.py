@@ -1,1 +1,3 @@
-# ...
+"""
+ipyprogressivis module
+"""

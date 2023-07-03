@@ -1,4 +1,4 @@
-from .utils import make_button, stage_register, VBoxSchema, SchemaBase
+from .utils import make_button, stage_register, VBoxTyped, TypedBase
 import ipywidgets as ipw
 import pandas as pd
 from progressivis.table.aggregate import Aggregate
@@ -13,8 +13,8 @@ def get_flag_status(dt: str, op: str) -> bool:
     return dt in ("string", "datetime64")  # op in type_op_mismatches.get(dt, set())
 
 
-class AggregateW(VBoxSchema):
-    class Schema(SchemaBase):
+class AggregateW(VBoxTyped):
+    class Typed(TypedBase):
         hidden_sel: ipw.SelectMultiple
         grid: ipw.GridBox
         start_btn: ipw.Button

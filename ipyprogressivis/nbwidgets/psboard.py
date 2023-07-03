@@ -11,7 +11,7 @@ from .module_graph import ModuleGraph
 from .module_wg import ModuleWg
 
 from typing import (
-    Any,
+    Any as AnyType,
     Literal,
     Callable,
     List,
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from progressivis.core import Scheduler
     from progressivis.core import Module, JSon
 
-WidgetType = Any
+WidgetType = AnyType
 
 debug_console = ipw.Output()
 
@@ -54,8 +54,8 @@ INDEX_TEMPLATE = """
 """
 
 
-def module_choice_hof(psboard: PsBoard) -> Callable[[Any], Any]:
-    def _module_choice(val: Any) -> None:
+def module_choice_hof(psboard: PsBoard) -> Callable[[AnyType], AnyType]:
+    def _module_choice(val: AnyType) -> None:
         if len(psboard.tab.children) < 3:
             assert isinstance(psboard.tab.children, tuple)
             psboard.tab.children += (psboard.current_module,)
@@ -85,16 +85,16 @@ class PsBoard(ipw.VBox):
         self.scheduler = scheduler
         self.refresh_rate = refresh_rate
         self.last_refresh = 0
-        self._cache: Any = None
-        self._cache_js: Any = None
+        self._cache: AnyType = None
+        self._cache_js: AnyType = None
         self.cpanel = ControlPanel(scheduler)
         self.current_module = ModuleWg(self, debug_console)
         self.mgraph = ModuleGraph()
-        self.tab = ipw.Tab()
+        self.tab = ipw.Tab([ipw.Label(), ipw.Label()])
         self.tab.set_title(0, "Modules")
         self.tab.set_title(1, "Module graph")
-        self.state: List[Any] = []
-        self.last_update: List[Any] = []
+        self.state: List[AnyType] = []
+        self.last_update: List[AnyType] = []
         self.btns: List[WidgetType] = []
         self.msize: int = 0
         self.modules_changed: bool = True
@@ -153,7 +153,7 @@ class PsBoard(ipw.VBox):
             await update_widget(self.htable, "html", html)
             self.modules_changed = False
         else:
-            data: Dict[str, Any] = {}
+            data: Dict[str, AnyType] = {}
             for m in modules:
                 for c in self.cols:
                     dataid = f"ps-cell_{m['id']}_{c}"

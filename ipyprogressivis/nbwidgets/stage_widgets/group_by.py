@@ -1,4 +1,4 @@
-from .utils import make_button, stage_register, dongle_widget, VBoxSchema, SchemaBase
+from .utils import make_button, stage_register, dongle_widget, VBoxTyped, TypedBase
 import ipywidgets as ipw
 from progressivis.table.group_by import (
     GroupBy,
@@ -22,8 +22,8 @@ def make_sel_multiple_dt(disabled: bool = True) -> ipw.SelectMultiple:
     )
 
 
-class GroupByW(VBoxSchema):
-    class Schema(SchemaBase):
+class GroupByW(VBoxTyped):
+    class Typed(TypedBase):
         grouping_mode: Union[ipw.Label, ipw.RadioButtons]
         by_box: Union[ipw.SelectMultiple, ipw.HBox]
         start_btn: ipw.Button

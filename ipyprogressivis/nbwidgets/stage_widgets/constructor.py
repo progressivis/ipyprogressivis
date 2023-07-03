@@ -8,9 +8,9 @@ from .utils import (
     _Dag,
     DAGWidget,
     RootVBox,
-    SchemaBox,
+    TypedBox,
     NodeVBox,
-    SchemaBase,
+    TypedBase,
     get_widget_by_id,
     get_widget_by_key,
 )
@@ -41,8 +41,8 @@ def init_dataflow() -> AnyType:
     return sink
 
 
-class Constructor(RootVBox, SchemaBox):
-    class Schema(SchemaBase):
+class Constructor(RootVBox, TypedBox):
+    class Typed(TypedBase):
         h2: ipw.HTML
         start_btn: ipw.Button
         csv: Optional[ipw.HBox]
@@ -66,7 +66,7 @@ class Constructor(RootVBox, SchemaBox):
             dag=_Dag(label=name, number=0, dag=get_dag()),
         )
         RootVBox.__init__(self, ctx)
-        SchemaBox.__init__(self)
+        TypedBox.__init__(self)
         self.child.start_btn = make_button(
             "Start scheduler ...", cb=self._start_scheduler_cb
         )

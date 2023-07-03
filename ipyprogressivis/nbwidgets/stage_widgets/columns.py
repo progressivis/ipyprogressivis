@@ -2,9 +2,9 @@ from .utils import (
     make_button,
     stage_register,
     dongle_widget,
-    VBoxSchema,
-    IpyHBoxSchema,
-    SchemaBase,
+    VBoxTyped,
+    IpyHBoxTyped,
+    TypedBase,
 )
 import ipywidgets as ipw
 import numpy as np
@@ -197,21 +197,21 @@ class IfElseW(ipw.VBox):
         self.main.c_.cols_funcs.c_.funcs.options = [""] + list(ALL_FUNCS.keys())
 
 
-class ColsFuncs(IpyHBoxSchema):
-    class Schema(SchemaBase):
+class ColsFuncs(IpyHBoxTyped):
+    class Typed(TypedBase):
         cols: ipw.Select
         funcs: ipw.Select
         computed: Optional[FuncW]
 
 
-class KeepStored(IpyHBoxSchema):
-    class Schema(SchemaBase):
+class KeepStored(IpyHBoxTyped):
+    class Typed(TypedBase):
         stored_cols: ipw.SelectMultiple
         keep_all: ipw.Checkbox
 
 
-class PColumnsW(VBoxSchema):
-    class Schema(SchemaBase):
+class PColumnsW(VBoxTyped):
+    class Typed(TypedBase):
         custom_funcs: ipw.Accordion
         cols_funcs: ColsFuncs
         func_table: Optional[Union[ipw.Label, ipw.GridBox]]

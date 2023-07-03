@@ -4,14 +4,14 @@ from progressivis.io.csv_sniffer import CSVSniffer
 from progressivis.io import SimpleCSVLoader
 from progressivis.table import PTable
 from progressivis.table.constant import Constant
-from .utils import make_button, get_schema, VBoxSchema, SchemaBase
+from .utils import make_button, get_schema, VBoxTyped, TypedBase
 import os
 
 from typing import List, Optional
 
 
-class CsvLoaderW(VBoxSchema):
-    class Schema(SchemaBase):
+class CsvLoaderW(VBoxTyped):
+    class Typed(TypedBase):
         urls_wg: ipw.Textarea
         to_sniff: ipw.Text
         n_lines: ipw.IntText
