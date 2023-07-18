@@ -156,7 +156,7 @@ class JoinW(VBox):
         if widget_2.output_dtypes is None:
             widget_2.compute_dtypes_then_call(self._btn_ok_cb, args, kw)
             return
-        self.dag.addParent(self.title,  widget_2.title)
+        self.dag.add_parent(self.title,  widget_2.title)
         if self._role_1.value == "primary":
             primary_wg = widget_1
             related_wg = widget_2

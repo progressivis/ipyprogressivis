@@ -59,9 +59,9 @@ def module_choice_hof(psboard: PsBoard) -> Callable[[AnyType], AnyType]:
         if len(psboard.tab.children) < 3:
             assert isinstance(psboard.tab.children, tuple)
             psboard.tab.children += (psboard.current_module,)
-        assert isinstance(psboard.htable.value, dict)
+        print("psboard.htable.value", psboard.htable.value, type(psboard.htable.value))
         assert isinstance(psboard.htable.sensitive_css_class, str)
-        psboard.current_module.module_name = psboard.htable.value[
+        psboard.current_module.module_name = psboard.htable.value[  # type: ignore
             len(psboard.htable.sensitive_css_class) + 1:
         ]
         psboard.current_module.selection_changed = True

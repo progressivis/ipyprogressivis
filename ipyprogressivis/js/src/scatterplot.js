@@ -24,9 +24,10 @@ import {
 
 window.ndarray = ndarray;
 
-export const ScatterplotModel = widgets.DOMWidgetModel.extend(
-  {
-    defaults: _.extend(widgets.DOMWidgetModel.prototype.defaults(), {
+export class ScatterplotModel extends widgets.DOMWidgetModel {
+    defaults() {
+      return {
+        ...super.defaults(),
       _model_name: 'ScatterplotModel',
       _view_name: 'ScatterplotView',
       _model_module: 'jupyter-progressivis',
@@ -40,23 +41,19 @@ export const ScatterplotModel = widgets.DOMWidgetModel.extend(
       move_point: '{0}',
       modal: false,
       to_hide: [],
-    }),
-  },
-  {
-    serializers: _.extend(
-      {
+      }
+    }
+    static serializers = {
+	...widgets.DOMWidgetModel.serializers,
         hists: data_union_serialization,
         samples: data_union_serialization,
-      },
-      widgets.DOMWidgetModel.serializers
-    ),
-  }
-);
+    }
+}
 
 // Custom View. Renders the widget model.
-export const ScatterplotView = widgets.DOMWidgetView.extend({
+export class ScatterplotView extends widgets.DOMWidgetView {
   // Defines how the widget gets rendered into the DOM
-  render: function () {
+  render () {
     this.id = 'view_' + new_id();
     const scatterplot = Scatterplot(this);
     this.scatterplot = scatterplot;
@@ -70,13 +67,13 @@ export const ScatterplotView = widgets.DOMWidgetView.extend({
     // Observe changes in the value traitlet in Python, and define
     // a custom callback.
     this.model.on('change:data', this.data_changed, this);
-  },
-  data_changed: function () {
+  }
+  data_changed () {
     //console.log("data_changed");
     const val = this.model.get('data');
     this.scatterplot.update_vis(JSON.parse(val));
-  },
-});
+  }
+}
 
 
 function Scatterplot(ipyView) {
@@ -104,7 +101,7 @@ function Scatterplot(ipyView) {
   let zoom = d3
     .zoom()
     //.scaleExtent([1, 32])
-    .on('zoom', multiclass2d_zoomed);
+    .on('zoom', multiclass2d_zoomed_handler);
 
   let gX;
   let gY;
@@ -122,17 +119,17 @@ function Scatterplot(ipyView) {
     return s(with_id(id));
   }
 
-  function multiclass2d_dragstart(/* d, i*/) {
-    d3.event.sourceEvent.stopPropagation();
+  function multiclass2d_dragstart(event, d) {
+    event.sourceEvent.stopPropagation();
     d3.select(this).classed('dragging', true);
   }
 
-  function multiclass2d_dragmove(d) {
-    d[0] = xAxis.scale().invert(d3.event.x);
-    d[1] = yAxis.scale().invert(d3.event.y);
+  function multiclass2d_dragmove(event, d) {
+    d[0] = xAxis.scale().invert(event.x);
+    d[1] = yAxis.scale().invert(event.y);
     d3.select(this)
-      .attr('cx', d3.event.x)
-      .attr('cy', d3.event.y);
+      .attr('cx', event.x)
+      .attr('cy', event.y);
   }
 
   function template(element) {
@@ -153,7 +150,7 @@ function Scatterplot(ipyView) {
               <feFuncG type="table" tableValues="0.93 0.001 0"/>
               <feFuncB type="table" tableValues="0.63 0.001 0"/>
             </feComponentTransfer>
-          </filter>          
+          </filter>
         </svg>
         <br/>
         <div class="form-inline">
@@ -171,11 +168,11 @@ function Scatterplot(ipyView) {
           <div class="form-group">
             <a id="config-btn" role="button" class="btn btn-large btn-default">
               Configure ...
-            </a>       
-          </div>          
+            </a>
+          </div>
           <div  id="historyGrp" style="height:80px;">
             <label>History</label>
-            <table border="1"style="width:500px;height:80px;"><tr><td id="prevImages"></td></tr></table>
+            <table class="matable" border="1"style="width:500px;height:80px;"><tr><td id="prevImages"></td></tr></table>
           </div>
           <br/><br/><br/><br/>
         </div>
@@ -219,7 +216,7 @@ function Scatterplot(ipyView) {
     register_config_editor(id);
   }
 
-  function multiclass2d_dragend(d, i) {
+    function multiclass2d_dragend(event, d, i) {
     const msg = {};
     d3.select(this).classed('dragging', false);
     if (collection_in_progress) {
@@ -286,11 +283,10 @@ function Scatterplot(ipyView) {
         });
       });
     }
-    window.render = render;
     render(window.spec, data_);
     elementReady(`#${heatmapContainer} canvas`).then((that) => {
       dataURL = $(that)[0].toDataURL();
-      window.spec.data = {};
+	window.spec.data = {};
       imageHistory.enqueueUnique(dataURL);
       $(`${swith_id('map-legend')}`).empty();
       $(`#${heatmapContainer} svg`)
@@ -372,7 +368,7 @@ function Scatterplot(ipyView) {
           y.domain([bounds.ymin, bounds.ymax]).nice();
           transform = compute_transform(x, y, xAxis.scale(), yAxis.scale());
           svg.__zoom = transform; // HACK
-          multiclass2d_zoomed(transform);
+          multiclass2d_zoomed_impl(transform);
         }
 
         const ix = x(bounds.xmin);
@@ -397,14 +393,14 @@ function Scatterplot(ipyView) {
       const prevImgElements = d3
         .select(swith_id('prevImages'))
         .selectAll('img')
-        .data(imageHistory.getItems(), (d) => d);
+            .data(imageHistory.getItems(), (d) => d);
 
       prevImgElements
         .enter()
         .append('img')
         .attr('width', 50)
         .attr('height', 50)
-        .on('mouseover', (d) => {
+            .on('mouseover', (evt, d) => {
           d3.select(`${swith_id('Scatterplot')} .heatmapCompare`)
             .attr('xlink:href', d)
             .attr('visibility', 'inherit');
@@ -450,16 +446,25 @@ function Scatterplot(ipyView) {
       dots.order();
     }); //end elementReady
   }
-
-  function multiclass2d_zoomed(t) {
-    if (t === undefined) t = d3.event.transform;
+/*
+    function multiclass2d_zoomed(event, t) {
+    if (t === undefined) t = event.transform;
     transform = t;
     gX.call(xAxis.scale(transform.rescaleX(x)));
     gY.call(yAxis.scale(transform.rescaleY(y)));
     zoomable.attr('transform', transform);
     svg.selectAll('.dot').attr('r', 3.5 / transform.k);
   }
-
+*/
+    function multiclass2d_zoomed_impl(transform) {
+	gX.call(xAxis.scale(transform.rescaleX(x)));
+	gY.call(yAxis.scale(transform.rescaleY(y)));
+	zoomable.attr('transform', transform);
+	svg.selectAll('.dot').attr('r', 3.5 / transform.k);
+    }
+    function multiclass2d_zoomed_handler(event, d) {
+	multiclass2d_zoomed_impl(event.transform)
+    }
   function delta(d) {
     return d[1] - d[0];
   }
@@ -496,7 +501,6 @@ function Scatterplot(ipyView) {
   //     ipyView.touch();
   // }
   function multiclass2d_filter() {
-    console.log('call multiclass2d_filter');
     const xscale = xAxis.scale();
     const xmin = xscale.invert(0);
     const xmax = xscale.invert(width);

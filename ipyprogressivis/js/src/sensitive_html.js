@@ -5,8 +5,10 @@ import { elementReady } from './es6-element-ready';
 import { new_id } from './base';
 require('sorttable');
 
-export const SensitiveHTMLModel = widgets.DOMWidgetModel.extend({
-  defaults: _.extend(widgets.DOMWidgetModel.prototype.defaults(), {
+export class SensitiveHTMLModel extends widgets.DOMWidgetModel {
+    defaults() {
+      return {
+        ...super.defaults(),
     _model_name: 'SensitiveHTMLModel',
     _view_name: 'SensitiveHTMLView',
     _model_module: 'jupyter-progressivis',
@@ -17,22 +19,23 @@ export const SensitiveHTMLModel = widgets.DOMWidgetModel.extend({
     value: '{0}',
     data: '{}',
     sensitive_css_class: 'aCssClass',
-  }),
-});
+      };
+    }
+}
 
 // Custom View. Renders the widget model.
-export const SensitiveHTMLView = widgets.DOMWidgetView.extend({
+export class SensitiveHTMLView extends widgets.DOMWidgetView {
   // Defines how the widget gets rendered into the DOM
-  render: function () {
+  render () {
     this.id = `sensitive_${new_id()}`;
     this.html_changed();
     // Observe changes in the value traitlet in Python, and define
     // a custom callback.
     this.model.on('change:html', this.html_changed, this);
     this.model.on('change:data', this.data_changed, this);
-  },
+  }
 
-  html_changed: function () {
+  html_changed () {
     this.el.innerHTML = this.model.get('html');
     const tables = $("table", this.el);
     if (tables.length != 0) {
@@ -49,16 +52,16 @@ export const SensitiveHTMLView = widgets.DOMWidgetView.extend({
         sorttable.makeSortable(that.table);
       }
     });
-  },
+  }
 
-  data_changed: function () {
+  data_changed () {
     let that = this;
     let sensitive_class = this.model.get('sensitive_css_class');
     elementReady(`#${that.id} .${sensitive_class}`).then(() =>
       that.update_data()
     );
-  },
-  update_cb: function() {
+  }
+  update_cb () {
     let cssCls = this.model.get('sensitive_css_class');
     const that = this;
     $(`#${this.id} .${cssCls}`)
@@ -68,12 +71,12 @@ export const SensitiveHTMLView = widgets.DOMWidgetView.extend({
         that.model.set('value', this.id);
         that.touch();
       });
-  },
-  update_data: function() {
+  }
+  update_data() {
     let data = this.model.get('data');
     let k = null;
     for (k in data) {
       $('#' + k).html(data[k]);
     }
   }
-});
+}

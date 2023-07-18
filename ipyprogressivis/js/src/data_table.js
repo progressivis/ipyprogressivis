@@ -7,34 +7,40 @@ import { new_id } from './base';
 
 import 'datatables/media/css/jquery.dataTables.css';
 
-export const DataTableModel = widgets.DOMWidgetModel.extend({
-  defaults: _.extend(widgets.DOMWidgetModel.prototype.defaults(), {
-    _model_name: 'DataTableModel',
-    _view_name: 'DataTableView',
-    _model_module: 'jupyter-progressivis',
-    _view_module: 'jupyter-progressivis',
-    _model_module_version: '0.1.0',
-    _view_module_version: '0.1.0',
-    columns: '[a, b, c]',
-    data: 'Hello DataTable!',
-    page: '{0}',
-    dt_id: 'aDtId',
-  }),
-});
+
+export class DataTableModel extends widgets.DOMWidgetModel {
+    defaults() {
+      return {
+        ...super.defaults(),
+        _model_name : 'DataTableModel',
+        _view_name : 'DataTableView',
+        _model_module : 'jupyter-progressivis',
+        _view_module : 'jupyter-progressivis',
+        _model_module_version : '0.1.0',
+        _view_module_version : '0.1.0',
+	columns: '[a, b, c]',
+        data: 'Hello DataTable!',
+        page: '{0}',
+        dt_id: 'aDtId',
+
+      };
+    }
+  }
 
 // Custom View. Renders the widget model.
-export const DataTableView = widgets.DOMWidgetView.extend({
+
+export class DataTableView extends widgets.DOMWidgetView {
   // Defines how the widget gets rendered into the DOM
-  render: function () {
+  render () {
     this.id = 'datatable_' + this.model.get('dt_id') + new_id();
     this.data_table = null;
     this.data_changed();
     // Observe changes in the value traitlet in Python, and define
     // a custom callback.
     this.model.on('change:data', this.data_changed, this);
-  },
+  }
 
-  data_changed: function () {
+  data_changed () {
     //const dt_id = this.model.get('dt_id');
     const dt_id = this.id;
     if (document.getElementById(this.id) == null) {
@@ -42,8 +48,8 @@ export const DataTableView = widgets.DOMWidgetView.extend({
     }
     let that = this;
     elementReady('#' + this.id).then(() => update_table(that, dt_id));
-  },
-});
+  }
+}
 
 
 function change_page(wobj) {

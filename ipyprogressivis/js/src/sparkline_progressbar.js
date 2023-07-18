@@ -8,8 +8,10 @@ import 'jquery-sparkline';
 
 import '../css/sparkline-progressbar.css';
 
-export const SparkLineProgressBarModel = widgets.DOMWidgetModel.extend({
-  defaults: _.extend(widgets.DOMWidgetModel.prototype.defaults(), {
+export class SparkLineProgressBarModel extends widgets.DOMWidgetModel {
+    defaults() {
+      return {
+        ...super.defaults(),
     _model_name: 'SparkLineProgressBarModel',
     _view_name: 'SparkLineProgressBarView',
     _model_module: 'jupyter-progressivis',
@@ -17,13 +19,14 @@ export const SparkLineProgressBarModel = widgets.DOMWidgetModel.extend({
     _model_module_version: '0.1.0',
     _view_module_version: '0.1.0',
     data: '{}',
-  }),
-});
+      };
+    }
+}
 
 // Custom View. Renders the widget model.
-export const SparkLineProgressBarView = widgets.DOMWidgetView.extend({
+export class SparkLineProgressBarView extends widgets.DOMWidgetView {
   // Defines how the widget gets rendered into the DOM
-  render: function () {
+  render () {
     this.id = 'sparklink-bp_' + new_id();
     this.el.innerHTML = `<div style="width: 100%;"><div class="slpb-bg">
 <span id='${this.id}' class="slpb-fill" style="width: 70%;"></span>
@@ -32,16 +35,18 @@ export const SparkLineProgressBarView = widgets.DOMWidgetView.extend({
     // Observe changes in the value traitlet in Python, and define
     // a custom callback.
     this.model.on('change:data', this.data_changed, this);
-  },
-  data_changed: function () {
+  }
+  data_changed () {
     const that = this;
     elementReady('#' + that.id).then(() => update_slpb(that));
-  },
-});
+  }
+}
 
 
-export const PlottingProgressBarModel = widgets.DOMWidgetModel.extend({
-  defaults: _.extend(widgets.DOMWidgetModel.prototype.defaults(), {
+export class PlottingProgressBarModel extends widgets.DOMWidgetModel {
+    defaults() {
+      return {
+        ...super.defaults(),
     _model_name: 'PlottingProgressBarModel',
     _view_name: 'PlottingProgressBarView',
     _model_module: 'jupyter-progressivis',
@@ -49,13 +54,14 @@ export const PlottingProgressBarModel = widgets.DOMWidgetModel.extend({
     _model_module_version: '0.1.0',
     _view_module_version: '0.1.0',
     data: '{}',
-  }),
-});
+      };
+    }
+}
 
 // Custom View. Renders the widget model.
-export const PlottingProgressBarView = widgets.DOMWidgetView.extend({
+export class PlottingProgressBarView extends widgets.DOMWidgetView {
   // Defines how the widget gets rendered into the DOM
-  render: function () {
+  render () {
     this.id = 'plotting-pb' + new_id();
     this.el.innerHTML = `<div style="width: 100%;">
          <div class="slpb-bg">
@@ -66,13 +72,13 @@ export const PlottingProgressBarView = widgets.DOMWidgetView.extend({
     // Observe changes in the value traitlet in Python, and define
     // a custom callback.
     this.model.on('change:data', this.data_changed, this);
-  },
+  }
 
-  data_changed: function () {
+  data_changed () {
     let that = this;
     elementReady('#' + that.id).then(() => update_slpb(that));
-  },
-});
+  }
+}
 
 
 function update_slpb(view_) {

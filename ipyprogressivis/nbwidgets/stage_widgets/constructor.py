@@ -4,7 +4,7 @@ from progressivis.io import DynVar
 from progressivis.core import Sink, aio
 from .utils import (
     make_button,
-    get_dag,
+    set_dag,
     _Dag,
     DAGWidget,
     RootVBox,
@@ -30,8 +30,7 @@ async def _wake_up(sc: Scheduler, sec: float) -> None:
         await sc.wake_up()
 
 
-def init_dataflow() -> AnyType:
-    s = Scheduler.default = Scheduler()
+def init_dataflow(s: Scheduler) -> AnyType:
     with s:
         dyn = DynVar(scheduler=s)
         sink = Sink(scheduler=s)
@@ -47,23 +46,24 @@ class Constructor(RootVBox, TypedBox):
         start_btn: ipw.Button
         csv: Optional[ipw.HBox]
         parquet: Optional[ipw.HBox]
-        dag: DAGWidget
 
     last_created = None
 
     def __init__(
-        self,
-        urls: List[str] = [],
-        *,
-        name: str = "root",
-        to_sniff: Optional[str] = None,
+            self,
+            dag: DAGWidget,
+            urls: List[str] = [],
+            *,
+            name: str = "root",
+            to_sniff: Optional[str] = None,
     ) -> None:
+        set_dag(dag)
         ctx = dict(
             parent=None,
             dtypes=None,
             input_module=None,
             input_slot=None,
-            dag=_Dag(label=name, number=0, dag=get_dag()),
+            dag=_Dag(label=name, number=0, dag=dag),
         )
         RootVBox.__init__(self, ctx)
         TypedBox.__init__(self)
@@ -71,17 +71,18 @@ class Constructor(RootVBox, TypedBox):
             "Start scheduler ...", cb=self._start_scheduler_cb
         )
         self.child.h2 = ipw.HTML(f"<h2 id='{self.dom_id}'>{name}</h2>")
-        self.child.dag = self.dag
+        s = Scheduler.default = Scheduler()
+        self.scheduler = s
 
     def _start_scheduler_cb(self, btn: ipw.Button) -> None:
-        init_module = init_dataflow()
+        init_module = init_dataflow(self.scheduler)
         self._output_module = init_module
         self._output_slot = "result"
         self._output_dtypes = {}
         self.child.csv = self.make_loader_box(ftype="csv")
         self.child.parquet = self.make_loader_box(ftype="parquet")
         btn.disabled = True
-        self.dag.registerWidget(self, "root", "root", self.dom_id, [])
+        self.dag.register_widget(self, "root", "root", self.dom_id, [])
 
     @staticmethod
     def widget_by_id(key: int) -> NodeVBox:

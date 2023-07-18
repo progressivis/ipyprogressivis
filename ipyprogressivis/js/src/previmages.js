@@ -13,10 +13,12 @@ const DEFAULT_SIGMA = 0;
 const DEFAULT_FILTER = 'default';
 const MAX_PREV_IMAGES = 3;
 
-export const PrevImagesModel = widgets.DOMWidgetModel.extend({
-  defaults: _.extend(widgets.DOMWidgetModel.prototype.defaults(), {
-    _model_name: 'PrevImagesModel',
-    _view_name: 'PrevImagesView',
+export class PrevImagesModel extends widgets.DOMWidgetModel {
+    defaults() {
+      return {
+        ...super.defaults(),
+	_model_name: 'PrevImagesModel',
+	  _view_name: 'PrevImagesView',
     _model_module: 'jupyter-progressivis',
     _view_module: 'jupyter-progressivis',
     _model_module_version: '0.1.0',
@@ -24,13 +26,14 @@ export const PrevImagesModel = widgets.DOMWidgetModel.extend({
     hists: ndarray([]),
     samples: ndarray([]),
     target: '',
-  }),
-});
+      };
+    }
+  }
 
 // Custom View. Renders the widget model.
-export const PrevImagesView = widgets.DOMWidgetView.extend({
+export class PrevImagesView extends widgets.DOMWidgetView {
   // Defines how the widget gets rendered into the DOM
-  render: function () {
+  render () {
     this.id = 'view_' + new_id();
     const previmgs = PrevImages(this);
     this.previmgs = previmgs;
@@ -39,15 +42,14 @@ export const PrevImagesView = widgets.DOMWidgetView.extend({
     elementReady('#' + previmgs.with_id('prevImages')).then(() =>
       previmgs.ready(that.model.get('target'))
     );
-    this.model.on('msg:custom', this.data_changed, this);
-  },
-  data_changed: function () {
-    console.log('data_changed');
+      this.model.on('msg:custom', this.data_changed, this);
+      console.log("target", this.model.get('target'));
+  }
+  data_changed () {
     const target = this.model.get('target');
-    console.log(target);
     this.previmgs.update_vis(target);
-  },
-});
+  }
+}
 
 function PrevImages(ipyView) {
   const id = ipyView.id;
@@ -148,7 +150,7 @@ function PrevImages(ipyView) {
         .append('img')
         .attr('width', 50)
         .attr('height', 50)
-        .on('mouseover', (d) => {
+            .on('mouseover', (event, d) => {
           d3.select(`${svgQry} .heatmapCompare`)
             .attr('xlink:href', d)
             .attr('visibility', 'inherit');
@@ -192,7 +194,7 @@ function PrevImages(ipyView) {
   }
 
   function _createSvg(w, h) {
-    console.log('bounds', bounds);
+    console.log('bounds [w, h]', w, h);
     svg = d3
       .select(swith_id('PrevImages') + ' svg')
       .attr('width', w)

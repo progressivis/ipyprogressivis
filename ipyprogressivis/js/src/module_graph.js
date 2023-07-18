@@ -11,8 +11,10 @@ import '../css/module-graph.css';
 
 // When serialiazing the entire widget state for embedding, only values that
 // differ from the defaults will be specified.
-export const ModuleGraphModel = widgets.DOMWidgetModel.extend({
-  defaults: _.extend(widgets.DOMWidgetModel.prototype.defaults(), {
+export class ModuleGraphModel extends widgets.DOMWidgetModel {
+    defaults() {
+      return {
+        ...super.defaults(),
     _model_name: 'ModuleGraphModel',
     _view_name: 'ModuleGraphView',
     _model_module: 'jupyter-progressivis',
@@ -20,14 +22,15 @@ export const ModuleGraphModel = widgets.DOMWidgetModel.extend({
     _model_module_version: '0.1.0',
     _view_module_version: '0.1.0',
     data: 'Hello ModuleGraph!',
-  }),
-});
+      };
+    }
+}
 
 
 // Custom View. Renders the widget model.
-export const ModuleGraphView = widgets.DOMWidgetView.extend({
+export class ModuleGraphView extends widgets.DOMWidgetView {
   // Defines how the widget gets rendered into the DOM
-  render: function () {
+  render () {
     this.id = 'module_graph_' + new_id();
     this.module_graph = module_graph(this);
     this.el.innerHTML = `<svg id="${this.id}" width="960" height="500"></svg>`;
@@ -39,16 +42,16 @@ export const ModuleGraphView = widgets.DOMWidgetView.extend({
     console.log('Render ModuleGraphView');
     // Observe changes in the value traitlet in Python, and define
     // a custom callback.
-    this.model.on('change:data', this.data_changed, this);
-  },
+      this.model.on('change:data', this.data_changed, this);
+  }
 
-  data_changed: function () {
+  data_changed () {
     console.log('Data changed ModuleGraphView');
     let val = this.model.get('data');
     if (val == '{}') return;
     this.module_graph.update_vis(JSON.parse(val));
-  },
-});
+  }
+}
 
 function eqSet(as, bs) {
     if (as.size !== bs.size) return false;
@@ -96,8 +99,8 @@ function module_graph(view) {
       .attr('stroke-width', '0px')
       .attr('fill', '#000');
 
-    function zoom() {
-      vis.attr('transform', d3.event.transform);
+      function zoom(event, d) {
+      vis.attr('transform', event.transform);
     }
   }
 

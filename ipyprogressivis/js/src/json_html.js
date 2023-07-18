@@ -6,8 +6,10 @@ import _ from 'lodash';
 import { new_id } from './base';
 import { elementReady } from './es6-element-ready';
 
-export const JsonHTMLModel = widgets.DOMWidgetModel.extend({
-  defaults: _.extend(widgets.DOMWidgetModel.prototype.defaults(), {
+export class JsonHTMLModel extends widgets.DOMWidgetModel {
+    defaults() {
+      return {
+        ...super.defaults(),
     _model_name: 'JsonHTMLModel',
     _view_name: 'JsonHTMLView',
     _model_module: 'jupyter-progressivis',
@@ -16,13 +18,14 @@ export const JsonHTMLModel = widgets.DOMWidgetModel.extend({
     _view_module_version: '0.1.0',
     data: '{}',
     config: '{}',
-  }),
-});
+      };
+    }
+}
 
 // Custom View. Renders the widget model.
-export const JsonHTMLView = widgets.DOMWidgetView.extend({
+export class JsonHTMLView extends widgets.DOMWidgetView {
   // Defines how the widget gets rendered into the DOM
-  render: function () {
+  render () {
     this.id = `json_html_${new_id()}`;
     this.el.innerHTML = "<div id='" + this.id + "'></div>";
     this.data_changed();
@@ -30,13 +33,13 @@ export const JsonHTMLView = widgets.DOMWidgetView.extend({
     // a custom callback.
     this.model.on('change:config', this.data_changed, this);
     this.model.on('change:data', this.data_changed, this);
-  },
+  }
 
-  data_changed: function () {
+  data_changed () {
     const that = this;
     elementReady(`#${this.id}`).then(() => layout_dict_entry(that));
-  },
-});
+  }
+}
 
 
 function layout_dict_entry(view_) {
@@ -82,6 +85,7 @@ function layout_dict_entry(view_) {
   function sparkline_disp(v, k) {
     const SIZE = 15;
     let last = v[v.length - 1];
+    if (last === undefined) return '';
     last = last.toFixed(0);
     last = last + '&nbsp;'.repeat(SIZE - last.length);
     return `<table>

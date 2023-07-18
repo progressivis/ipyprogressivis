@@ -1,6 +1,6 @@
 import ipywidgets as ipw
 import pandas as pd
-from progressivis.io.csv_sniffer import CSVSniffer
+from ..csv_sniffer import CSVSniffer
 from progressivis.io import SimpleCSVLoader
 from progressivis.table import PTable
 from progressivis.table.constant import Constant

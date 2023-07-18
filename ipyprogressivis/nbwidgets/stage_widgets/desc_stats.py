@@ -853,7 +853,7 @@ class DescStatsW(VBox):
 
     def init(self) -> None:
         self._dyn_viewer = DynViewer(self.dtypes, self.input_module, self.input_slot)
-        self.dag.requestAttention(self.title, "widget", "PROGRESS_NOTIFICATION", "0")
+        self.dag.request_attention(self.title, "widget", "PROGRESS_NOTIFICATION", "0")
         self.children = (self._dyn_viewer,)
 
     def get_underlying_modules(self) -> List[str]:

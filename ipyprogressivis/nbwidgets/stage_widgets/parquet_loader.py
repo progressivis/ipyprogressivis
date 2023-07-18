@@ -108,7 +108,7 @@ class ParquetLoaderW(VBoxTyped):
         self.output_dtypes = self.child.sniffer.get_dtypes()
         self.make_chaining_box()
         btn.disabled = True
-        self.dag.requestAttention(self.title, "widget", "PROGRESS_NOTIFICATION", "")
+        self.dag.request_attention(self.title, "widget", "PROGRESS_NOTIFICATION", "")
 
     def init_modules(self) -> ParquetLoader:
         sink = self.input_module
@@ -127,16 +127,16 @@ class ParquetLoaderW(VBoxTyped):
                     + 1,
                     100,
                 )
-                self.dag.updateSummary(self.title, {"progress": pc})
+                self.dag.update_summary(self.title, {"progress": pc})
                 if pc < 100:
-                    self.dag.requestAttention(
+                    self.dag.request_attention(
                         self.title, "widget", "PROGRESS_NOTIFICATION", len(m.result)
                     )
                 else:
-                    self.dag.removeRequestAttention(
+                    self.dag.remove_request_attention(
                         self.title, "widget", "PROGRESS_NOTIFICATION"
                     )
-                    self.dag.requestAttention(self.title, "widget", "STABILITY_REACHED")
+                    self.dag.request_attention(self.title, "widget", "STABILITY_REACHED")
 
             pql.on_after_run(_f)
         return pql
