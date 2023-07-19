@@ -27,7 +27,7 @@
     "build:cp": "cp src/*.js lib",
     "build:babel": "babel src/*.jsx --out-dir lib",
     "build": "rm -rf lib/*.js && yarn run build:cp && yarn run build:babel && webpack --mode=development && yarn run build:labextension:dev",
-    "build:prod": "webpack --mode=production && yarn run build:labextension",
+    "build:prod": "rm -rf lib/*.js && yarn run build:cp && yarn run build:babel && webpack --mode=production && yarn run build:labextension:dev",
     "build:labextension": "jupyter labextension build .",
     "build:labextension:dev": "jupyter labextension build --development True .",
     "watch": "webpack --watch --mode=development",
