@@ -8,7 +8,7 @@ from progressivis.core import Module
 from progressivis.core.utils import normalize_columns
 from ..csv_sniffer import CSVSniffer
 from collections import defaultdict
-import ipydagwidget  # type: ignore
+from .. import DagWidgetController  # type: ignore
 from typing import (
     Any,
     Union,
@@ -26,7 +26,7 @@ from typing import (
 from typing_extensions import TypeAlias  # python 3.9
 
 Sniffer = CSVSniffer
-DAGWidget: TypeAlias = ipydagwidget.DagWidgetController
+DAGWidget: TypeAlias = DagWidgetController
 
 
 PARAMS: Dict[str, str] = {}
