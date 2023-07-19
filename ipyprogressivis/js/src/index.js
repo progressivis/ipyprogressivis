@@ -10,7 +10,7 @@ import { JsonHTMLModel, JsonHTMLView } from './json_html';
 import { SparkLineProgressBarModel, SparkLineProgressBarView,
          PlottingProgressBarModel, PlottingProgressBarView,
        } from './sparkline_progressbar';
-
+import {DagWidgetModel, DagWidgetView} from './dag_widget';
 export {
   register_config_editor,
   ScatterplotModel, ScatterplotView,
@@ -21,4 +21,5 @@ export {
   PlottingProgressBarModel, PlottingProgressBarView,
   DataTableModel, DataTableView,
   SensitiveHTMLModel, SensitiveHTMLView,
+  DagWidgetModel, DagWidgetView,
 };
