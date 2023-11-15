@@ -45,22 +45,31 @@ class CsvLoaderW(VBoxTyped):
         self.c_.sniff_btn = make_button("Sniff ...", cb=self._sniffer_cb)
 
     def _sniffer_cb(self, btn: ipw.Button) -> None:
-        urls = self.c_.urls_wg.value.strip().split("\n")
-        assert urls
-        self._urls = urls
-        to_sniff = self.c_.to_sniff.value.strip()
-        if not to_sniff:
-            to_sniff = urls[0]
-        n_lines = self.c_.n_lines.value
-        self._sniffer = CSVSniffer(path=to_sniff, lines=n_lines)
-        self.c_.sniffer = self._sniffer.box
-        self.c_.start_btn = make_button(
-            "Start loading csv ...", cb=self._start_loader_cb
-        )
-        btn.disabled = True
-        self.c_.urls_wg.disabled = True
-        self.c_.to_sniff.disabled = True
-        self.c_.n_lines.disabled = True
+        if btn.description.startswith("Sniff"):
+            urls = self.c_.urls_wg.value.strip().split("\n")
+            assert urls
+            self._urls = urls
+            to_sniff = self.c_.to_sniff.value.strip()
+            if not to_sniff:
+                to_sniff = urls[0]
+            n_lines = self.c_.n_lines.value
+            self._sniffer = CSVSniffer(path=to_sniff, lines=n_lines)
+            self.c_.sniffer = self._sniffer.box
+            self.c_.start_btn = make_button(
+                "Start loading csv ...", cb=self._start_loader_cb
+            )
+            self.c_.urls_wg.disabled = True
+            self.c_.to_sniff.disabled = True
+            self.c_.n_lines.disabled = True
+            btn.description = "Hide sniffer"
+        elif btn.description.startswith("Hide"):
+            self.c_.sniffer = None
+            btn.description = "Show sniffer"
+        else:
+            assert btn.description.startswith("Show")
+            assert self._sniffer
+            self.c_.sniffer = self._sniffer.box
+            btn.description = "Hide sniffer"
 
     def _start_loader_cb(self, btn: ipw.Button) -> None:
         csv_module = self.init_modules()

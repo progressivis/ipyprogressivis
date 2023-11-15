@@ -17,7 +17,7 @@ from ipywidgets import widgets  # type: ignore
 
 # from traitlets import HasTraits, observe, Instance
 
-from typing import Dict, Any, List, Optional, cast
+from typing import Dict, Any, Union, List, Optional, cast
 
 logger = logging.getLogger(__name__)
 
@@ -399,6 +399,7 @@ class CSVSniffer:
 
     def dataframe_to_columns(self) -> None:
         df = self._df
+        col: Union[pd.Series[Any], PColumnInfo]
         if df is None:
             self.columns.options = []
             self.columns.disabled = True
@@ -415,7 +416,7 @@ class CSVSniffer:
                 del self.column[column]
         self.columns.options = list(df.columns)
         self.columns.disabled = False
-        self.show_column(df.columns[0])  # type: ignore
+        self.show_column(df.columns[0])
 
     def show_column(self, column: str) -> None:
         if column not in self.column:

@@ -1,5 +1,6 @@
 from weakref import ref, ReferenceType
 import numpy as np
+import logging
 import ipywidgets as ipw
 from progressivis.table.dshape import dataframe_dshape
 from progressivis.vis import DataShape
@@ -28,6 +29,7 @@ from typing_extensions import TypeAlias  # python 3.9
 Sniffer = CSVSniffer
 DAGWidget: TypeAlias = DagWidgetController
 
+logger = logging.getLogger(__name__)
 
 PARAMS: Dict[str, str] = {}
 
@@ -110,9 +112,11 @@ class HandyTab(ipw.Tab):
         for i, t in enumerate(titles_):
             self.set_title(i, t)
 
-    def get_selected_title(self) -> str:
-        if self.selected_index is None:
+    def get_selected_title(self) -> Optional[str]:
+        if self.selected_index is None or self.selected_index >= len(self.titles):
+            # logger.warning("no selected title")
             return None
+        # logger.warning(f"selected title {self.selected_index} {self.titles}")
         return self.get_title(self.selected_index)
 
     def get_selected_child(self) -> ipw.DOMWidget:

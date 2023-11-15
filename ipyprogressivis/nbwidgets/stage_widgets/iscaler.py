@@ -3,7 +3,7 @@ import ipywidgets as ipw
 import weakref
 import pandas as pd
 from progressivis.core import asynchronize, aio, Sink
-from progressivis.io import DynVar
+from progressivis.io import Variable
 from progressivis.stats.scaling import MinMaxScaler
 from typing import Any, Dict, List, Callable, cast
 from .utils import make_button, stage_register, VBoxTyped, TypedBase
@@ -309,7 +309,7 @@ class ScalerW(VBoxTyped):
         s = self.input_module.scheduler()
         with s:
             inp = self.child.inp
-            dvar = DynVar(
+            dvar = Variable(
                 {"delta": inp.delta, "ignore_max": inp.ignore_max}, scheduler=s
             )
             sc = MinMaxScaler(reset_threshold=10_000, usecols=inp.selm)

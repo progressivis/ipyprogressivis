@@ -2,13 +2,14 @@ from functools import singledispatch
 from collections.abc import Iterable
 from itertools import product
 from functools import wraps
+import logging
 import ipywidgets as ipw
 import numpy as np
 import pandas as pd
 from progressivis.core import asynchronize, aio, Sink, Scheduler
 from progressivis.utils import PDict
 from progressivis.core import Module
-from progressivis.io import DynVar
+from progressivis.io import Variable
 from progressivis.stats import (
     KLLSketch,
     Corr,
@@ -31,6 +32,7 @@ from ..utils import historized_widget, HistorizedBox
 
 from typing import (
     Any as AnyType,
+    Sequence,
     cast,
     Optional,
     Dict,
@@ -54,6 +56,8 @@ GENERAL_SET_TAB_TITLE = "General"
 HEATMAPS_SET_TAB_TITLE = "Heatmaps"
 SIMPLE_RESULTS_TAB_TITLE = "Simple results"
 # https://stackoverflow.com/questions/56949504/how-to-lazify-output-in-tabbed-layout-in-jupyter-notebook
+
+logger = logging.getLogger(__name__)
 
 
 def bins_range_slider(desc: str, binning: int) -> ipw.IntRangeSlider:
@@ -85,7 +89,7 @@ def narrow_label(text: str, w: int = 70) -> ipw.Button:
 
 
 def make_observer(
-    hname: str, sk_mod: KLLSketch, lower_mod: DynVar, upper_mod: DynVar
+    hname: str, sk_mod: KLLSketch, lower_mod: Variable, upper_mod: Variable
 ) -> Callable[[AnyType], None]:
     def _observe_range(val: AnyType) -> None:
         async def _coro(v: AnyType) -> None:
@@ -109,8 +113,8 @@ def make_observer(
 
 
 def corr_as_vega_dataset(
-    mod: Corr, columns: Optional[List[str]] = None
-) -> List[Dict[str, AnyType]]:
+    mod: Corr, columns: Optional[Sequence[str]] = None
+) -> Sequence[Dict[str, AnyType]]:
     """ """
     if columns is None:
         columns = mod.columns
@@ -308,6 +312,8 @@ def get_flag_status(dt: str, op: str) -> bool:
 def make_tab_observer(tab: "TreeTab", sched: Scheduler) -> Callable[..., None]:
     def _tab_observer(wg: AnyType) -> None:
         key = tab.get_selected_title()
+        if key is None:
+            return
         sched._module_selection = tab.mod_dict.get(key)
 
     return _tab_observer
@@ -318,9 +324,13 @@ def make_tab_observer_2l(tab: "DynViewer", sched: Scheduler) -> Callable[..., No
         subtab = tab.get_selected_child()
         if isinstance(subtab, TreeTab):
             key = subtab.get_selected_title()
+            if key is None:
+                return
             sched._module_selection = subtab.mod_dict.get(key)
         else:
             key = tab.get_selected_title()
+            if key is None:
+                return
             sched._module_selection = tab.mod_dict.get(key)
 
     return _tab_observer
@@ -340,6 +350,7 @@ class DynViewer(TreeTab):
         input_module: Module,
         input_slot: str = "result",
     ):
+        super().__init__(upper=None, known_as="")
         self._dtypes = dtypes
         self._input_module = input_module
         self._input_slot = input_slot
@@ -362,7 +373,6 @@ class DynViewer(TreeTab):
         self._h2d_tab: Optional[TreeTab] = None
         self._h2d_sel: Set[AnyType] = set()
         self._corr_sel: List[str] = []
-        input_module.scheduler().on_tick(DynViewer.refresh_info(self))
         self._registry_mod = self.init_factory(input_module, input_slot)
         self.all_functions = {
             dec: _get_func_name(dec) for dec in self._registry_mod.func_dict.keys()
@@ -377,10 +387,10 @@ class DynViewer(TreeTab):
         self.updated_once = False
         self._selection_event = True
         self._registry_mod.scheduler().on_change(self.set_selection_event())
-        super().__init__(upper=None, known_as="", children=[])
         self.observe(
             make_tab_observer_2l(self, self.get_scheduler()), names="selected_index"
         )
+        input_module.scheduler().on_tick(DynViewer.refresh_info(self))
 
     def init_factory(self, input_module: Module, input_slot: str) -> StatsFactory:
         s = input_module.scheduler()
@@ -692,7 +702,7 @@ class DynViewer(TreeTab):
                     h2d_mod = mod_h2d_matrix.loc[ci, cj]
                     assert h2d_mod
                     title = f"{ci}/{cj}"
-                    self.set_h2d_widget(title, h2d_mod)
+                    self.set_h2d_widget(title, h2d_mod)  # type: ignore
                 self._h2d_sel = h2d_sel
         else:
             self.remove_tab(HIST2D_TAB_TITLE)
@@ -713,7 +723,7 @@ class DynViewer(TreeTab):
                 corr_mod.on_after_run(
                     refresh_info_corr(corr_out, corr_mod, CORR_MX_TAB_TITLE, self)
                 )
-
+                assert isinstance(corr_sel, list)
                 self._corr_sel = corr_sel.copy()
                 self.mod_dict[CORR_MX_TAB_TITLE] = selection
         else:

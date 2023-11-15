@@ -1,6 +1,6 @@
 import ipywidgets as ipw
 from progressivis import Scheduler
-from progressivis.io import DynVar
+from progressivis.io import Variable
 from progressivis.core import Sink, aio
 from .utils import (
     make_button,
@@ -32,7 +32,7 @@ async def _wake_up(sc: Scheduler, sec: float) -> None:
 
 def init_dataflow(s: Scheduler) -> AnyType:
     with s:
-        dyn = DynVar(scheduler=s)
+        dyn = Variable(scheduler=s)
         sink = Sink(scheduler=s)
         sink.input.inp = dyn.output.result
     s.task_start()
