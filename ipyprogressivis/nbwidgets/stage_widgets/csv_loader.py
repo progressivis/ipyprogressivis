@@ -164,6 +164,7 @@ class CsvLoaderW(VBoxTyped):
             urls = list(self.c_.bookmarks.value) + self.c_.urls_wg.value.strip().split(
                 "\n"
             )
+            urls = [elt for elt in urls if elt]
             assert urls
             self._urls = urls
             to_sniff = self.c_.to_sniff.value.strip()
