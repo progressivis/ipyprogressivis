@@ -6,18 +6,58 @@ from progressivis.table import PTable
 from progressivis.table.constant import Constant
 from .utils import make_button, get_schema, VBoxTyped, TypedBase
 import os
+import time
+import json as js
+import operator as op
 
-from typing import List, Optional
+from typing import List, Optional, Any, Dict, Callable, cast
+
+
+def clean_nodefault(d: Dict[str, Any]) -> Dict[str, Any]:
+    return {k: v for (k, v) in d.items() if type(v).__name__ != "_NoDefault"}
+
+
+def make_filter(filter_dict: Dict[str, List[Any]]) -> Callable[[pd.DataFrame], pd.DataFrame]:
+    operators = dict(
+        [
+            (">", op.gt),
+            ("<", op.lt),
+            (">=", op.ge),
+            ("<=", op.le),
+            ("==", op.eq),
+            ("!=", op.ne),
+        ]
+    )
+
+    def filter_(df: pd.DataFrame) -> pd.DataFrame:
+        res = None
+        for col, pairs in filter_dict.items():
+            for symb, cnst in pairs:
+                res_ = operators[symb](df[col], cnst)
+                res = res_ if res is None else op.and_(res, res_)
+        assert res is not None
+        return cast(pd.DataFrame, df[res])
+
+    return filter_
+
+
+def test_filter(df: pd.DataFrame) -> pd.DataFrame:
+    pklon = df["pickup_longitude"]
+    pklat = df["pickup_latitude"]
+    return df[(pklon > -74.08) & (pklon < -73.5) & (pklat > 40.55) & (pklat < 41.00)]
 
 
 class CsvLoaderW(VBoxTyped):
     class Typed(TypedBase):
-        urls_wg: ipw.Textarea
+        reuse_ck: ipw.Checkbox
+        bookmarks: ipw.SelectMultiple
+        urls_wg: ipw.Textarea | ipw.Button
         to_sniff: ipw.Text
         n_lines: ipw.IntText
+        throttle: ipw.IntText
         sniff_btn: ipw.Button
         sniffer: Optional[CSVSniffer]
-        start_btn: Optional[ipw.Button]
+        start_save: Optional[ipw.HBox]
 
     def __init__(self) -> None:
         super().__init__()
@@ -25,28 +65,105 @@ class CsvLoaderW(VBoxTyped):
         self._urls: List[str] = []
 
     def init(self, urls: List[str] = [], to_sniff: str = "", lines: int = 100) -> None:
+        if self.widget_dir and os.listdir(self.widget_dir):
+            self.c_.reuse_ck = ipw.Checkbox(description="Reuse previous settings ...")
+            self.c_.reuse_ck.observe(self._reuse_cb, names="value")
+        else:
+            self.c_.reuse_ck = None
+        home = os.getenv("HOME")
+        bmk_disabled = True
+        bookmarks = [
+            f"no '{home}/.progressivis/' directory found",
+            f"no '{home}/.progressivis/bookmarks' file found",
+        ]
+        pv_dir = f"{home}/.progressivis/"
+        if os.path.isdir(pv_dir):
+            bookmarks_file = f"{pv_dir}/bookmarks"
+            if os.path.exists(bookmarks_file):
+                try:
+                    bookmarks = open(bookmarks_file).read().split("\n")
+                    bmk_disabled = False
+                except Exception:
+                    bookmarks = [f"cannot read '{pv_dir}/bookmarks'"]
+            else:
+                bookmarks = [f"no '{pv_dir}/bookmarks' file found"]
+
+        self.c_.bookmarks = ipw.SelectMultiple(
+            options=bookmarks,
+            value=[],
+            rows=5,
+            description="Bookmarks",
+            disabled=bmk_disabled,
+            layout=ipw.Layout(width="60%"),
+        )
         self.c_.urls_wg = ipw.Textarea(
-            value=os.getenv("PROGRESSIVIS_DEFAULT_CSV"),
+            value="",
             placeholder="",
-            description="URLS:",
+            description="New URLs:",
             disabled=False,
-            layout=ipw.Layout(width="100%"),
+            layout=ipw.Layout(width="60%"),
         )
         self.c_.to_sniff = ipw.Text(
             value=to_sniff,
             placeholder="",
             description="URL to sniff(optional):",
             disabled=False,
-            layout=ipw.Layout(width="100%"),
+            layout=ipw.Layout(width="60%"),
         )
-        self.c_.n_lines = ipw.IntText(
-            value=lines, description="Rows:", disabled=False
-        )
+        self.c_.n_lines = ipw.IntText(value=lines, description="Rows:", disabled=False)
+        self.c_.throttle = ipw.IntText(value=0, description="Throttle:", disabled=False)
         self.c_.sniff_btn = make_button("Sniff ...", cb=self._sniffer_cb)
+
+    def _reuse_cb(self, change: Dict[str, Any]) -> None:
+        if change["new"]:
+            self.c_.to_sniff = None
+            self.c_.n_lines = None
+            self.c_.throttle = None
+            self.c_.sniffer = None
+            self.c_.start_save = None
+            self.c_.sniff_btn = None
+            self.c_.bookmarks = ipw.Select(
+                options=[""] + os.listdir(self.widget_dir),
+                value="",
+                rows=5,
+                description="Settings",
+                disabled=False,
+                layout=ipw.Layout(width="60%"),
+            )
+            self.c_.bookmarks.observe(self._enable_reuse_cb, names="value")
+            self.c_.urls_wg = make_button(
+                "Start loading csv ...", cb=self._start_loader_reuse_cb, disabled=True
+            )
+        else:
+            self.init()
+
+    def _enable_reuse_cb(self, change: Dict[str, Any]) -> None:
+        self.c_.urls_wg.disabled = not change["new"]
+
+    def _start_loader_reuse_cb(self, btn: ipw.Button) -> None:
+        file_ = "/".join([self.widget_dir, self.c_.bookmarks.value])
+        with open(file_) as f:
+            content = js.load(f)
+        urls = content["urls"]
+        throttle = content["throttle"]
+        sniffed_params = content["sniffed_params"]
+        schema = content["schema"]
+        filter_ = content["filter_"]
+        csv_module = self.init_modules(
+            urls=urls, throttle=throttle, sniffed_params=sniffed_params, filter_=filter_
+        )
+        self.output_module = csv_module
+        self.output_slot = "result"
+        self.output_dtypes = schema
+        self.make_chaining_box()
+        btn.disabled = True
+        self.dag_running()
 
     def _sniffer_cb(self, btn: ipw.Button) -> None:
         if btn.description.startswith("Sniff"):
-            urls = self.c_.urls_wg.value.strip().split("\n")
+            urls = list(self.c_.bookmarks.value) + self.c_.urls_wg.value.strip().split(
+                "\n"
+            )
             assert urls
             self._urls = urls
             to_sniff = self.c_.to_sniff.value.strip()
@@ -55,8 +172,32 @@ class CsvLoaderW(VBoxTyped):
             n_lines = self.c_.n_lines.value
             self._sniffer = CSVSniffer(path=to_sniff, lines=n_lines)
             self.c_.sniffer = self._sniffer.box
-            self.c_.start_btn = make_button(
-                "Start loading csv ...", cb=self._start_loader_cb
+            pv_dir = self.dot_progressivis
+            placeholder = (
+                (
+                    "'.progressivis' dir not found in your home dir. Create it"
+                    " in order to enable settings saves"
+                )
+                if not pv_dir
+                else ""
+            )
+            disabled = not pv_dir
+            self.c_.start_save = ipw.HBox(
+                [
+                    make_button("Start loading csv ...", cb=self._start_loader_cb),
+                    make_button(
+                        "Save settings ...",
+                        cb=self._save_settings_cb,
+                        disabled=disabled,
+                    ),
+                    ipw.Text(
+                        value=time.strftime("w%Y%m%d_%H%M%S"),
+                        placeholder=placeholder,
+                        description="File:",
+                        disabled=disabled,
+                        layout=ipw.Layout(width="100%"),
+                    ),
+                ]
             )
             self.c_.urls_wg.disabled = True
             self.c_.to_sniff.disabled = True
@@ -81,15 +222,78 @@ class CsvLoaderW(VBoxTyped):
         btn.disabled = True
         self.dag_running()
 
-    def init_modules(self) -> SimpleCSVLoader:
-        urls = self._urls
+    @property
+    def dot_progressivis(self) -> str:
+        home = os.getenv("HOME")
+        pv_dir = f"{home}/.progressivis/"
+        if os.path.isdir(pv_dir):
+            return pv_dir
+        return ""
+
+    @property
+    def widget_dir(self) -> str:
+        pv_dir = self.dot_progressivis
+        if not pv_dir:
+            return ""
+        settings_dir = f"{pv_dir}/widget_settings/"
+        widget_dir = f"{settings_dir}/{type(self).__name__}/"
+        if os.path.isdir(widget_dir):
+            return widget_dir
+        return ""
+
+    def _save_settings_cb(self, btn: ipw.Button) -> None:
+        pv_dir = self.dot_progressivis
+        assert pv_dir
+        settings_dir = f"{pv_dir}/widget_settings/"
+        if not os.path.isdir(settings_dir):
+            os.mkdir(settings_dir)
+        widget_dir = f"{settings_dir}/{type(self).__name__}/"
+        if not os.path.isdir(widget_dir):
+            os.mkdir(widget_dir)
+        base_name = self.c_.start_save.children[2].value
+        file_name = f"{widget_dir}/{base_name}"
         assert self._sniffer is not None
-        params = self._sniffer.params
+        pv_params = self._sniffer.progressivis
+        schema = get_schema(self._sniffer)
+        filter_ = pv_params.get("filter_values", {})
+        res = dict(
+            urls=self._urls,
+            throttle=self.c_.throttle.value,
+            sniffed_params=clean_nodefault(self._sniffer.params),
+            schema=schema,
+            filter_=filter_,
+        )
+        with open(file_name, "w") as f:
+            js.dump(res, f, indent=4)
+
+    def init_modules(
+        self, urls: List[str] | None = None,
+            throttle: int | None = None,
+            sniffed_params: Dict[str, Any] | None = None,
+            filter_: Dict[str, Any] | None = None
+    ) -> SimpleCSVLoader:
+        if urls is None:
+            assert self._sniffer is not None
+            urls = self._urls
+            params = self._sniffer.params.copy()
+            pv_params = self._sniffer.progressivis
+            if "filter_values" in pv_params:
+                filter_fnc = make_filter(pv_params["filter_values"])
+                params["filter_"] = filter_fnc
+            params["throttle"] = self.c_.throttle.value
+        else:
+            if filter_:
+                filter_ = dict(filter_=make_filter(filter_))
+            else:
+                filter_ = {}
+            assert sniffed_params is not None
+            params = dict(throttle=throttle, **sniffed_params, **filter_)
         sink = self.input_module
         s = sink.scheduler()
         with s:
             filenames = pd.DataFrame({"filename": urls})
             cst = Constant(PTable("filenames", data=filenames), scheduler=s)
+            print("params", params)
             csv = SimpleCSVLoader(scheduler=s, **params)
             csv.input.filenames = cst.output[0]
             sink.input.inp = csv.output.result

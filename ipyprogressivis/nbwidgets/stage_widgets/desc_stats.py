@@ -283,7 +283,7 @@ def refresh_info_h2d(
     last = h2d_mod.result.last()
     assert last
     res = last.to_dict()
-    hist = res["array"]
+    hist = np.cbrt(res["array"])
     hout.update("data", insert=hist, remove="true")
     h2d_mod.updated_once = True  # type: ignore
 

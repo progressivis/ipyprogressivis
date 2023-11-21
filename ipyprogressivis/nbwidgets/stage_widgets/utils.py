@@ -163,7 +163,7 @@ def get_schema(sniffer: Sniffer) -> AnyType:
 
 
 def make_button(
-    label: str, disabled: bool = False, cb: Optional[Callable[..., AnyType]] = None
+        label: str, disabled: bool = False, cb: Optional[Callable[..., AnyType]] = None, **kw: Any
 ) -> ipw.Button:
     btn = ipw.Button(
         description=label,
@@ -171,6 +171,7 @@ def make_button(
         button_style="",  # 'success', 'info', 'warning', 'danger' or ''
         tooltip=label,
         icon="check",  # (FontAwesome names without the `fa-` prefix)
+        **kw
     )
     if cb is not None:
         btn.on_click(cb)

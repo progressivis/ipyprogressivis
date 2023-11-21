@@ -22,6 +22,12 @@ from typing import Dict, Any, Union, List, Optional, cast
 logger = logging.getLogger(__name__)
 
 
+def set_child(box: widgets.Box, i: int, child: Any) -> None:
+    lst = list(box.children)
+    lst[i] = child
+    box.children = lst
+
+
 def quote_html(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
@@ -39,7 +45,7 @@ MANDATORY_DIALECT_ATTRS = (
     "escapechar",
     "skipinitialspace",
     "quotechar",
-    "quoting",
+    "quoting"
 )
 
 
@@ -101,6 +107,7 @@ class CSVSniffer:
         self._head: str = ""
         self._dialect: Optional[csv.Dialect] = None
         self.params: Dict[str, Any] = {}
+        self.progressivis: Dict[str, Any] = {}
         self._df: Optional[pd.DataFrame] = None
         self._df2: Optional[pd.DataFrame] = None
         self._rename: Optional[List[str]] = None
@@ -112,10 +119,10 @@ class CSVSniffer:
         self.df2_text = widgets.HTML()
         self.error_msg = widgets.Textarea(description="Error:")
         self.tab = widgets.Tab(
-            [self.head_text, self.df_text, self.df2_text],
+            [self.head_text, self.df_text, self.df2_text, widgets.Label()],
             layout=widgets.Layout(max_height="1024px"),
         )
-        for i, title in enumerate(["Head", "DataFrame", "DataFrame2"]):
+        for i, title in enumerate(["Head", "DataFrame", "DataFrame2", "Hide"]):
             self.tab.set_title(i, title)
         # Delimiters
         self.delimiter = widgets.RadioButtons(
@@ -303,6 +310,8 @@ class CSVSniffer:
     def set_cmdline(self) -> None:
         params = self.kwargs()
         self.cmdline.value = str(params)
+        if self.progressivis:
+            self.cmdline.value += "\nFilters: " + str(self.progressivis)
 
     def clear(self) -> None:
         self.lines.value = 100
@@ -485,6 +494,25 @@ class CSVSniffer:
             self.params["na_values"] = None
         self.set_cmdline()
 
+    def filtering_columns(self) -> None:
+        assert self._df is not None
+        f_values: Dict[str, Any] = {}
+        for name in list(self._df.columns):
+            col = self.column[name]
+            if not col.filtering_ck.value:
+                continue
+            val = []
+            for pred in col.filtering_group.children:
+                if pred.children[0].value:
+                    val.append([v.value for v in pred.children])
+            if val:
+                f_values[name] = val
+        if f_values:
+            self.progressivis["filter_values"] = f_values
+        else:
+            self.progressivis["filter_values"] = None
+        self.set_cmdline()
+
     def load_dataframe(self) -> pd.DataFrame:
         "Full load the DataFrame with the GUI parameters"
         return cast(pd.DataFrame, pd.read_csv(self.path, **self.params))
@@ -543,6 +571,30 @@ class PColumnInfo:
             disabled=True,
         )
         self.na_values_sep.observe(self.na_values_sep_cb, "value")
+        self.filtering_ck = widgets.Checkbox(
+            description="Filtering", indent=True, value=False
+        )
+        operators = [
+            "",
+            ">",
+            "<",
+            ">=",
+            "<=",
+            "==",
+            "!=",
+        ]
+        fit = widgets.Layout(max_width="fit-content")
+        wft = widgets.Layout(max_width="100px")
+        self.filtering_group = widgets.VBox([
+            widgets.HBox([widgets.Dropdown(description="Filter", options=operators, layout=fit),
+                          widgets.FloatText(layout=wft)], layout=fit),
+            widgets.HBox([widgets.Dropdown(description="& ", options=operators, layout=fit),
+                          widgets.FloatText(layout=wft)], layout=fit)
+            ])
+        self.filtering_ck.observe(self.filtering_ck_cb, "value")
+        for hbox in self.filtering_group.children:
+            for wg in hbox.children:
+                wg.observe(self.filtering_value_cb, "value")
         self.box = widgets.VBox()
         self.box.children = [
             self.name,
@@ -552,6 +604,7 @@ class PColumnInfo:
             self.use,
             self.nunique,
             self.na_values_ck,
+            self.filtering_ck,
         ]
 
     def retype_values(self) -> List[str]:
@@ -559,7 +612,7 @@ class PColumnInfo:
         if type in self.numeric_types:
             return self.numeric_types
         elif type == "object":
-            return self.object_types
+            return self.object_types + self.numeric_types
         return [type]
 
     def rename_column(self, change: Dict[str, Any]) -> None:
@@ -568,20 +621,45 @@ class PColumnInfo:
     def usecols_column(self, change: Dict[str, Any]) -> None:
         self.sniffer.usecols_columns()
         if change["new"]:
-            self.retype.disabled = False
+            for wg in self.box.children:
+                if wg is self.use:
+                    continue
+                wg.disabled = False
+            self.na_values_ck.disabled = False
+            self.filtering_ck.disabled = False
         else:
-            self.retype.disabled = True
+            for wg in self.box.children:
+                if wg is self.use:
+                    continue
+                wg.disabled = True
+            self.na_values_ck.value = False
+            self.na_values_ck.disabled = True
+            self.filtering_ck.value = False
+            self.filtering_ck.disabled = True
 
     def na_values_ck_cb(self, change: Dict[str, Any]) -> None:
         if change["new"]:
-            self.box.children = list(self.box.children) + [
+            set_child(self.box, 6, widgets.VBox([
+                self.na_values_ck,
                 self.na_values_,
-                self.na_values_sep,
-            ]
+                self.na_values_sep
+                ]))
         else:
             self.na_values_.value = ""
             self.na_values_sep.value = ""
-            self.box.children = self.box.children[:-2]
+            set_child(self.box, 6, self.na_values_ck)
+
+    def filtering_ck_cb(self, change: Dict[str, Any]) -> None:
+        if change["new"]:
+            set_child(self.box, 7, widgets.VBox([
+                self.filtering_ck,
+                self.filtering_group
+                ]))
+        else:
+            set_child(self.box, 7, self.filtering_ck)
+            for hbox in self.filtering_group.children:
+                hbox.children[0].value = None
+                hbox.children[1].value = 0.0
 
     def na_values_cb(self, change: Dict[str, Any]) -> None:
         if change["new"]:
@@ -593,6 +671,9 @@ class PColumnInfo:
 
     def na_values_sep_cb(self, change: Dict[str, Any]) -> None:
         self.sniffer.na_values_columns()
+
+    def filtering_value_cb(self, change: Dict[str, Any]) -> None:
+        self.sniffer.filtering_columns()
 
     def _test_column_type(self, newtype: Any) -> Optional[ValueError]:
         try:
