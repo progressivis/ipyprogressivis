@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "A Custom Jupyter Widget Library for Progressivis",
   "author": "Jean-Daniel Fekete",
+  "license": "BSD-2-Clause",
   "main": "lib/index.js",
   "repository": {
     "type": "git",
@@ -52,7 +53,7 @@
     "style-loader": "^3.3.3",
     "svg-inline-loader": "^0.8.2",
     "webpack": "^5",
-    "webpack-cli": "^3.3.11",
+    "webpack-cli": "^5.1.4",
     "webpack-dev-server": "^3.10.3"
   },
   "dependencies": {

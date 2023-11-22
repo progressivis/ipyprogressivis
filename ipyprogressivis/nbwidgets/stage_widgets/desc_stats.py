@@ -267,7 +267,11 @@ def refresh_info_hist_1d(
     min_ = res["min"]
     max_ = res["max"]
     bins_ = np.linspace(min_, max_, len(hist))
-    source = pd.DataFrame({"xvals": bins_, "nbins": range(len(hist)), "level": hist})
+    source = pd.DataFrame({
+        "xvals": bins_,
+        "nbins": range(len(hist)),
+        "level": hist
+    })
     hout.children[1].update("data", remove="true", insert=source)
     h1d_mod.updated_once = True  # type: ignore
 
@@ -283,7 +287,12 @@ def refresh_info_h2d(
     last = h2d_mod.result.last()
     assert last
     res = last.to_dict()
-    hist = np.cbrt(res["array"])
+    arr = res["array"]
+    maxa = arr.max()
+    if maxa != 0:
+        hist = np.cbrt(arr/maxa)
+    else:
+        hist = maxa
     hout.update("data", insert=hist, remove="true")
     h2d_mod.updated_once = True  # type: ignore
 
