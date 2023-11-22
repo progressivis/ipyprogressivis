@@ -29,4 +29,4 @@ cmdclass['jsdeps'] = combine_commands(
 )
 
 # See setup.cfg for other parameters
-setup(cmdclass=cmdclass)
+setup()  # (cmdclass=cmdclass)
