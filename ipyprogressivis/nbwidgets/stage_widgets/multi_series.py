@@ -28,13 +28,13 @@ class MultiSeriesW(VBoxTyped):
         self.output_dtypes = None
         self._axis = []
         lst: List[ipw.DOMWidget] = [
-            _l("Axis"),
-            _l("PColumn"),
+            _l(""),
+            _l("Column"),
             _l("* Factor"),
             _l("Symbol"),
         ]
         for i in range(N):
-            row = self._axis_row("Y" if i else "X")
+            row = self._axis_row(f"S{i}" if i else "T")
             self._axis.append(row)
             lst.extend(row.values())
         self.child.grid = ipw.GridBox(
@@ -47,7 +47,10 @@ class MultiSeriesW(VBoxTyped):
 
     def _axis_row(self, axis: str) -> Dict[str, ipw.DOMWidget]:
         axis_w = _l(axis)
-        col_list = [""] + list(self.dtypes.keys())
+        if axis == "T":
+            col_list = [col for (col, t) in self.dtypes.items() if t == "datetime64"]
+        else:
+            col_list = [""] + [col for (col, t) in self.dtypes.items() if t != "datetime64"]
         col = ipw.Dropdown(
             options=col_list,
             description="",
@@ -57,12 +60,12 @@ class MultiSeriesW(VBoxTyped):
         col.observe(self._col_xy_cb, "value")
         factor: Union[ipw.FloatText, ipw.Label]
         sym: Union[ipw.Text, ipw.Label]
-        if axis.upper() == "Y":
+        if axis[0] == "S":
             factor = ipw.FloatText(value=1.0, description="", disabled=False)
             sym = ipw.Text(
                 value="", placeholder="optional", description="", disabled=False
             )
-        else:  # i.e. "X"
+        else:  # i.e. "T"
             factor = dongle_widget()
             sym = dongle_widget()
         return dict(axis=axis_w, col=col, factor=factor, sym=sym)
@@ -100,7 +103,7 @@ class MultiSeriesW(VBoxTyped):
         has_y = False
         for row in self._axis:
             if row["col"].value:
-                if row["axis"].value == "X":
+                if row["axis"].value == "T":
                     has_x = True
                 else:
                     has_y = True

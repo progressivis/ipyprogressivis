@@ -327,12 +327,12 @@ class PColumnsW(VBoxTyped):
         self.dag_running()
 
     def init_module(
-        self, computed: Computed, columns: Optional[List[str]] = None
+        self, computed: Computed, columns: List[str]
     ) -> Repeater:
         s = self.input_module.scheduler()
         with s:
-            rep = Repeater(computed=computed, columns=columns, scheduler=s)
-            rep.input.table = self.input_module.output[self.input_slot]
+            rep = Repeater(computed=computed, scheduler=s)
+            rep.input.table = self.input_module.output[self.input_slot][*columns]
             sink = Sink(scheduler=s)
             sink.input.inp = rep.output.result
             return rep

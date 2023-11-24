@@ -143,12 +143,11 @@ class CSVSniffer:
         # Dates
         # TODO
         self.dayfirst = widgets.Checkbox(description="Dayfirst", value=False)
-        self.date_parser = widgets.Text(description="Date parser:", value="")
-        self.infer_datetime = widgets.Checkbox(
-            description="Infer datetime", value=False
-        )
+        self.date_format = widgets.Text(description="Date format:",
+                                        value="mixed",
+                                        disabled=(pd.__version__[0] < '2'))
         self.date = widgets.VBox(
-            [self.dayfirst, self.infer_datetime, self.date_parser], layout=layout
+            [self.dayfirst, self.date_format], layout=layout
         )
         # Header
         self.header = widgets.BoundedIntText(
@@ -472,8 +471,14 @@ class CSVSniffer:
                 del self.params["dtype"]
         if parse_dates:
             self.params["parse_dates"] = parse_dates
+            self.params["dayfirst"] = self.dayfirst.value
+            if pd.__version__[0] >= '2':
+                self.params["date_format"] = self.date_format.value
         else:
             self.params["parse_dates"] = None
+            self.params["dayfirst"] = False
+            if pd.__version__[0] >= '2':
+                self.params["date_format"] = None
         self.set_cmdline()
 
     def na_values_columns(self) -> None:
@@ -586,9 +591,11 @@ class PColumnInfo:
         fit = widgets.Layout(max_width="fit-content")
         wft = widgets.Layout(max_width="100px")
         self.filtering_group = widgets.VBox([
-            widgets.HBox([widgets.Dropdown(description="Filter", options=operators, layout=fit),
+            widgets.HBox([widgets.Dropdown(description="Filter",
+                                           options=operators, layout=fit),
                           widgets.FloatText(layout=wft)], layout=fit),
-            widgets.HBox([widgets.Dropdown(description="& ", options=operators, layout=fit),
+            widgets.HBox([widgets.Dropdown(description="& ",
+                                           options=operators, layout=fit),
                           widgets.FloatText(layout=wft)], layout=fit)
             ])
         self.filtering_ck.observe(self.filtering_ck_cb, "value")
