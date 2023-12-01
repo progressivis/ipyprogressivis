@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", "3.11"]
+        python: ["3.11"]
 
     defaults:
       run:
@@ -70,5 +70,5 @@ jobs:
       if: failure()    
       uses: actions/upload-artifact@v3
       with:
-        name: ipytables-updated-images
+        name: ipyprogressivis-updated-images
         path: ui-tests/tests/end2end.test.ts-snapshots/
