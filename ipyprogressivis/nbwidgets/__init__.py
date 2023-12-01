@@ -16,4 +16,4 @@ from .stage_widgets.desc_stats import *
 from .stage_widgets.constructor import *
 from .stage_widgets.utils import create_stage_widget, cleanup_cells
 from .stage_widgets.group_by import *
-
+from .vega import VegaWidget

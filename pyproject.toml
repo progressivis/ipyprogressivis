@@ -1,3 +1,136 @@
 [build-system]
-requires = ["jupyter_packaging~=0.7.9", "jupyterlab~=4.0", "setuptools==64", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = [
+    "hatchling>=1.18",
+    "jupyterlab>=4.0.0",
+]
+build-backend = "hatchling.build"
+
+[project]
+name = "ipyprogressivis"
+description = "A Custom Jupyter Widget Library for Progressivis"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [
+    { name = "INRIA, Jean-Daniel Fekete, Christian Poli", email = "jean-daniel.fekete@inria.fr" },
+]
+keywords = [
+    "IPython",
+    "Jupyter",
+    "Widgets",
+]
+classifiers = [
+    "Framework :: Jupyter",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Framework :: Jupyter",
+    "Framework :: Jupyter :: JupyterLab",
+    "Framework :: Jupyter :: JupyterLab :: 3",
+    "Framework :: Jupyter :: JupyterLab :: Extensions",
+    "Framework :: Jupyter :: JupyterLab :: Extensions :: Prebuilt"
+]
+dependencies = [
+    "ipywidgets<9,>=7.6",
+    "traitlets>=4.3.0",
+    "traittypes>=0.0.6",
+    "numpy>=1.10.4,<2.0.0",
+    "pandas>=1.0.0,<3.0.0",
+    "ipydatawidgets",
+    "progressivis",
+    "vega>=4.0.0",
+    "lz4",
+]
+version = "0.1.0.dev0"
+
+[project.optional-dependencies]
+docs = [
+    "jupyter_sphinx",
+    "nbsphinx",
+    "nbsphinx-link",
+    "pypandoc",
+    "pytest_check_links",
+    "recommonmark",
+    "sphinx>=1.5",
+    "sphinx_rtd_theme",
+]
+examples = []
+test = [
+    "nbval",
+    "pytest-cov",
+    "pytest>=6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/progressivis/ipyprogressivis"
+
+[tool.hatch.build]
+artifacts = [
+    "ipyprogressivis/nbextension/index.*",
+    "ipyprogressivis/labextension/*.tgz",
+    "ipyprogressivis/labextension",
+]
+
+[tool.hatch.build.targets.wheel.shared-data]
+"ipyprogressivis/nbextension" = "share/jupyter/nbextensions/jupyter-progressivis"
+"ipyprogressivis/labextension" = "share/jupyter/labextensions/jupyter-progressivis"
+"ipyprogressivis/install.json" = "share/jupyter/labextensions/jupyter-progressivis/install.json"
+"ipyprogressivis/jupyter-progressivis.json" = "etc/jupyter/nbconfig/notebook.d/jupyter-progressivis.json"
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    ".github",
+    "js/.yarn",
+    ".gitmodules",
+    ".mypy.ini",
+    ".pre-commit-config.yaml",
+    ".pylintrc",
+    "refresh_pv.sh",
+    "requirements_typing.txt",
+    ".yarn",
+    ".gitignore",
+    "schema_plugin.py",
+]
+
+[tool.hatch.build.hooks.jupyter-builder]
+build-function = "hatch_jupyter_builder.npm_builder"
+ensured-targets = [
+    "ipyprogressivis/nbextension/index.js",
+    "ipyprogressivis/labextension/package.json",
+]
+skip-if-exists = [
+    "ipyprogressivis/nbextension/index.js",
+    "ipyprogressivis/labextension/package.json",
+]
+dependencies = [
+    "hatch-jupyter-builder>=0.8.1",
+]
+
+[tool.hatch.build.hooks.jupyter-builder.build-kwargs]
+path = "./ipyprogressivis/js"
+build_cmd = "prepublish"
+npm = [
+    "yarn",
+]
+
+[tool.tbump]
+field = [
+    { name = "channel", default = "" },
+    { name = "release", default = "" },
+]
+file = [
+    { src = "pyproject.toml", version_template = "version = \"{major}.{minor}.{patch}{channel}{release}\"" },
+    { src = "ipyprogressivis/_version.py" },
+]
+
+[tool.tbump.version]
+current = "0.1.0.dev0"
+regex = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)((?P<channel>a|b|rc|.dev)(?P<release>\\d+))?"
+
+[tool.tbump.git]
+message_template = "Bump to {new_version}"
+tag_template = "v{new_version}"

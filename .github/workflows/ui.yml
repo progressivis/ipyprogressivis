@@ -1,0 +1,74 @@
+name: End to End Tests
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+    branches:
+    - main
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11"]
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup Python ${{ matrix.python }}
+      uses: actions/setup-python@v2.3.1
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Setup Node
+      uses: actions/setup-node@v3
+    - name: Install dependencies
+      run: |
+        git submodule update --init --recursive # loading progressivis
+        pip install ./progressivis # install progressivis
+        python -m pip install jupyterlab==4.0.0
+        pushd js
+        yarn --frozen-lockfile
+        yarn run build
+        popd
+        python -m pip install -U ipywidgets
+        jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
+        python -m pip install -e .
+        jupyter labextension develop --overwrite .
+
+
+    - name: Start Jupyterlab
+      run: |
+        cd ui-tests/
+        yarn --frozen-lockfile
+        yarn playwright install chromium
+        yarn run start:detached
+    - name: Wait for JupyterLab
+      uses: ifaxity/wait-on-action@v1
+      with:
+        resource: http-get://localhost:8888/api
+        timeout: 20000  
+    - name: Run tests
+      run: |
+        cd ui-tests/
+        yarn run test
+    - name: Update images
+      if: failure()
+      run: |
+        cd ui-tests/
+        yarn run test:update
+    - name: Upload images
+      if: failure()    
+      uses: actions/upload-artifact@v3
+      with:
+        name: ipytables-updated-images
+        path: ui-tests/tests/end2end.test.ts-snapshots/
