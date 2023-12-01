@@ -53,7 +53,7 @@ jobs:
         yarn playwright install chromium
         yarn run start:detached
     - name: Wait for JupyterLab
-      uses: ifaxity/wait-on-action@v1
+      uses: ifaxity/wait-on-action@v1.1
       with:
         resource: http-get://localhost:8888/api
         timeout: 20000  
