@@ -332,7 +332,7 @@ class PColumnsW(VBoxTyped):
         s = self.input_module.scheduler()
         with s:
             rep = Repeater(computed=computed, scheduler=s)
-            rep.input.table = self.input_module.output[self.input_slot][*columns]
+            rep.input.table = self.input_module.output[self.input_slot][tuple(columns)]
             sink = Sink(scheduler=s)
             sink.input.inp = rep.output.result
             return rep
