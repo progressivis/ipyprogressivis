@@ -51,7 +51,8 @@ test.describe('Widget Visual Regression', () => {
     page,
     tmpPath,
   }) => {
-    const notebook = 'end2end.ipynb';
+    //const notebook = 'end2end.ipynb';
+    for (const notebook of ['end2end.ipynb']) {
     await page.notebook.openByPath(`${tmpPath}/${notebook}`);
     await page.notebook.activate(notebook);
 
@@ -70,8 +71,8 @@ test.describe('Widget Visual Regression', () => {
     await page.notebook.save();
 
     for (let i = 0; i < cellCount; i++) {
-      const image = `end2end-cell-${i}.png`;
+      const image = `end2end-cell-${notebook}-${i}.png`;
       expect(captures[i]).toMatchSnapshot(image);
-    }
+    }}
   });
 });
