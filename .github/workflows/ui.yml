@@ -42,8 +42,6 @@ jobs:
         popd
         python -m pip install -U ipywidgets
         jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
-        #python -m pip install -e .
-        #jupyter labextension develop --overwrite .
         python -m pip install hatch
         hatch build dist/
         python -m pip install dist/*.gz
