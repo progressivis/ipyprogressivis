@@ -42,9 +42,11 @@ jobs:
         popd
         python -m pip install -U ipywidgets
         jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
-        python -m pip install -e .
-        jupyter labextension develop --overwrite .
-
+        #python -m pip install -e .
+        #jupyter labextension develop --overwrite .
+        python -m pip install hatch
+        hatch build dist/
+        python -m pip install dist/*.gz
 
     - name: Start Jupyterlab
       run: |
@@ -56,7 +58,7 @@ jobs:
       uses: ifaxity/wait-on-action@v1
       with:
         resource: http-get://localhost:8888/api
-        timeout: 20000  
+        timeout: 20000
     - name: Run tests
       run: |
         cd ui-tests/
@@ -67,7 +69,7 @@ jobs:
         cd ui-tests/
         yarn run test:update
     - name: Upload images
-      if: failure()    
+      if: failure()
       uses: actions/upload-artifact@v3
       with:
         name: ipyprogressivis-updated-images
