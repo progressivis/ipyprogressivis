@@ -57,7 +57,7 @@ export class DagWidgetView extends DOMWidgetView {
 	elementReady('#' + this.id).then(() => {
 	    console.log("dag widget", this.id);
 	var mainDiv = d3.select('#' + this.id);
-            installInterface(mainDiv);
+            installInterface(mainDiv, '_'+this.id);
 	    d3.select('#' + this.id).show();
 
     });
@@ -78,6 +78,7 @@ export class DagWidgetView extends DOMWidgetView {
 
     initialize() {
         console.log("INITIALIZE");
+	var extId = '_'+this.id;
         //
         this.tocSupported = true; //Boolean(d3.select('#toc-wrapper').node());
         //
@@ -99,20 +100,20 @@ export class DagWidgetView extends DOMWidgetView {
         }
 
         //
-        if (!(d3.select('#'+this.id).select('#safeGuardMenu').node())) {
+        if (!(d3.select('#'+this.id).select('#safeGuardMenu'+extId).node())) {
             var menu = d3.select('#'+this.id).append('div')
-                .attr('id', 'safeGuardMenu')
+                .attr('id', 'safeGuardMenu'+extId)
                 .attr('style', 'position: absolute; width: 400px; height: 180px; left: -1000px; top: -1000px; background: white;border: 1px black solid;text-align: center;');
 
             var field = menu.append('fieldset');
-            field.append('legend').attr('id', 'dialogTitleLabel').text('Add Safeguard to Widget');
+            field.append('legend').attr('id', 'dialogTitleLabel'+extId).text('Add Safeguard to Widget');
             //
             var internalBody = menu.append('div').attr('style', 'display: grid;grid-template-columns: 120px 120px 120px;row-gap: 20px;column-gap:5px;margin-left: 20px;margin-right: 20px;text-align: center;')
             internalBody.append('label').text('Variable');
             internalBody.append('label').text('Operation');
             internalBody.append('label').text('Value');
             //
-            var variableSelect = internalBody.append('select').attr('id', 'dialogSelectVariable').html(`<option value="">Variable</option>
+            var variableSelect = internalBody.append('select').attr('id', 'dialogSelectVariable'+extId).html(`<option value="">Variable</option>
             <option value="dog" class="varOption">Dog</option>
             <option value="cat" class="varOption">Cat</option>
             <option value="hamster" class="varOption">Hamster</option>
@@ -120,40 +121,40 @@ export class DagWidgetView extends DOMWidgetView {
             <option value="spider" class="varOption">Spider</option>
             <option value="goldfish" class="varOption">Goldfish</option>`);
 
-            var opSelect = internalBody.append('select').attr('id', 'dialogSelectOperation').html(`<option value="">Operation</option>
+            var opSelect = internalBody.append('select').attr('id', 'dialogSelectOperation'+extId).html(`<option value="">Operation</option>
 <option value="eq"> == </option>
 <option value="lt"> <  </option>
 <option value="gt"> > </option>`);
 
-            var valueInput = internalBody.append('input').attr('id', 'dialogValueInput').attr('type', 'number').attr('placeholder', 0.0).attr('step', 0.5).attr('value', 0.0);
+            var valueInput = internalBody.append('input').attr('id', 'dialogValueInput'+extId).attr('type', 'number').attr('placeholder', 0.0).attr('step', 0.5).attr('value', 0.0);
 
             internalBody.append('label');//blank
             //
             var that = this;
             internalBody.append('input').attr('type', 'button').attr('value', 'Cancel')
                 .on('click', function () {
-                    d3.select('#safeGuardMenu').style('visibility', 'hidden');
+                    d3.select('#safeGuardMenu'+extId).style('visibility', 'hidden');
                     //clear
-                    d3.select('#dialogValueInput').node().value = 0.0;
-                    d3.select('#dialogSelectVariable').node().value = "";
-                    d3.select('#dialogSelectOperation').node().value = "";
+                    d3.select('#dialogValueInput'+extId).node().value = 0.0;
+                    d3.select('#dialogSelectVariable'+extId).node().value = "";
+                    d3.select('#dialogSelectOperation'+extId).node().value = "";
                 });
             internalBody.append('input').attr('type', 'button').attr('value', 'OK')
                 .on('click', function () {
 
                     //
-                    var selectedVariable = d3.select('#dialogSelectVariable').node().selectedOptions[0].innerText;
-                    var selectedOp = d3.select('#dialogSelectOperation').node().selectedOptions[0].innerText;
-                    var selectedValue = +(d3.select('#dialogValueInput').node().value);
+                    var selectedVariable = d3.select('#dialogSelectVariable'+extId).node().selectedOptions[0].innerText;
+                    var selectedOp = d3.select('#dialogSelectOperation'+extId).node().selectedOptions[0].innerText;
+                    var selectedValue = +(d3.select('#dialogValueInput'+extId).node().value);
                     if (selectedVariable != "Variable" && selectedOp != "Operation") {
                         //
-                        var widgetID = d3.select('#safeGuardMenu').attr('widgetID');
+                        var widgetID = d3.select('#safeGuardMenu'+extId).attr('widgetID');
                         that.safeguards[widgetID] = { 'var': selectedVariable, 'opr': selectedOp, 'thr': selectedValue };
                         //clear
-                        d3.select('#dialogValueInput').node().value = 0.0;
-                        d3.select('#dialogSelectVariable').node().value = "";
-                        d3.select('#dialogSelectOperation').node().value = "";
-                        d3.select('#safeGuardMenu').style('visibility', 'hidden');
+                        d3.select('#dialogValueInput'+extId).node().value = 0.0;
+                        d3.select('#dialogSelectVariable'+extId).node().value = "";
+                        d3.select('#dialogSelectOperation'+extId).node().value = "";
+                        d3.select('#safeGuardMenu'+extId).style('visibility', 'hidden');
                         console.log('new safeguard', this);
                     }
                     else {
@@ -183,12 +184,13 @@ export class DagWidgetView extends DOMWidgetView {
             return;
 
         //
-        d3.select('#detailsNameLabel').text(_id);
+	var extId = '_'+this.id;
+        d3.select('#detailsNameLabel'+extId).text(_id);
         var summaries = JSON.parse(this.model.get('summaries'));
         if (_id in summaries) {
             //
             var summary = summaries[_id];
-            d3.select('#detailsProgressBar')
+            d3.select('#detailsProgressBar'+extId)
                 .style('height', '100%')
                 .style('width', summary['progress'] + '%')
                 .text(summary['progress'] + '%');
@@ -279,24 +281,24 @@ export class DagWidgetView extends DOMWidgetView {
         //
         var info = JSON.parse(this.model.get('dag'));
         var _dag = info.dag;
-
+	var extId = '_'+this.id;
         //if nodes were removed clean attention requests
         //to only keep the requests for widgets registered
         //TODO: this should be in another function
         this.clearAttentionRequests(_dag);
 
         //clear dag view
-        const edgeGroup = d3.select('#dagCanvas').select('#edgeGroup').node()
-            ? d3.select('#dagCanvas').select('#edgeGroup')
-            : d3.select('#dagCanvas').append('g')
-                .attr('id', 'edgeGroup');
+        const edgeGroup = d3.select('#dagCanvas'+extId).select('#edgeGroup'+extId).node()
+            ? d3.select('#dagCanvas'+extId).select('#edgeGroup'+extId)
+            : d3.select('#dagCanvas'+extId).append('g')
+                .attr('id', 'edgeGroup'+extId);
         edgeGroup.selectAll('*').remove();
 
 
-        const nodeGroup = d3.select('#dagCanvas').select('#nodeGroup').node()
-            ? d3.select('#dagCanvas').select('#nodeGroup')
-            : d3.select('#dagCanvas').append('g')
-                .attr('id', 'nodeGroup');
+        const nodeGroup = d3.select('#dagCanvas'+extId).select('#nodeGroup'+extId).node()
+            ? d3.select('#dagCanvas'+extId).select('#nodeGroup'+extId)
+            : d3.select('#dagCanvas'+extId).append('g')
+                .attr('id', 'nodeGroup'+extId);
         nodeGroup.selectAll('*').remove();
         //
         if (_dag.length == 0) {
@@ -399,7 +401,7 @@ export class DagWidgetView extends DOMWidgetView {
                 that.selectedWidget = _id;
                 var elt = info.dag.find(d => d.id == _id);
                 //
-                d3.select('#widgetNameForm').text(_id);
+                d3.select('#widgetNameForm'+extId).text(_id);
                 if (elt) {
                     document.getElementById(elt.divID).scrollIntoView();
                 }
@@ -409,16 +411,16 @@ export class DagWidgetView extends DOMWidgetView {
                 e.preventDefault();
                 //
                 var myID = this.id.slice(3);
-                d3.select('#safeGuardMenu').attr('widgetID', myID);
+                d3.select('#safeGuardMenu'+extId).attr('widgetID', myID);
                 //
                 var summaryVariables = JSON.parse(that.model.get('dag'))['summaryVariables'];
                 if (myID in summaryVariables) {
                     var variables = summaryVariables[myID];
                     console.log('===>', that, variables);
                     //set title
-                    d3.select('#dialogTitleLabel').text('Add Safeguard to ' + myID);
+                    d3.select('#dialogTitleLabel'+extId).text('Add Safeguard to ' + myID);
                     //set available variables
-                    d3.select('#dialogSelectVariable')
+                    d3.select('#dialogSelectVariable'+extId)
                         .selectAll('.varOption')
                         .data(variables)
                         .join('option')
@@ -427,7 +429,7 @@ export class DagWidgetView extends DOMWidgetView {
                         .text(d => d);
 
                     //
-                    var menu = d3.select('#safeGuardMenu')
+                    var menu = d3.select('#safeGuardMenu'+extId)
                         .style('visibility', 'visible')
                         .style('left', e.pageX + 'px')
                         .style('top', e.pageY + 'px')
@@ -471,8 +473,9 @@ export class DagWidgetView extends DOMWidgetView {
         this.refreshAttentionVisuals();
     }
     colorNodesBasedOnStatus() {
+	var extId = '_'+this.id;
         var summaries = JSON.parse(this.model.get('summaries'));
-        d3.select('#dagCanvas')
+        d3.select('#dagCanvas'+extId)
             .selectAll('.dagNodes')
             .attr('fill', function (d) {
                 if (d.data.id in summaries) {
@@ -519,9 +522,10 @@ export class DagWidgetView extends DOMWidgetView {
         //
         var that = this;
         var colorScale = window.attentionColorScale;
+	var extId = '_'+this.id;
         //TODO: CHANGE STROKE FOR SHOWING THAT THERE IS MORE THAN
         //ONE ATTENTION REQUEST
-        d3.select('#nodeGroup')
+        d3.select('#nodeGroup'+extId)
             .selectAll('.alertCircles')
             .attr('fill', function () {
                 var attentionRequests = that._attRqs;

@@ -39,7 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import * as d3 from 'd3';
 
-    function installDagCanvas(container) {
+function installDagCanvas(container, extId) {
         //
         window.attentionDetailsMapTypeID = { "RESCALE_NEEDED": "attAxesLabel", "PROGRESS_NOTIFICATION": "attProgressLabel", "STABILITY_REACHED": "attStabilityLabel", "SAFEGUARD_SATISFIED": "attSafeguardLabel" };
         window.attentionColorScale = d3.scaleOrdinal()
@@ -86,27 +86,27 @@ import * as d3 from 'd3';
         var svg = borderDiv
             .append('div')
             .append('svg')
-            .attr('id', 'dagCanvas')
+            .attr('id', 'dagCanvas'+extId)
             .attr('width', 300)
             .attr('height', 450);
     }
 
-    function installDetailsForm(container) {
+function installDetailsForm(container, extId) {
         var mainForm = container.append('form').attr("style", "width:300px");
         var fieldset = mainForm.append('fieldset');
         fieldset.append('legend').text('Details ');
 
         var fields = fieldset.append('div').attr('style', 'width:300px;display: grid;grid-template-columns: 100px 200px;');
         fields.append("label").text('Widget: ');
-        fields.append("label").attr('id', 'detailsNameLabel').text('');
+        fields.append("label").attr('id', 'detailsNameLabel'+extId).text('');
         fields.append("label").text('Progress: ');
         var borderProgressbar = fields.append("div").attr('class', 'w3-border');
-        borderProgressbar.append('div').attr('id', 'detailsProgressBar').attr('class', "w3-grey w3-center")
+        borderProgressbar.append('div').attr('id', 'detailsProgressBar'+extId).attr('class', "w3-grey w3-center")
             .attr("style", "color: #000;background-color: #d0d0d0;width:0%;").text('0%');
         //
         var attentionFields = fieldset.append('div').attr('style', 'margin-top:5px;border-top: 1.5px solid grey;width:300px;display: grid;grid-template-columns: 90px 200px 10px;');
         attentionFields.append("label").text('Axes Resize: ');
-        attentionFields.append("label").attr('id', 'attAxesLabel');
+        attentionFields.append("label").attr('id', 'attAxesLabel'+extId);
         attentionFields.append("i")
             .attr('class', 'fa fa-fw fa-refresh')
             .attr('style', 'cursor: pointer;')
@@ -120,7 +120,7 @@ import * as d3 from 'd3';
 
 
         attentionFields.append("label").text('Stability: ');
-        attentionFields.append("label").attr('id', 'attStabilityLabel');
+        attentionFields.append("label").attr('id', 'attStabilityLabel'+extId);
         attentionFields.append("i")
             .attr('class', 'fa fa-fw fa-refresh')
             .attr('style', 'cursor: pointer;')
@@ -133,7 +133,7 @@ import * as d3 from 'd3';
             });
 
         attentionFields.append("label").text('Progress: ');
-        attentionFields.append("label").attr('id', 'attProgressLabel');
+        attentionFields.append("label").attr('id', 'attProgressLabel'+extId);
         attentionFields.append("i")
             .attr('class', 'fa fa-fw fa-refresh')
             .attr('style', 'cursor: pointer;')
@@ -146,7 +146,7 @@ import * as d3 from 'd3';
             });
 
         attentionFields.append("label").text('Safeguard: ');
-        attentionFields.append("label").attr('id', 'attSafeguardLabel');
+        attentionFields.append("label").attr('id', 'attSafeguardLabel'+extId);
         attentionFields.append("i")
             .attr('class', 'fa fa-fw fa-refresh')
             .attr('style', 'cursor: pointer;')
@@ -160,12 +160,12 @@ import * as d3 from 'd3';
             });
     }
 
-export function installInterface(container) {
+export function installInterface(container, extId) {
         //
         var dagDiv = container.append('div');
-        installDagCanvas(dagDiv);
+    installDagCanvas(dagDiv, extId);
         //
         var detailsDiv = container.append('div');
-        installDetailsForm(detailsDiv);
+    installDetailsForm(detailsDiv, extId);
     }
 
