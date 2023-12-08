@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ipywidgets as widgets
 from traitlets import Unicode
+from .._version import NPM_PACKAGE, NPM_PACKAGE_RANGE
 
 # from typing import Any as AnyType
 
@@ -22,15 +23,15 @@ class PrevImages(widgets.DOMWidget):
     _model_name = Unicode("PrevImagesModel").tag(sync=True)
 
     # Name of the front-end module containing widget view
-    _view_module = Unicode("jupyter-progressivis").tag(sync=True)
+    _view_module = Unicode(NPM_PACKAGE).tag(sync=True)
 
     # Name of the front-end module containing widget model
-    _model_module = Unicode("jupyter-progressivis").tag(sync=True)
+    _model_module = Unicode(NPM_PACKAGE).tag(sync=True)
 
     # Version of the front-end module containing widget view
-    _view_module_version = Unicode("^0.1.0").tag(sync=True)
+    _view_module_version = Unicode(NPM_PACKAGE_RANGE).tag(sync=True)
     # Version of the front-end module containing widget model
-    _model_module_version = Unicode("^0.1.0").tag(sync=True)
+    _model_module_version = Unicode(NPM_PACKAGE_RANGE).tag(sync=True)
 
     target = Unicode("").tag(sync=True)
 

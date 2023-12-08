@@ -30,7 +30,7 @@
 import ipywidgets as widgets
 import json
 from traitlets import Unicode
-from .._version import NPM_PACKAGE_RANGE
+from .._version import NPM_PACKAGE, NPM_PACKAGE_RANGE
 
 # See js/lib/example.js for the frontend counterpart to this file.
 
@@ -46,10 +46,10 @@ class DagWidgetController(widgets.DOMWidget):
     _model_name = Unicode("DagWidgetModel").tag(sync=True)
 
     # Name of the front-end module containing widget view
-    _view_module = Unicode("jupyter-progressivis").tag(sync=True)
+    _view_module = Unicode(NPM_PACKAGE).tag(sync=True)
 
     # Name of the front-end module containing widget model
-    _model_module = Unicode("jupyter-progressivis").tag(sync=True)
+    _model_module = Unicode(NPM_PACKAGE).tag(sync=True)
 
     # Version of the front-end module containing widget view
     _view_module_version = Unicode(NPM_PACKAGE_RANGE).tag(sync=True)

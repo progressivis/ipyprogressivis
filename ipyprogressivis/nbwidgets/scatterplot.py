@@ -8,6 +8,7 @@ from traitlets import Unicode, Any, Bool  # type: ignore
 from progressivis.core import JSONEncoderNp as JS, asynchronize
 import progressivis.core.aio as aio
 from .utils import data_union_serialization_compress
+from .._version import NPM_PACKAGE, NPM_PACKAGE_RANGE
 
 from typing import Any as AnyType, Sequence, TYPE_CHECKING, cast
 
@@ -33,15 +34,15 @@ class Scatterplot(DataWidget, widgets.DOMWidget):  # type: ignore
     _model_name = Unicode("ScatterplotModel").tag(sync=True)
 
     # Name of the front-end module containing widget view
-    _view_module = Unicode("jupyter-progressivis").tag(sync=True)
+    _view_module = Unicode(NPM_PACKAGE).tag(sync=True)
 
     # Name of the front-end module containing widget model
-    _model_module = Unicode("jupyter-progressivis").tag(sync=True)
+    _model_module = Unicode(NPM_PACKAGE).tag(sync=True)
 
     # Version of the front-end module containing widget view
-    _view_module_version = Unicode("^0.1.0").tag(sync=True)
+    _view_module_version = Unicode(NPM_PACKAGE_RANGE).tag(sync=True)
     # Version of the front-end module containing widget model
-    _model_module_version = Unicode("^0.1.0").tag(sync=True)
+    _model_module_version = Unicode(NPM_PACKAGE_RANGE).tag(sync=True)
 
     hists = DataUnion([], dtype="int32").tag(sync=True, **_serialization)
     samples = DataUnion(np.zeros((0, 0, 0), dtype="float32"), dtype="float32").tag(
