@@ -13,6 +13,8 @@ requirements:
     - python
     - hatchling >=1.18
     - jupyter
+    - notebook
+    - jupyter_contrib_nbextensions
 
   host:
     - python
@@ -23,9 +25,12 @@ requirements:
     - yarn 1
     - nodejs 18
     - pip
+    - notebook
+    - jupyter_contrib_nbextensions
 
   run:
     - python
+    - jupyter
     - jupyterlab>=4.0.0
     - ipywidgets <9,>=7.6
     - traitlets >=4.3.0
