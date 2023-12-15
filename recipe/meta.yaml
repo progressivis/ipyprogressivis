@@ -1,0 +1,48 @@
+package:
+  name: ipyprogressivis
+  version: {{ environ.get('GIT_DESCRIBE_TAG', '')}}
+
+build:
+  number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
+
+source:
+  git_url: ../
+
+requirements:
+  build:
+    - python
+    - hatchling >=1.18
+    - jupyter
+
+  host:
+    - python
+    - jupyter
+    - jupyterlab>=4.0.0
+    - hatchling >=1.18
+    - hatch-jupyter-builder
+    - yarn 1
+    - nodejs 18
+    - pip
+
+  run:
+    - python
+    - jupyterlab>=4.0.0
+    - ipywidgets <9,>=7.6
+    - traitlets >=4.3.0
+    - traittypes >=0.0.6
+    - numpy >=1.22.4,<2.0.0
+    - pandas>=1.2.5,<3.0.0
+    - ipydatawidgets
+    - progressivis
+    - vega >=4.0.0
+    - lz4
+
+about:
+  home: https://github.com/progressivis/ipyprogressivis
+  license: New BSD
+  license_file: LICENSE
+
+extra:
+  recipe-maintainers:
+    - jdfekete
+    - xtianpoli
