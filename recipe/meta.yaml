@@ -19,7 +19,7 @@ requirements:
   host:
     - python
     - jupyter
-    - jupyterlab>=3.6.0
+    - jupyterlab>=4.0.0
     - hatchling >=1.18
     - hatch-jupyter-builder
     - yarn 1
