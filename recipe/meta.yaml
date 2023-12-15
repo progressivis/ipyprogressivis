@@ -30,6 +30,8 @@ requirements:
 
   run:
     - python
+    - notebook==6.4.12
+    - jupyter_contrib_nbextensions
     - jupyter
     - jupyterlab>=4.0.0
     - ipywidgets <9,>=7.6
