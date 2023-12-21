@@ -8,7 +8,7 @@ from traitlets import Unicode, Any, Bool  # type: ignore
 from progressivis.core import JSONEncoderNp as JS, asynchronize
 import progressivis.core.aio as aio
 from .utils import data_union_serialization_compress
-from .._version import NPM_PACKAGE, NPM_PACKAGE_RANGE
+from .. _frontend import NPM_PACKAGE, NPM_PACKAGE_RANGE
 
 from typing import Any as AnyType, Sequence, TYPE_CHECKING, cast
 

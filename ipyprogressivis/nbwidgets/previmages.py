@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ipywidgets as widgets
 from traitlets import Unicode
-from .._version import NPM_PACKAGE, NPM_PACKAGE_RANGE
+from .. _frontend import NPM_PACKAGE, NPM_PACKAGE_RANGE
 
 # from typing import Any as AnyType
 

@@ -3,7 +3,7 @@ from traitlets import Unicode
 
 from typing import Any
 import vega.widget as vw
-from .._version import NPM_PACKAGE, NPM_PACKAGE_RANGE
+from .. _frontend import NPM_PACKAGE, NPM_PACKAGE_RANGE
 
 
 @ipywidgets.register

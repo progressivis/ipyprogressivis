@@ -1,12 +1,14 @@
 [build-system]
 requires = [
     "hatchling>=1.18",
+    "hatch-vcs",
     "jupyterlab>=4.0.0",
 ]
 build-backend = "hatchling.build"
 
 [project]
 name = "ipyprogressivis"
+dynamic = ["version"]
 description = "A Custom Jupyter Widget Library for Progressivis"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -45,7 +47,7 @@ dependencies = [
     "vega>=4.0.0",
     "lz4",
 ]
-version = "0.1.0.dev0"
+
 
 [project.optional-dependencies]
 docs = [
@@ -74,6 +76,12 @@ artifacts = [
     "ipyprogressivis/labextension/*.tgz",
     "ipyprogressivis/labextension",
 ]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "ipyprogressivis/_version.py"
 
 [tool.hatch.build.targets.wheel.shared-data]
 "ipyprogressivis/nbextension" = "share/jupyter/nbextensions/jupyter-progressivis"

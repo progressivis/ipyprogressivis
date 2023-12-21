@@ -30,7 +30,7 @@
 import ipywidgets as widgets
 import json
 from traitlets import Unicode
-from .._version import NPM_PACKAGE, NPM_PACKAGE_RANGE
+from .. _frontend import NPM_PACKAGE, NPM_PACKAGE_RANGE
 
 # See js/lib/example.js for the frontend counterpart to this file.
 
