@@ -34,6 +34,9 @@ jobs:
     - name: Install dependencies
       run: |
         git clone https://github.com/progressivis/progressivis.git
+        cd progressivis
+        git submodule init
+        cd ..
         python -m pip install ./progressivis # install progressivis
         python -m pip install jupyterlab==4.0.0
         pushd js
