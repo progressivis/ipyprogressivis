@@ -43,7 +43,7 @@ dependencies = [
     "numpy>=1.10.4,<2.0.0",
     "pandas>=1.0.0,<3.0.0",
     "ipydatawidgets",
-    "progressivis",
+    "progressivis>=0.1.0",
     "vega>=4.0.0",
     "lz4",
 ]

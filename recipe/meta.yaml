@@ -33,14 +33,14 @@ requirements:
     - notebook==6.4.12
     - jupyter_contrib_nbextensions
     - jupyter
-    - jupyterlab>=4.0.0
+    - jupyterlab >=4.0.0
     - ipywidgets <9,>=7.6
     - traitlets >=4.3.0
     - traittypes >=0.0.6
     - numpy >=1.22.4,<2.0.0
-    - pandas>=1.2.5,<3.0.0
+    - pandas >=1.2.5,<3.0.0
     - ipydatawidgets
-    - progressivis
+    - progressivis >=0.1.0
     - vega >=4.0.0
     - lz4
 
