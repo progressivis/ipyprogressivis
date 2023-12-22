@@ -1,5 +1,3 @@
+# type: ignore
 import ipyprogressivis
-
-
-_ = ipyprogressivis
-# print('ipyprogressivis.__version__: %s' % ipyprogressivis.__version__)
+print('ipyprogressivis.__version__: %s' % ipyprogressivis.__version__)

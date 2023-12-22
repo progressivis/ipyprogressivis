@@ -21,6 +21,7 @@ requirements:
     - jupyter
     - jupyterlab>=4.0.0
     - hatchling >=1.18
+    - hatch-vcs
     - hatch-jupyter-builder
     - yarn 1
     - nodejs 18
