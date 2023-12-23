@@ -46,3 +46,6 @@ def _jupyter_nbextension_paths():
         'dest': 'jupyter-progressivis',
         'require': 'jupyter-progressivis/extension'
     }]
+
+
+__all__ = ["__version__"]
