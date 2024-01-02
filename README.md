@@ -1,63 +1,27 @@
-# ipyprogressivis: A Custom Jupyter Widget Library for Progressivis
+# IpyProgressiVis: A Custom Jupyter Widget Library for ProgressiVis
 
-## Installation (by now, dev mode only)
-NB: You are assumed to have previously installed *progressivis* library
-The root of the following relative path is the progressivis repository root
-
-### Preparing conda environment
-* Start by installing miniconda, following Conda’s installation documentation :
-https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html
-* Create a conda environment [first time] :
-  $ conda create -n progressivis-ext --override-channels --strict-channel-priority -c conda-forge -c anaconda cython numpy jupyterlab nodejs git
-* Activate it :
-  $ conda activate progressivis-ext
-* Install jupyterlab=2 and ipywidgets
-  $ conda install -c conda-forge jupyterlab=2
-  $ conda install -c conda-forge ipywidgets
-
-### Development installation for notebook (requires npm),
-    $ cd ipyprogressivis
-    $ pip install -e .
-    $ cd ipyprogressivis/js
-    $ npm install
-    $ npm run build
-    $ jupyter nbextension install --py --symlink --sys-prefix ipyprogressivis.nbwidgets
-    $ jupyter nbextension enable --py --sys-prefix ipyprogressivis.nbwidgets
-
-### Development installation for jupyterlab
-
-NB: be sure to run jupyterlab2. If needed, create a dedicated environment as explained here :
-https://jupyterlab.readthedocs.io/en/stable/developer/extension_tutorial.html#set-up-a-development-environment
-
-In addition to previous steps (i.e. notebook steps)
-
-    $ cd ipyprogressivis
-    $ jupyter labextension install js
+[![Python Tests](https://github.com/progressivis/ipyprogressivis/actions/workflows/ui.yml/badge.svg?branch=main&event=push)](https://github.com/progressivis/ipyprogressivis/actions/workflows/ui.yml)
+[![Documentation Status](https://readthedocs.org/projects/progressivis/badge/?version=latest)](https://progressivis.readthedocs.io/en/latest/?badge=latest)
+[![linting - Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![types - Mypy](https://img.shields.io/badge/types-Mypy-blue.svg)](https://github.com/python/mypy)
+[![License](https://img.shields.io/badge/License-BSD_2--Clause-orange.svg)](https://opensource.org/licenses/BSD-2-Clause)
 
 
+## Installation
 
+See the installation instructions [provided here](https://progressivis.readthedocs.io/en/latest/install.html).
 
+## Running demos (on your computer)
 
-## Running examples
+After installing `ipyprogressivis` do:
 
-NB: Before running examples, activate progressivis-ext :
+```
+cd ipyprogressivis/notebooks
+jupyter lab
+```
+then run the notebooks of your choice
 
-## Running under notebook
-
-$ cd progressivis/notebooks
-$ jupyter notebook
-
-## Running under jupyterlab
-
-$ cd progressivis/notebooks
-$ jupyter lab
-
-NB: install and enable @jupyter-widgets/jupyterlab-manager
-NB: in order to run progressivis examples you have to enable third-party extensions in jupyterlab extension manager
-NB: When actively developing your extension, build Jupyter Lab with the command:
-$ jupyter lab --watch
-$ conda activate progressivis-ext
-
+<!--
 ### Running under Voilà
 
 Install voilà :
@@ -92,3 +56,4 @@ Install the extension :
 jupyter labextension install @jupyter-voila/jupyterlab-preview
 
 Display the notebook with Voilà like showed here: https://user-images.githubusercontent.com/591645/59288034-1f8d6a80-8c73-11e9-860f-c3449dd3dcb5.gif
+-->
