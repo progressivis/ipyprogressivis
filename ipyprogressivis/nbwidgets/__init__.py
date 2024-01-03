@@ -1,5 +1,4 @@
 # flake8: noqa
-from ._version import version_info, __version__
 
 from .scatterplot import *
 from .previmages import *
