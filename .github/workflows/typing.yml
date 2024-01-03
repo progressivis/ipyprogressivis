@@ -34,4 +34,5 @@ jobs:
         git submodule update --remote --merge
         cd ..
         python -m pip install ./progressivis
+        mv mypy_ci.ini mypy.ini
         mypy --strict ipyprogressivis/
