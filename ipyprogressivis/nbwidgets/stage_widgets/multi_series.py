@@ -2,7 +2,7 @@ from .utils import make_button, stage_register, dongle_widget, VBoxTyped, TypedB
 from ..utils import historized_widget
 from ._multi_series import multi_series_no_data
 import ipywidgets as ipw
-from vega.widget import VegaWidget
+from ..vega import VegaWidget
 import pandas as pd
 from progressivis.core import Module
 from typing import Any as AnyType, Dict, cast, Type, List, Union

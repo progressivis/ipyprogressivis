@@ -6,7 +6,7 @@ import pandas as pd
 from progressivis.core import asynchronize, aio
 from progressivis.core.module import Module
 from progressivis.core.scheduler import Scheduler
-from vega.widget import VegaWidget
+from .vega import VegaWidget
 
 from typing import Any, Optional, List, Dict, Callable
 

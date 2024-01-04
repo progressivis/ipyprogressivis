@@ -2,7 +2,7 @@ from .utils import make_button, stage_register, VBoxTyped, TypedBase
 from ..utils import historized_widget
 from ._multi_series import scatterplot_no_data
 import ipywidgets as ipw
-from vega.widget import VegaWidget
+from ..vega import VegaWidget
 import pandas as pd
 from progressivis.core import Scheduler
 from typing import Any as AnyType, Dict, cast, Type, List

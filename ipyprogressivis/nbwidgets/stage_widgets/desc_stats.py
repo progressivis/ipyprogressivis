@@ -22,7 +22,7 @@ from progressivis.vis import (
     Histogram1dPattern,
     Histogram2dPattern,
 )
-from vega.widget import VegaWidget
+from ..vega import VegaWidget
 from .._hist1d_schema import hist1d_spec_no_data, kll_spec_no_data
 from .._hist2d_schema import hist2d_spec_no_data
 from .._corr_schema import corr_spec_no_data

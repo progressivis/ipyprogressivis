@@ -2,7 +2,7 @@ from .utils import make_button, stage_register, VBoxTyped, TypedBase
 from ..utils import historized_widget
 from ._multi_series import histogram1d_no_data
 import ipywidgets as ipw
-from vega.widget import VegaWidget
+from ..vega import VegaWidget
 import pandas as pd
 from progressivis.core import Scheduler
 
