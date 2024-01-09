@@ -1,10 +1,12 @@
 import ipywidgets as ipw
 import pandas as pd
+import panel as pn  # type: ignore
+from jupyter_bokeh.widgets import BokehModel  # type: ignore
 from ..csv_sniffer import CSVSniffer
 from progressivis.io import SimpleCSVLoader
 from progressivis.table import PTable
 from progressivis.table.constant import Constant
-from .utils import make_button, get_schema, VBoxTyped, TypedBase
+from .utils import make_button, get_schema, VBoxTyped, IpyVBoxTyped, TypedBase
 import os
 import time
 import json as js
@@ -47,17 +49,49 @@ def test_filter(df: pd.DataFrame) -> pd.DataFrame:
     return df[(pklon > -74.08) & (pklon < -73.5) & (pklat > 40.55) & (pklat < 41.00)]
 
 
+class JsonEditorW(IpyVBoxTyped):
+    class Typed(TypedBase):
+        files: ipw.Select
+        edit: ipw.Checkbox
+        mode: ipw.Dropdown | None
+        editor: BokehModel | None
+
+    def __init__(self, parent: "CsvLoaderW") -> None:
+        super().__init__()
+        self._parent = parent  # TODO: use a weakref
+
+    def init(self) -> None:
+        self.c_.mode = ipw.Dropdown(
+            options=["tree", "view", "form", "text", "preview"],
+            description="Edition mode",
+            disabled=False,
+        )
+        self.c_.mode.observe(self._mode_cb, names="value")
+        file_ = "/".join([self._parent.widget_dir, self._parent.c_.bookmarks.value])
+        with open(file_) as f:
+            content = js.load(f)
+        # pn.extension('ace', 'jsoneditor', 'ipywidgets')  # run it in a nb cell
+        self.json_editor = pn.widgets.JSONEditor(value=content,
+                                                 mode="form",
+                                                 width=600)
+        self.json_editor.param.trigger("value")
+        self.c_.editor = pn.ipywidget(self.json_editor)
+
+    def _mode_cb(self, change: Dict[str, Any]) -> None:
+        self.json_editor.mode = change["new"]
+
+
 class CsvLoaderW(VBoxTyped):
     class Typed(TypedBase):
         reuse_ck: ipw.Checkbox
         bookmarks: ipw.SelectMultiple
-        urls_wg: ipw.Textarea | ipw.Button
+        urls_wg: ipw.Textarea
         to_sniff: ipw.Text
         n_lines: ipw.IntText
         throttle: ipw.IntText
         sniff_btn: ipw.Button
-        sniffer: Optional[CSVSniffer]
-        start_save: Optional[ipw.HBox]
+        sniffer: CSVSniffer | JsonEditorW | None
+        start_save: ipw.HBox | ipw.Button | None
 
     def __init__(self) -> None:
         super().__init__()
@@ -120,8 +154,7 @@ class CsvLoaderW(VBoxTyped):
             self.c_.n_lines = None
             self.c_.throttle = None
             self.c_.sniffer = None
-            self.c_.start_save = None
-            self.c_.sniff_btn = None
+            self.c_.urls_wg = None
             self.c_.bookmarks = ipw.Select(
                 options=[""] + os.listdir(self.widget_dir),
                 value="",
@@ -131,19 +164,47 @@ class CsvLoaderW(VBoxTyped):
                 layout=ipw.Layout(width="60%"),
             )
             self.c_.bookmarks.observe(self._enable_reuse_cb, names="value")
-            self.c_.urls_wg = make_button(
+            self.c_.sniff_btn = make_button("Edit settings",
+                                            cb=self._edit_settings_cb,
+                                            disabled=True)
+            self.c_.start_save = make_button(
                 "Start loading csv ...", cb=self._start_loader_reuse_cb, disabled=True
             )
         else:
             self.init()
 
+    def _edit_settings_cb(self, btn: ipw.Button) -> None:
+        self.c_.sniffer = JsonEditorW(self)
+        self.c_.sniffer.init()
+        self.c_.start_save = ipw.HBox(
+            [
+                make_button("Start loading csv ...", cb=self._start_loader_reuse_cb),
+                make_button(
+                    "Save settings ...",
+                    cb=self._save_settings_cb,
+                    disabled=False,
+                ),
+                ipw.Text(
+                    value=self.c_.bookmarks.value,
+                    placeholder="",
+                    description="File:",
+                    disabled=False,
+                    layout=ipw.Layout(width="100%"),
+                ),
+            ]
+        )
+
     def _enable_reuse_cb(self, change: Dict[str, Any]) -> None:
-        self.c_.urls_wg.disabled = not change["new"]
+        self.c_.sniff_btn.disabled = not change["new"]
+        self.c_.start_save.disabled = not change["new"]
 
     def _start_loader_reuse_cb(self, btn: ipw.Button) -> None:
-        file_ = "/".join([self.widget_dir, self.c_.bookmarks.value])
-        with open(file_) as f:
-            content = js.load(f)
+        if isinstance(self.c_.sniffer, JsonEditorW):
+            content = self.c_.sniffer.json_editor.value
+        else:
+            file_ = "/".join([self.widget_dir, self.c_.bookmarks.value])
+            with open(file_) as f:
+                content = js.load(f)
         urls = content["urls"]
         throttle = content["throttle"]
         sniffed_params = content["sniffed_params"]
