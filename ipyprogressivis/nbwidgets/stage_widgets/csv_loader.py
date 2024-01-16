@@ -88,7 +88,7 @@ class CsvLoaderW(VBoxTyped):
         urls_wg: ipw.Textarea
         to_sniff: ipw.Text
         n_lines: ipw.IntText
-        throttle: ipw.IntText
+        throttle: ipw.IntText | ipw.Button
         sniff_btn: ipw.Button
         sniffer: CSVSniffer | JsonEditorW | None
         start_save: ipw.HBox | ipw.Button | None
@@ -144,6 +144,7 @@ class CsvLoaderW(VBoxTyped):
             disabled=False,
             layout=ipw.Layout(width="60%"),
         )
+        self.c_.sniffer = None
         self.c_.n_lines = ipw.IntText(value=lines, description="Rows:", disabled=False)
         self.c_.throttle = ipw.IntText(value=0, description="Throttle:", disabled=False)
         self.c_.sniff_btn = make_button("Sniff ...", cb=self._sniffer_cb)
@@ -152,7 +153,6 @@ class CsvLoaderW(VBoxTyped):
         if change["new"]:
             self.c_.to_sniff = None
             self.c_.n_lines = None
-            self.c_.throttle = None
             self.c_.sniffer = None
             self.c_.urls_wg = None
             self.c_.bookmarks = ipw.Select(
@@ -164,6 +164,9 @@ class CsvLoaderW(VBoxTyped):
                 layout=ipw.Layout(width="60%"),
             )
             self.c_.bookmarks.observe(self._enable_reuse_cb, names="value")
+            self.c_.throttle = make_button("Freeze",
+                                           cb=self._freeze_cb,
+                                           disabled=True)
             self.c_.sniff_btn = make_button("Edit settings",
                                             cb=self._edit_settings_cb,
                                             disabled=True)
@@ -172,6 +175,9 @@ class CsvLoaderW(VBoxTyped):
             )
         else:
             self.init()
+
+    def _freeze_cb(self, btn: ipw.Button) -> None:
+        pass
 
     def _edit_settings_cb(self, btn: ipw.Button) -> None:
         self.c_.sniffer = JsonEditorW(self)
@@ -195,6 +201,7 @@ class CsvLoaderW(VBoxTyped):
         )
 
     def _enable_reuse_cb(self, change: Dict[str, Any]) -> None:
+        self.c_.throttle.disabled = not change["new"]
         self.c_.sniff_btn.disabled = not change["new"]
         self.c_.start_save.disabled = not change["new"]
 

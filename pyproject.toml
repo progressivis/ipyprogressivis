@@ -44,6 +44,7 @@ dependencies = [
     "pandas>=1.0.0,<3.0.0",
     "ipydatawidgets",
     "progressivis",
+    "jupyter-client>=8.6.0",
     "vega>=4.0.0",
     "panel>=1.3.6",
     "jupyter-bokeh>=3.0.7",

@@ -2,6 +2,7 @@ import ipywidgets as ipw
 from progressivis import Scheduler
 from progressivis.io import Variable
 from progressivis.core import Sink, aio
+# from ..utils import get_backup_content
 from .utils import (
     make_button,
     set_dag,
@@ -12,7 +13,7 @@ from .utils import (
     NodeVBox,
     TypedBase,
     get_widget_by_id,
-    get_widget_by_key,
+    get_widget_by_key
 )
 
 from typing import (
@@ -54,6 +55,7 @@ class Constructor(RootVBox, TypedBox):
             dag: DAGWidget,
             urls: List[str] = [],
             *,
+            backup: AnyType = None,
             name: str = "root",
             to_sniff: Optional[str] = None,
     ) -> None:
@@ -71,8 +73,13 @@ class Constructor(RootVBox, TypedBox):
             "Start scheduler ...", cb=self._start_scheduler_cb
         )
         self.child.h2 = ipw.HTML(f"<h2 id='{self.dom_id}'>{name}</h2>")
+        self._backup = backup
+        self._tape: list[AnyType] = []
         s = Scheduler.default = Scheduler()
         self.scheduler = s
+
+    def add_to_record(self, content: AnyType) -> None:
+        self._backup._value = self._backup._value + [content]
 
     def _start_scheduler_cb(self, btn: ipw.Button) -> None:
         init_module = init_dataflow(self.scheduler)

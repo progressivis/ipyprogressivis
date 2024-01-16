@@ -23,6 +23,7 @@ from typing import (
     Iterable,
     Sequence,
     cast,
+    Protocol
 )
 from typing_extensions import TypeAlias  # python 3.9
 
@@ -151,6 +152,7 @@ def get_schema(sniffer: Sniffer) -> AnyType:
         if col in parse_dates:
             return "datetime64"
         return dataframe_dshape(np.dtype(dt))
+
     assert hasattr(sniffer, "_df")
     assert sniffer._df is not None
     norm_cols = dict(zip(sniffer._df.columns, normalize_columns(sniffer._df.columns)))
@@ -163,7 +165,10 @@ def get_schema(sniffer: Sniffer) -> AnyType:
 
 
 def make_button(
-        label: str, disabled: bool = False, cb: Optional[Callable[..., AnyType]] = None, **kw: Any
+    label: str,
+    disabled: bool = False,
+    cb: Optional[Callable[..., AnyType]] = None,
+    **kw: Any,
 ) -> ipw.Button:
     btn = ipw.Button(
         description=label,
@@ -171,13 +176,14 @@ def make_button(
         button_style="",  # 'success', 'info', 'warning', 'danger' or ''
         tooltip=label,
         icon="check",  # (FontAwesome names without the `fa-` prefix)
-        **kw
+        **kw,
     )
     if cb is not None:
         btn.on_click(cb)
     return btn
 
 
+"""
 def make_guess_types_toc2(
     obj: AnyType, sel: ipw.Select, fun: Callable[..., AnyType]
 ) -> Callable[..., AnyType]:
@@ -196,7 +202,7 @@ def make_guess_types_toc2(
             dataflow.delete_modules(*deps)
 
     return _guess
-
+"""
 
 stage_register: Dict[str, AnyType] = {}
 parent_widget: Optional["NodeVBox"] = None
@@ -276,7 +282,8 @@ def get_widget_by_key(key: str, num: int) -> "NodeVBox":
     return widget_by_key[(key, num)]
 
 
-def _make_btn_start_toc2(
+"""
+def _make_btn_chain_it_cb(
     obj: AnyType, sel: AnyType, fun: Callable[[Any, Any], None]
 ) -> Callable[..., None]:
     def _cbk(btn: ipw.Button) -> None:
@@ -295,6 +302,7 @@ def _make_btn_start_toc2(
             fun(obj, sel.value)
 
     return _cbk
+"""
 
 
 def _make_btn_start_loader(
@@ -369,16 +377,57 @@ def _remove_subtree(obj: "ChainingWidget") -> None:
     obj.delete_underlying_modules()
 
 
-def make_remove(obj: "NodeVBox") -> Callable[..., None]:
+def make_remove(obj: "NodeVBox" | "ChainingProtocol") -> Callable[..., None]:
     def _cbk(btn: ipw.Button) -> None:
-        _remove_subtree(obj)
+        _remove_subtree(obj)  # type: ignore
 
     return _cbk
 
 
+class ChainingProtocol(Protocol):
+    _output_dtypes: Optional[Dict[str, str]]
+    _output_module: Module
+    def make_guess_types_toc2(self, sel: ipw.Select) -> Callable[..., AnyType]: ...
+    def _make_btn_chain_it_cb(self, sel: AnyType) -> Callable[..., None]: ...
+
+
 class ChainingMixin:
-    def _make_chaining_box(self) -> ipw.HBox:
-        fnc = _make_btn_start_toc2
+    def make_guess_types_toc2(self, sel: ipw.Select) -> Callable[..., AnyType]:
+        def _guess(m: Module, run_number: int) -> None:
+            global parent_dtypes
+            assert hasattr(m, "result")
+            if m.result is None:
+                return
+            parent_dtypes = {
+                k: "datetime64" if str(v)[0] == "6" else v
+                for (k, v) in m.result.items()
+            }
+            self.output_dtypes = parent_dtypes
+            add_new_stage(self, sel.value)  # type: ignore
+            with m.scheduler() as dataflow:
+                deps = dataflow.collateral_damage(m.name)
+                dataflow.delete_modules(*deps)
+
+        return _guess
+
+    def _make_btn_chain_it_cb(self: ChainingProtocol, sel: AnyType) -> Callable[..., None]:
+        def _cbk(btn: ipw.Button) -> None:
+            global parent_widget
+            parent_widget = self  # type: ignore
+            if self._output_dtypes is None:
+                s = self._output_module.scheduler()
+                with s:
+                    ds = DataShape(scheduler=s)
+                    ds.input.table = self._output_module.output.result
+                    ds.on_after_run(self.make_guess_types_toc2(sel))
+                    sink = Sink(scheduler=s)
+                    sink.input.inp = ds.output.result
+            else:
+                add_new_stage(self, sel.value)  # type: ignore
+
+        return _cbk
+
+    def _make_chaining_box(self: ChainingProtocol) -> ipw.HBox:
         sel = ipw.Dropdown(
             options=[""] + list(stage_register.keys()),
             value="",
@@ -386,10 +435,10 @@ class ChainingMixin:
             description="Next stage",
             disabled=False,
         )
-        btn = make_button("Chain it", disabled=True, cb=fnc(self, sel, add_new_stage))
-        del_btn = make_button("Remove subtree",
-                              disabled=False,
-                              cb=make_remove(self))  # type: ignore
+        btn = make_button("Chain it", disabled=True, cb=self._make_btn_chain_it_cb(sel))
+        del_btn = make_button(
+            "Remove subtree", disabled=False, cb=make_remove(self)
+        )
 
         def _on_sel_change(change: Any) -> None:
             if change["new"]:
@@ -585,7 +634,9 @@ def insert_cell_at_index(kind: str, text: str, index: int, tag: str) -> None:
             js_func_cell_index.format(kind=kind, text=text, index=index, tag=tag)
         )
     )"""
-    get_dag().exec_js(jslab_func_cell_index.format(kind=kind, text=text, index=index, tag=tag))
+    get_dag().exec_js(
+        jslab_func_cell_index.format(kind=kind, text=text, index=index, tag=tag)
+    )
 
 
 def get_previous(obj: "ChainingWidget") -> "ChainingWidget":

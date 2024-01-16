@@ -11,7 +11,9 @@ import { SparkLineProgressBarModel, SparkLineProgressBarView,
          PlottingProgressBarModel, PlottingProgressBarView,
        } from './sparkline_progressbar';
 import {DagWidgetModel, DagWidgetView} from './dag_widget';
-import {VegaWidget, VegaWidgetModel} from 'jupyter-vega/dist/index';
+import {BackupWidgetModel, BackupWidgetView} from './backup';
+import {VegaWidgetModel, VegaWidget} from 'jupyter-vega/dist/index';
+
 export {
   register_config_editor,
   ScatterplotModel, ScatterplotView,
@@ -23,5 +25,6 @@ export {
   DataTableModel, DataTableView,
   SensitiveHTMLModel, SensitiveHTMLView,
   DagWidgetModel, DagWidgetView,
-  VegaWidget, VegaWidgetModel
+  VegaWidgetModel, VegaWidget,
+  BackupWidgetModel, BackupWidgetView
 };
