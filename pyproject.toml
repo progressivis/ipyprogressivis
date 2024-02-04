@@ -92,6 +92,7 @@ version-file = "ipyprogressivis/_version.py"
 "ipyprogressivis/labextension" = "share/jupyter/labextensions/jupyter-progressivis"
 "ipyprogressivis/install.json" = "share/jupyter/labextensions/jupyter-progressivis/install.json"
 "ipyprogressivis/jupyter-progressivis.json" = "etc/jupyter/nbconfig/notebook.d/jupyter-progressivis.json"
+"jupyter-config/jupyter_server_config.d/ipyprogressivis.json" = "etc/jupyter/jupyter_server_config.d/ipyprogressivis.json"
 
 [tool.hatch.build.targets.sdist]
 exclude = [

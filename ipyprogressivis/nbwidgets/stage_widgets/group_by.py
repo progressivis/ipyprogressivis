@@ -1,4 +1,6 @@
-from .utils import make_button, stage_register, dongle_widget, VBoxTyped, TypedBase
+from .utils import (make_button, stage_register,
+                    dongle_widget, VBoxTyped,
+                    TypedBase, amend_last_record, replay_next)
 import ipywidgets as ipw
 from progressivis.table.group_by import (
     GroupBy,
@@ -26,16 +28,20 @@ class GroupByW(VBoxTyped):
     class Typed(TypedBase):
         grouping_mode: Union[ipw.Label, ipw.RadioButtons]
         by_box: Union[ipw.SelectMultiple, ipw.HBox]
+        freeze_ck: ipw.Checkbox
         start_btn: ipw.Button
 
     def init(self) -> None:
         self.child.grouping_mode = self.make_gr_mode()
         self.child.by_box = self.make_sel_multiple()
+        self.child.freeze_ck = ipw.Checkbox(description="Freeze")
         self.child.start_btn = make_button(
             "Activate", cb=self._add_group_by_cb, disabled=True
         )
 
     def init_group_by(self, by: AnyType) -> GroupBy:
+        if isinstance(by, dict):
+            by = SC(by["col"]).dt[by["subcols"]]
         s = self.input_module.scheduler()
         with s:
             grby = GroupBy(by=by, keepdims=True, scheduler=s)
@@ -60,14 +66,24 @@ class GroupByW(VBoxTyped):
             by_box = cast(ipw.HBox, self.child.by_box)
             dd, sel = by_box.children
             col = dd.value
-            by = SC(col).dt["".join(sel.value)]
+            # by = SC(col).dt["".join(sel.value)]
+            by = dict(col=col, subcols="".join(sel.value))
             by_box.children[0].disabled = True
             by_box.children[1].disabled = True
+        if self.child.freeze_ck.value:
+            amend_last_record({'frozen': dict(by=by)})
         self.output_module = self.init_group_by(by)
         self.output_slot = "result"
         btn.disabled = True
         self.make_chaining_box()
         self.dag_running()
+
+    def run(self) -> None:
+        content = self.frozen_kw
+        self.output_module = self.init_group_by(**content)
+        self.output_slot = "result"
+        self.dag_running()
+        replay_next(self.carrier)
 
     def _on_grouping_cb(self, val: AnyType) -> None:
         if val["new"] == "columns":

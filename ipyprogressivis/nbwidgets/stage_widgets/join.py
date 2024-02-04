@@ -1,7 +1,7 @@
 from .utils import (
     make_button,
     stage_register,
-    append_child, VBox,
+    append_child, VBox, amend_last_record, replay_next
 )
 import ipywidgets as ipw
 from progressivis.table.group_by import UTIME_SHORT_D
@@ -14,7 +14,8 @@ from typing import (
     Dict,
     Callable,
     List,
-    Union
+    Union,
+    Literal
 )
 
 WidgetType = AnyType
@@ -99,10 +100,11 @@ class JoinW(VBox):
             disabled=False,
             style={"description_width": "initial"},
         )
+        self._freeze_ck = ipw.Checkbox(description="Freeze")
         self._btn_start = make_button("Start", disabled=True, cb=self._btn_start_cb)
         self.children = (gb, self._btn_ok,
                          self._cols_setup,
-                         ipw.HBox([self._how,
+                         ipw.HBox([self._how, self._freeze_ck,
                                    self._btn_start]))
 
     def _btn_start_cb(self, btn: Any) -> None:
@@ -119,24 +121,89 @@ class JoinW(VBox):
         assert len(primary_on) == len(related_on)
         primary_on = primary_on[0] if len(primary_on) == 1 else primary_on
         related_on = related_on[0] if len(related_on) == 1 else related_on
+        inv_mask = None
+        assert self._primary_wg is not None
+        assert self._primary_wg.output_dtypes is not None
+        if (isinstance(primary_on,
+                       str) and self._primary_wg.output_dtypes[
+                           primary_on] == "datetime64"):
+            _, _, mw = self._primary_cols_dict[primary_on]
+            msk = mw.get_dt()
+            if msk != "YMDhms":
+                inv_mask = msk
+        join_kw = dict(
+            primary_cols=primary_cols,
+            related_cols=related_cols,
+            primary_on=primary_on,
+            related_on=related_on,
+            primary_inp=self._primary_wg_frozen,
+            related_inp=self._related_wg_frozen,
+            inv_mask=inv_mask,
+            how=self._how.value,
+            )
+        if self._freeze_ck.value:
+            amend_last_record({'frozen': join_kw})
+        self.output_module = self.init_join(**join_kw)
+
+        self.make_chaining_box()
+        self.dag_running()
+
+    def run(self) -> None:
+        content = self.frozen_kw
+        if (key := content["primary_inp"]) != "parent":
+            primary_wg = self.get_widget_by_key(key)
+            if primary_wg.output_dtypes is None:
+                primary_wg.compute_dtypes_then_call(self.run)
+                return
+            self.dag.add_parent(self.title,  primary_wg.title)
+        if (key := content["related_inp"]) != "parent":
+            related_wg = self.get_widget_by_key(key)
+            if related_wg.output_dtypes is None:
+                related_wg.compute_dtypes_then_call(self.run)
+                return
+            self.dag.add_parent(self.title,  related_wg.title)
+        self.output_module = self.init_join(**content)
+        self.output_slot = "result"
+        self.dag_running()
+        replay_next(self.carrier)
+
+    def init_join(self, primary_cols: list[str], related_cols: list[str],
+                  primary_on: str | list[str], related_on: str | list[str],
+                  primary_inp: str | tuple[str, int], related_inp: tuple[str, int],
+                  inv_mask: str,
+                  how: Literal['inner', 'outer']
+                  ) -> Join:
+        """kw = dict(
+            primary_cols=primary_cols,
+            related_cols=related_cols,
+            primary_on=primary_on,
+            related_on=related_on,
+            primary_inp=primary_inp,
+            related_inp=related_inp,
+            inv_mask=inv_mask,
+            how=how
+            )"""
+        if primary_inp == "parent":
+            primary_wg = self.parent
+            related_wg = self.get_widget_by_key(related_inp)
+            # second_wg = related_wg
+        else:
+            assert isinstance(primary_inp, tuple)
+            primary_wg = self.get_widget_by_key(primary_inp)
+            related_wg = self.parent
+            """second_wg = primary_wg
+            if second_wg.output_dtypes is None:
+            second_wg."""
         s = self.input_module.scheduler()
         with s:
-            inv_mask = None
-            assert self._primary_wg is not None
-            assert self._related_wg is not None
-            assert self._primary_wg.output_dtypes is not None
-            assert self._related_wg.output_dtypes is not None
-            if (isinstance(primary_on,
-                           str) and self._primary_wg.output_dtypes[
-                               primary_on] == "datetime64"):
-                _, _, mw = self._primary_cols_dict[primary_on]
-                msk = mw.get_dt()
-                if msk != "YMDhms":
-                    inv_mask = msk
-            join = Join(how=self._how.value, inv_mask=inv_mask, scheduler=s)
+            assert primary_wg is not None
+            assert related_wg is not None
+            assert primary_wg.output_dtypes is not None
+            assert related_wg.output_dtypes is not None
+            join = Join(how=how, inv_mask=inv_mask, scheduler=s)
             join.create_dependent_modules(
-                related_module=self._related_wg.output_module,
-                primary_module=self._primary_wg.output_module,
+                related_module=related_wg.output_module,
+                primary_module=primary_wg.output_module,
                 related_on=related_on,
                 primary_on=primary_on,
                 related_cols=related_cols,
@@ -144,27 +211,33 @@ class JoinW(VBox):
             )
             sink = Sink(scheduler=s)
             sink.input.inp = join.output.result
-            self.output_module = join
-        self.make_chaining_box()
-        self.dag_running()
+        return join
 
     def _btn_ok_cb(self, *args: Any, **kw: Any) -> None:
         self._input_2.disabled = True
         self._role_2.disabled = True
         widget_1 = self.parent
+        widget_1_frozen = "parent"
         widget_2 = self.get_widget_by_key(self._input_2.value)
+        widget_2_frozen = self._input_2.value
         if widget_2.output_dtypes is None:
             widget_2.compute_dtypes_then_call(self._btn_ok_cb, args, kw)
             return
         self.dag.add_parent(self.title,  widget_2.title)
         if self._role_1.value == "primary":
             primary_wg = widget_1
+            primary_wg_frozen = widget_1_frozen
             related_wg = widget_2
+            related_wg_frozen = widget_2_frozen
         else:
             primary_wg = widget_2
+            primary_wg_frozen = widget_2_frozen
             related_wg = widget_1
+            related_wg_frozen = widget_1_frozen
         self._primary_wg = primary_wg
         self._related_wg = related_wg
+        self._primary_wg_frozen = primary_wg_frozen
+        self._related_wg_frozen = related_wg_frozen
         # primary cols
         ck_all = ipw.Checkbox(value=True,
                               description="",

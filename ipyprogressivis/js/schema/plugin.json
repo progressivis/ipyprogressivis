@@ -1,0 +1,23 @@
+{
+  "title": "ProgressiVis",
+  "description": "ProgressiVis template",
+  "jupyter.lab.menus": {
+    "main": [
+      {
+        "id": "jp-progressivis-menu",
+        "label": "Progressivis",
+        "rank": 80,
+        "items": [
+          {
+            "command": "progressivis:templ",
+            "args": {
+              "origin": "from the menu"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "additionalProperties": false,
+  "type": "object"
+}

@@ -1,5 +1,8 @@
 from weakref import ref, ReferenceType
 import numpy as np
+from traitlets import Unicode
+import json
+import base64
 import logging
 import ipywidgets as ipw
 from progressivis.table.dshape import dataframe_dshape
@@ -10,6 +13,7 @@ from progressivis.core.utils import normalize_columns
 from ..csv_sniffer import CSVSniffer
 from collections import defaultdict
 from .. import DagWidgetController  # type: ignore
+from .. import PsBoard
 from typing import (
     Any,
     Union,
@@ -23,16 +27,136 @@ from typing import (
     Iterable,
     Sequence,
     cast,
-    Protocol
+    Protocol,
 )
 from typing_extensions import TypeAlias  # python 3.9
+from dataclasses import dataclass, KW_ONLY
+from ..backup import BackupWidget
+from ..talker import Talker
+from sidecar import Sidecar  # type: ignore
 
 Sniffer = CSVSniffer
 DAGWidget: TypeAlias = DagWidgetController
 
 logger = logging.getLogger(__name__)
 
-PARAMS: Dict[str, str] = {}
+PARAMS: Dict[str, AnyType] = {}
+
+backup_widget: List[BackupWidget] = []
+replay_list: List[Dict[str, AnyType]] = []
+
+
+@dataclass
+class Header:
+    from ipyprogressivis.nbwidgets import Constructor
+    _: KW_ONLY
+    start: bool
+    talker: Talker
+    backup: BackupWidget
+    manager: DagWidgetController
+    constructor: Constructor
+    board: PsBoard
+    widgets_out: Sidecar
+    modules_out: Sidecar
+
+
+def get_header() -> Header:
+    """
+    NB: call this function ONLY from the first cell of the notebook!!
+    """
+    from ipyprogressivis.nbwidgets import Constructor
+
+    if "header" in PARAMS:
+        hdr = cast(Header, PARAMS["header"])
+        hdr.start = False
+        try:
+            hdr.widgets_out.close()
+            hdr.modules_out.close()
+        except Exception:
+            pass
+        hdr.modules_out = Sidecar(title="Modules Output")
+        hdr.widgets_out = Sidecar(title="Widgets Output")
+        # hdr.talker = Talker()
+        return hdr
+    manager = DagWidgetController()
+    backup = BackupWidget()
+    constructor = Constructor(manager, backup=backup)
+    PARAMS["header"] = Header(
+        start=True,
+        talker=Talker(),
+        backup=backup,
+        manager=manager,
+        constructor=constructor,
+        board=PsBoard(constructor.scheduler),
+        modules_out=Sidecar(title="Modules Output"),
+        widgets_out=Sidecar(title="Widgets Output"),
+    )
+    return cast(Header, PARAMS["header"])
+
+
+def labcommand(cmd: str, **kw: AnyType) -> None:
+    hdr = PARAMS["header"]
+    hdr.talker.labcommand(cmd, kw)
+
+
+def json2b64(json_: AnyType) -> str:
+    return base64.b64encode(json.dumps(json_).encode()).decode()
+
+
+def b642json(b64str: str) -> AnyType:
+    return json.loads(base64.b64decode(b64str.encode()).decode())
+
+
+def bpack(bak: List[AnyType]) -> str:
+    # return json.dumps(bak)
+    return ";".join([json2b64(elt) for elt in bak])
+
+
+def bunpack(bstr: str) -> List[AnyType]:
+    # return json.loads(bstr)
+    return bstr.split(";")
+
+
+def add_to_record(content: Dict[str, AnyType]) -> None:
+    assert len(backup_widget) == 1
+    widget = backup_widget[0]
+    # unpacked = bunpack(widget._value)
+    # unpacked.append(content)
+    # widget._value = bpack(unpacked)
+    widget._value = cast(
+        Unicode,
+        cast(str, widget._value) + ";" + json2b64(content)
+        if widget._value
+        else json2b64(content),
+    )
+
+
+def amend_last_record(content: Dict[str, AnyType]) -> None:
+    assert len(backup_widget) == 1
+    widget = backup_widget[0]
+    unpacked = bunpack(cast(str, widget._value))
+    current = b642json(unpacked[-1])
+    current.update(content)
+    unpacked[-1] = json2b64(current)
+    widget._value = cast(Unicode, ";".join(unpacked))
+
+
+def reset_backup() -> None:
+    assert len(backup_widget) == 1
+    widget = backup_widget[0]
+    widget._value = cast(Unicode, "")
+
+
+def replay_next(obj: AnyType) -> None:
+    assert replay_list
+    stage = replay_list.pop(0)
+    print("replay next", stage)
+    if not stage:  # i.e. stage == {}, end of tape
+        return
+    if "ftype" in stage:  # i.e. is a loader
+        replay_start_loader(PARAMS["constructor"], **stage)
+    else:
+        replay_new_stage(obj, **stage)
 
 
 def get_dag() -> DAGWidget:
@@ -226,7 +350,7 @@ class _Dag:
         self._alias = alias
 
 
-def create_stage_widget(key: str) -> "NodeCarrier":
+def create_stage_widget(key: str, frozen: AnyType = None) -> "NodeCarrier":
     # global last_created
     obj = parent_widget
     assert obj is not None
@@ -236,6 +360,8 @@ def create_stage_widget(key: str) -> "NodeCarrier":
     dag = _Dag(label=key, number=widget_numbers[key], dag=get_dag())
     ctx = dict(parent=obj, dtypes=dtypes, input_module=obj._output_module, dag=dag)
     guest = stage_register[key]()
+    if frozen is not None:
+        guest.frozen_kw = frozen
     stage = NodeCarrier(ctx, guest)
     guest.init()
     widget_numbers[key] += 1
@@ -246,7 +372,9 @@ def create_stage_widget(key: str) -> "NodeCarrier":
     return stage
 
 
-def create_loader_widget(key: str, ftype: str, alias: str) -> "NodeCarrier":
+def create_loader_widget(
+    key: str, ftype: str, alias: str, frozen: AnyType = None
+) -> "NodeCarrier":
     obj = parent_widget
     dtypes = None
     assert obj is not None
@@ -262,6 +390,8 @@ def create_loader_widget(key: str, ftype: str, alias: str) -> "NodeCarrier":
     else:
         assert ftype == "parquet"
         loader = ParquetLoaderW()
+    if frozen is not None:
+        loader.frozen_kw = frozen
     stage = NodeCarrier(ctx, loader)
     loader.init()
     widget_numbers[key] += 1
@@ -316,6 +446,56 @@ def _make_btn_start_loader(
         alias.value = ""
 
     return _cbk
+
+
+def replay_start_loader(
+    obj: "NodeVBox", ftype: str, alias: str, frozen: AnyType | None = None
+) -> None:
+    global parent_widget
+    parent_widget = obj
+    assert parent_widget
+    add_new_loader(obj, ftype, alias, frozen=frozen)
+    """
+    def make_guess_types_for_replay(self, sel: ipw.Select) -> Callable[..., AnyType]:
+        def _guess(m: Module, run_number: int) -> None:
+            global parent_dtypes
+            assert hasattr(m, "result")
+            if m.result is None:
+                return
+            parent_dtypes = {
+                k: "datetime64" if str(v)[0] == "6" else v
+                for (k, v) in m.result.items()
+            }
+            self.output_dtypes = parent_dtypes
+            add_new_stage(self, sel.value)  # type: ignore
+            with m.scheduler() as dataflow:
+                deps = dataflow.collateral_damage(m.name)
+                dataflow.delete_modules(*deps)
+
+        return _guess
+    """
+
+
+def replay_new_stage(
+    obj: "NodeVBox", title: str, frozen: AnyType | None = None
+) -> None:
+    class _FakeSel:
+        value: str
+
+    sel = _FakeSel()
+    sel.value = title
+    global parent_widget
+    parent_widget = obj
+    if obj._output_dtypes is None:
+        s = obj._output_module.scheduler()
+        with s:
+            ds = DataShape(scheduler=s)
+            ds.input.table = obj._output_module.output.result
+            ds.on_after_run(obj.make_guess_types_toc2(sel, frozen))  # type: ignore
+            sink = Sink(scheduler=s)
+            sink.input.inp = ds.output.result
+    else:
+        add_new_stage(obj, title, frozen=frozen)
 
 
 remove_js_func = """
@@ -377,9 +557,9 @@ def _remove_subtree(obj: "ChainingWidget") -> None:
     obj.delete_underlying_modules()
 
 
-def make_remove(obj: "NodeVBox" | "ChainingProtocol") -> Callable[..., None]:
+def make_remove(obj: "NodeVBox") -> Callable[..., None]:
     def _cbk(btn: ipw.Button) -> None:
-        _remove_subtree(obj)  # type: ignore
+        _remove_subtree(obj)
 
     return _cbk
 
@@ -387,12 +567,18 @@ def make_remove(obj: "NodeVBox" | "ChainingProtocol") -> Callable[..., None]:
 class ChainingProtocol(Protocol):
     _output_dtypes: Optional[Dict[str, str]]
     _output_module: Module
-    def make_guess_types_toc2(self, sel: ipw.Select) -> Callable[..., AnyType]: ...
-    def _make_btn_chain_it_cb(self, sel: AnyType) -> Callable[..., None]: ...
+
+    def make_guess_types_toc2(self, sel: ipw.Select) -> Callable[..., AnyType]:
+        ...
+
+    def _make_btn_chain_it_cb(self, sel: AnyType) -> Callable[..., None]:
+        ...
 
 
 class ChainingMixin:
-    def make_guess_types_toc2(self, sel: ipw.Select) -> Callable[..., AnyType]:
+    def make_guess_types_toc2(
+        self, sel: ipw.Select, frozen: AnyType | None = None
+    ) -> Callable[..., AnyType]:
         def _guess(m: Module, run_number: int) -> None:
             global parent_dtypes
             assert hasattr(m, "result")
@@ -403,14 +589,16 @@ class ChainingMixin:
                 for (k, v) in m.result.items()
             }
             self.output_dtypes = parent_dtypes
-            add_new_stage(self, sel.value)  # type: ignore
+            add_new_stage(self, sel.value, frozen)  # type: ignore
             with m.scheduler() as dataflow:
                 deps = dataflow.collateral_damage(m.name)
                 dataflow.delete_modules(*deps)
 
         return _guess
 
-    def _make_btn_chain_it_cb(self: ChainingProtocol, sel: AnyType) -> Callable[..., None]:
+    def _make_btn_chain_it_cb(
+        self: ChainingProtocol, sel: AnyType
+    ) -> Callable[..., None]:
         def _cbk(btn: ipw.Button) -> None:
             global parent_widget
             parent_widget = self  # type: ignore
@@ -437,8 +625,50 @@ class ChainingMixin:
         )
         btn = make_button("Chain it", disabled=True, cb=self._make_btn_chain_it_cb(sel))
         del_btn = make_button(
-            "Remove subtree", disabled=False, cb=make_remove(self)
+            "Remove subtree", disabled=False, cb=make_remove(self)  # type: ignore
         )
+
+        def _on_sel_change(change: Any) -> None:
+            if change["new"]:
+                btn.disabled = False
+            else:
+                btn.disabled = True
+
+        sel.observe(_on_sel_change, names="value")
+        return ipw.HBox([sel, btn, del_btn])
+
+    def _make_replay_chaining_box(self: ChainingProtocol) -> ipw.HBox:
+        next_stage = replay_list.pop(0)
+        if "ftype" in next_stage:
+            title = next_stage["alias"]
+        else:
+            title = next_stage["title"]
+        sel = ipw.Dropdown(
+            options=[title],
+            value=title,
+            # rows=10,
+            description="Next stage",
+            disabled=True,
+        )
+
+        class _FakeSel:
+            value: str
+
+        fake_sel = _FakeSel()
+        fake_sel.value = title
+
+        if "ftype" in next_stage:
+            cons = PARAMS["constructor"]
+            btn = make_button(
+                "Create loader",
+                disabled=False,
+                cb=_make_btn_start_loader(cons, next_stage["ftype"], fake_sel),
+            )
+        else:
+            btn = make_button(
+                "Chain it", disabled=False, cb=self._make_btn_chain_it_cb(sel)
+            )
+        del_btn = make_button("Remove subtree", disabled=True)
 
         def _on_sel_change(change: Any) -> None:
             if change["new"]:
@@ -452,7 +682,7 @@ class ChainingMixin:
 
 class LoaderMixin:
     def make_loader_box(self, ftype: str = "csv") -> ipw.HBox:
-        fnc = _make_btn_start_loader
+        # reset_backup()
         alias_inp = ipw.Text(
             value="",
             placeholder="optional alias",
@@ -460,7 +690,9 @@ class LoaderMixin:
             disabled=False,
         )
         btn = make_button(
-            "Create", disabled=False, cb=fnc(self, ftype, alias_inp)  # type:ignore
+            "Create",
+            disabled=False,
+            cb=_make_btn_start_loader(self, ftype, alias_inp),  # type:ignore
         )
         return ipw.HBox([alias_inp, btn])
 
@@ -512,7 +744,8 @@ jslab_func_cleanup = """
 """
 
 
-def cleanup_cells(manager: DAGWidget) -> None:
+def cleanup_cells() -> None:
+    manager = PARAMS["header"].manager
     manager.exec_js(jslab_func_cleanup)
 
 
@@ -645,39 +878,51 @@ def get_previous(obj: "ChainingWidget") -> "ChainingWidget":
     return get_previous(obj.subwidgets[-1])
 
 
-new_stage_cell_0 = "Constructor.widget('{key}')"
-new_stage_cell = "Constructor.widget('{key}', {num})"
+new_stage_cell_0 = "Constructor.widget('{key}'){end}"
+new_stage_cell = "Constructor.widget('{key}', {num}){end}"
 
 
-def add_new_stage(parent: "ChainingWidget", title: str) -> None:
-    previous = get_previous(parent)
-    prev = id(previous)
-    stage = create_stage_widget(title)
+def add_new_stage(parent: "ChainingWidget", title: str, frozen: AnyType = None) -> None:
+    stage = create_stage_widget(title, frozen)
     tag = id(stage)
     n = stage.number
+    end = ""
+    if frozen is not None:
+        end = ".run();"
     md = "## " + title + (f"[{n}]" if n else "")
-    code = new_stage_cell.format(key=title, num=n)
-    s = jslab_func_toc.format(prev=prev, tag=tag, md=md, code=code)
-    get_dag().exec_js(s)
+    code = new_stage_cell.format(key=title, num=n, end=end)
+    # s = jslab_func_toc.format(prev=prev, tag=tag, md=md, code=code)
+    # get_dag().exec_js(s)
+    labcommand("progressivis:create_stage_cells", tag=tag, md=md, code=code)
+    # get_dag().exec_js(";")
+    add_to_record(dict(title=title))
 
 
-def add_new_loader(parent: "ChainingWidget", ftype: str, alias: str) -> None:
+def add_new_loader(
+    parent: "ChainingWidget", ftype: str, alias: str, frozen: AnyType = None
+) -> None:
     title = f"{ftype.upper()} loader"
-    prev = "no_previous"
-    stage = create_loader_widget(title, ftype, alias)
+    stage = create_loader_widget(title, ftype, alias, frozen)
     tag = id(stage)
     n = stage.number
+    end = ""
+    if frozen is not None:
+        end = ".run();"
     if alias:
         md = f"## {alias}"
-        code = new_stage_cell_0.format(key=alias)
+        code = new_stage_cell_0.format(key=alias, end=end)
     else:
         md = "## " + title + (f"[{n}]" if n else "")
         if n:
-            code = new_stage_cell.format(key=title, num=n)
+            code = new_stage_cell.format(key=title, num=n, end=end)
         else:
-            code = new_stage_cell_0.format(key=title)
-    s = jslab_func_toc.format(prev=prev, tag=tag, md=md, code=code)
-    get_dag().exec_js(s)
+            code = new_stage_cell_0.format(key=title, end=end)
+    print("new loader", md, frozen)
+    # s = jslab_func_toc.format(prev=prev, tag=tag, md=md, code=code)
+    # get_dag().exec_js(s)
+    labcommand("progressivis:create_stage_cells", tag=tag, md=md, code=code)
+    # labcommand("progressivis:args", a=1,b=2)
+    add_to_record(dict(ftype=ftype, alias=alias))
 
 
 class ChainingWidget:
@@ -749,6 +994,7 @@ class ChainingWidget:
 class GuestWidget:
     def __init__(self) -> None:
         self.__carrier: Union[int, ReferenceType["NodeCarrier"]] = 0
+        self.frozen_kw: Dict[str, Any]
 
     def init(self) -> None:
         pass
@@ -818,6 +1064,7 @@ class GuestWidget:
         return self.carrier.dag
 
     def get_widget_by_key(self, key: Tuple[str, int]) -> "VBox":
+        key = tuple(key)  # type: ignore
         return cast("VBox", widget_by_key[key].children[0])
 
     def dag_running(self) -> None:
@@ -896,10 +1143,17 @@ class NodeCarrier(NodeVBox):
         guest._GuestWidget__carrier = ref(self)  # type: ignore
         self.dag_register()
 
+    def run(self) -> None:
+        assert self.children[0].frozen_kw is not None  # type: ignore
+        self.children[0].run()  # type: ignore
+
     def make_chaining_box(self) -> None:
         if len(self.children) > 1:
             raise ValueError("The chaining box already exists")
-        box = self._make_chaining_box()
+        if replay_list:
+            box = self._make_replay_chaining_box()
+        else:
+            box = self._make_chaining_box()
         self.children = (self.children[0], box)
 
 
@@ -953,6 +1207,10 @@ class VBoxTyped(VBox, TypedBox):
     def __init__(self, *args: Any, **kw: Any) -> None:
         VBox.__init__(self, *args, **kw)
         TypedBox.__init__(self)
+        self.frozen_kw: AnyType = None
+
+    def run(self) -> None:
+        raise ValueError("run() not defined")
 
 
 class IpyVBoxTyped(ipw.VBox, TypedBox):

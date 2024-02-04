@@ -12,6 +12,7 @@ import { SparkLineProgressBarModel, SparkLineProgressBarView,
        } from './sparkline_progressbar';
 import {DagWidgetModel, DagWidgetView} from './dag_widget';
 import {BackupWidgetModel, BackupWidgetView} from './backup';
+import {TalkerModel} from './talker';
 import {VegaWidgetModel, VegaWidget} from 'jupyter-vega/dist/index';
 
 export {
@@ -26,5 +27,5 @@ export {
   SensitiveHTMLModel, SensitiveHTMLView,
   DagWidgetModel, DagWidgetView,
   VegaWidgetModel, VegaWidget,
-  BackupWidgetModel, BackupWidgetView
+    BackupWidgetModel, BackupWidgetView, TalkerModel
 };

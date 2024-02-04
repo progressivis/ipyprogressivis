@@ -7,22 +7,25 @@ from ipydatawidgets.ndarray.serializers import (  # type: ignore
 )
 from progressivis.core import asynchronize, aio
 # from ipykernel import connect_qtconsole, get_connection_file, get_connection_info
-import ipykernel as ipk  # type: ignore
+import ipykernel as ipk
 import json
 from typing import Any, Callable, Dict, Type, cast
 
 
 def get_backup_content(nb_file: str | None = None) -> str:
     if nb_file is None:
-        conn_info = json.loads(ipk.get_connection_info())
+        conn_info = json.loads(ipk.get_connection_info())  # type: ignore
         nb_file = conn_info.get('jupyter_session')
         if nb_file is None:
             raise ValueError("This tool requires jupyter-client>=8.6.0")
     with open(nb_file) as nb_fd:
         nb_json = json.load(nb_fd)
-    nb_widgets = nb_json['metadata'][
+    metadata = nb_json['metadata']
+    if "widgets" not in metadata:
+        return ""
+    nb_widgets = metadata[
         'widgets']['application/vnd.jupyter.widget-state+json']['state'].values()
-    backup_list = [y['state']['_value']
+    backup_list = [y['state'].get('_value', "")
                    for y in nb_widgets if y['model_name'] == 'BackupWidgetModel']
     if len(backup_list) > 1:
         raise ValueError("There are more than one 'BackupWidget' on this notebook")

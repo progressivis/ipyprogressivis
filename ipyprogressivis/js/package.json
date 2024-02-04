@@ -58,6 +58,7 @@
   },
   "dependencies": {
     "@jupyter-widgets/base": "^1.1 || ^2 || ^3 || ^4 || ^6",
+    "@jupyterlab/filebrowser": "^4.0.12",
     "@jupyterlab/notebook": "^4.0.3",
     "chroma-js": "^2.4.2",
     "d3": "^7.6.1",
@@ -69,6 +70,7 @@
     "multiclass-density-maps": "^0.1.5",
     "ndarray": "^1.0.19",
     "ndarray-unpack": "^1.0.0",
+    "requests-helper": "^0.1.5",
     "sorttable": "^1.0.2",
     "util": "^0.12.5",
     "webcola": "^3.4.0"
@@ -76,6 +78,7 @@
   "jupyterlab": {
     "extension": "lib/labplugin",
     "outputDir": "../labextension",
+    "schemaDir": "schema",
     "sharedPackages": {
       "@jupyter-widgets/base": {
         "bundled": false,

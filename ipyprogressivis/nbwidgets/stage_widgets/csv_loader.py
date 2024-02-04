@@ -1,12 +1,13 @@
 import ipywidgets as ipw
 import pandas as pd
-import panel as pn  # type: ignore
+import panel as pn
 from jupyter_bokeh.widgets import BokehModel  # type: ignore
 from ..csv_sniffer import CSVSniffer
 from progressivis.io import SimpleCSVLoader
 from progressivis.table import PTable
 from progressivis.table.constant import Constant
-from .utils import make_button, get_schema, VBoxTyped, IpyVBoxTyped, TypedBase
+from .utils import (make_button, get_schema, VBoxTyped, IpyVBoxTyped,
+                    TypedBase, amend_last_record, replay_next)
 import os
 import time
 import json as js
@@ -19,7 +20,8 @@ def clean_nodefault(d: Dict[str, Any]) -> Dict[str, Any]:
     return {k: v for (k, v) in d.items() if type(v).__name__ != "_NoDefault"}
 
 
-def make_filter(filter_dict: Dict[str, List[Any]]) -> Callable[[pd.DataFrame], pd.DataFrame]:
+def make_filter(filter_dict: Dict[str, List[Any]]
+                ) -> Callable[[pd.DataFrame], pd.DataFrame]:
     operators = dict(
         [
             (">", op.gt),
@@ -71,7 +73,7 @@ class JsonEditorW(IpyVBoxTyped):
         with open(file_) as f:
             content = js.load(f)
         # pn.extension('ace', 'jsoneditor', 'ipywidgets')  # run it in a nb cell
-        self.json_editor = pn.widgets.JSONEditor(value=content,
+        self.json_editor = pn.widgets.JSONEditor(value=content,  # type: ignore
                                                  mode="form",
                                                  width=600)
         self.json_editor.param.trigger("value")
@@ -88,10 +90,10 @@ class CsvLoaderW(VBoxTyped):
         urls_wg: ipw.Textarea
         to_sniff: ipw.Text
         n_lines: ipw.IntText
-        throttle: ipw.IntText | ipw.Button
+        throttle: ipw.IntText
         sniff_btn: ipw.Button
         sniffer: CSVSniffer | JsonEditorW | None
-        start_save: ipw.HBox | ipw.Button | None
+        start_save: ipw.HBox | None
 
     def __init__(self) -> None:
         super().__init__()
@@ -148,6 +150,7 @@ class CsvLoaderW(VBoxTyped):
         self.c_.n_lines = ipw.IntText(value=lines, description="Rows:", disabled=False)
         self.c_.throttle = ipw.IntText(value=0, description="Throttle:", disabled=False)
         self.c_.sniff_btn = make_button("Sniff ...", cb=self._sniffer_cb)
+        self._freeze_ck = ipw.Checkbox(description="Freeze")
 
     def _reuse_cb(self, change: Dict[str, Any]) -> None:
         if change["new"]:
@@ -164,46 +167,51 @@ class CsvLoaderW(VBoxTyped):
                 layout=ipw.Layout(width="60%"),
             )
             self.c_.bookmarks.observe(self._enable_reuse_cb, names="value")
-            self.c_.throttle = make_button("Freeze",
+            self.c_.throttle = None
+            """self.c_.throttle = make_button("Freeze",
                                            cb=self._freeze_cb,
-                                           disabled=True)
+                                           disabled=True)"""
             self.c_.sniff_btn = make_button("Edit settings",
                                             cb=self._edit_settings_cb,
                                             disabled=True)
-            self.c_.start_save = make_button(
-                "Start loading csv ...", cb=self._start_loader_reuse_cb, disabled=True
-            )
+            self.c_.start_save = ipw.HBox([self._freeze_ck,
+                                           make_button(
+                                               "Start loading csv ...",
+                                               cb=self._start_loader_reuse_cb,
+                                               disabled=True
+                                           )])
         else:
             self.init()
 
-    def _freeze_cb(self, btn: ipw.Button) -> None:
-        pass
+    def ___old_freeze_cb(self, btn: ipw.Button) -> None:
+        file_ = "/".join([self.widget_dir, self.c_.bookmarks.value])
+        with open(file_) as f:
+            content = js.load(f)
+        amend_last_record({'frozen': content})
 
     def _edit_settings_cb(self, btn: ipw.Button) -> None:
         self.c_.sniffer = JsonEditorW(self)
         self.c_.sniffer.init()
         self.c_.start_save = ipw.HBox(
-            [
-                make_button("Start loading csv ...", cb=self._start_loader_reuse_cb),
-                make_button(
-                    "Save settings ...",
-                    cb=self._save_settings_cb,
-                    disabled=False,
-                ),
-                ipw.Text(
-                    value=self.c_.bookmarks.value,
-                    placeholder="",
-                    description="File:",
-                    disabled=False,
-                    layout=ipw.Layout(width="100%"),
-                ),
-            ]
+            [self._freeze_ck,
+             make_button("Start loading csv ...", cb=self._start_loader_reuse_cb),
+             make_button(
+                 "Save settings ...",
+                 cb=self._save_settings_cb,
+                 disabled=False,
+             ),
+             ipw.Text(
+                 value=self.c_.bookmarks.value,
+                 placeholder="",
+                 description="File:",
+                 disabled=False,
+                 layout=ipw.Layout(width="100%"),
+             )]
         )
 
     def _enable_reuse_cb(self, change: Dict[str, Any]) -> None:
-        self.c_.throttle.disabled = not change["new"]
         self.c_.sniff_btn.disabled = not change["new"]
-        self.c_.start_save.disabled = not change["new"]
+        self.c_.start_save.children[1].disabled = not change["new"]
 
     def _start_loader_reuse_cb(self, btn: ipw.Button) -> None:
         if isinstance(self.c_.sniffer, JsonEditorW):
@@ -217,9 +225,13 @@ class CsvLoaderW(VBoxTyped):
         sniffed_params = content["sniffed_params"]
         schema = content["schema"]
         filter_ = content["filter_"]
-        csv_module = self.init_modules(
+        kw = dict(
             urls=urls, throttle=throttle, sniffed_params=sniffed_params, filter_=filter_
         )
+        csv_module = self.init_modules(**kw)
+        kw["schema"] = schema
+        if self._freeze_ck.value:
+            amend_last_record({'frozen': kw})
         self.output_module = csv_module
         self.output_slot = "result"
         self.output_dtypes = schema
@@ -252,21 +264,20 @@ class CsvLoaderW(VBoxTyped):
             )
             disabled = not pv_dir
             self.c_.start_save = ipw.HBox(
-                [
-                    make_button("Start loading csv ...", cb=self._start_loader_cb),
-                    make_button(
-                        "Save settings ...",
-                        cb=self._save_settings_cb,
-                        disabled=disabled,
-                    ),
-                    ipw.Text(
-                        value=time.strftime("w%Y%m%d_%H%M%S"),
-                        placeholder=placeholder,
-                        description="File:",
-                        disabled=disabled,
-                        layout=ipw.Layout(width="100%"),
-                    ),
-                ]
+                [self._freeze_ck,
+                 make_button("Start loading csv ...", cb=self._start_loader_cb),
+                 make_button(
+                     "Save settings ...",
+                     cb=self._save_settings_cb,
+                     disabled=disabled,
+                 ),
+                 ipw.Text(
+                     value=time.strftime("w%Y%m%d_%H%M%S"),
+                     placeholder=placeholder,
+                     description="File:",
+                     disabled=disabled,
+                     layout=ipw.Layout(width="100%"),
+                 )]
             )
             self.c_.urls_wg.disabled = True
             self.c_.to_sniff.disabled = True
@@ -282,7 +293,17 @@ class CsvLoaderW(VBoxTyped):
             btn.description = "Hide sniffer"
 
     def _start_loader_cb(self, btn: ipw.Button) -> None:
-        csv_module = self.init_modules()
+        urls = self._urls
+        assert self._sniffer is not None
+        pv_params = self._sniffer.progressivis
+        filter_ = pv_params.get("filter_values", {})
+        throttle = self.c_.throttle.value
+        sniffed_params = clean_nodefault(self._sniffer.params)
+        kw = dict(urls=urls, throttle=throttle,
+                  sniffed_params=sniffed_params, filter_=filter_)
+        if self._freeze_ck.value:
+            amend_last_record({'frozen': kw})
+        csv_module = self.init_modules(**kw)
         self.output_module = csv_module
         self.output_slot = "result"
         assert self._sniffer is not None
@@ -319,7 +340,7 @@ class CsvLoaderW(VBoxTyped):
         widget_dir = f"{settings_dir}/{type(self).__name__}/"
         if not os.path.isdir(widget_dir):
             os.mkdir(widget_dir)
-        base_name = self.c_.start_save.children[2].value
+        base_name = self.c_.start_save.children[3].value
         file_name = f"{widget_dir}/{base_name}"
         assert self._sniffer is not None
         pv_params = self._sniffer.progressivis
@@ -334,6 +355,22 @@ class CsvLoaderW(VBoxTyped):
         )
         with open(file_name, "w") as f:
             js.dump(res, f, indent=4)
+
+    def run(self) -> None:
+        content = self.frozen_kw
+        urls = content["urls"]
+        throttle = content["throttle"]
+        sniffed_params = content["sniffed_params"]
+        schema = content["schema"]
+        filter_ = content["filter_"]
+        csv_module = self.init_modules(
+            urls=urls, throttle=throttle, sniffed_params=sniffed_params, filter_=filter_
+        )
+        self.output_module = csv_module
+        self.output_slot = "result"
+        self.output_dtypes = schema
+        self.dag_running()
+        replay_next(self.carrier)
 
     def init_modules(
         self, urls: List[str] | None = None,

@@ -1,4 +1,4 @@
-from .utils import make_button, stage_register, VBoxTyped, TypedBase
+from .utils import make_button, stage_register, VBoxTyped, TypedBase, amend_last_record, replay_next
 import ipywidgets as ipw
 import pandas as pd
 from progressivis.table.aggregate import Aggregate
@@ -17,6 +17,7 @@ class AggregateW(VBoxTyped):
     class Typed(TypedBase):
         hidden_sel: ipw.SelectMultiple
         grid: ipw.GridBox
+        freeze_ck: ipw.Checkbox
         start_btn: ipw.Button
 
     def init(self) -> None:
@@ -35,6 +36,7 @@ class AggregateW(VBoxTyped):
         self.obs_flag = False
         self.info_cbx: Dict[Tuple[str, str], ipw.Checkbox] = {}
         self.child.grid = self.draw_matrix()
+        self.child.freeze_ck = ipw.Checkbox(description="Freeze")
         self.child.start_btn = make_button(
             "Activate", cb=self._start_btn_cb, disabled=True
         )
@@ -76,11 +78,20 @@ class AggregateW(VBoxTyped):
             for ((col, fnc), ck) in self.info_cbx.items()
             if fnc != "hide" and ck.value
         ]
+        if self.child.freeze_ck.value:
+            amend_last_record({'frozen': dict(compute=compute)})
         self.output_module = self.init_aggregate(compute)
         self.output_slot = "result"
         btn.disabled = True
         self.make_chaining_box()
         self.dag_running()
+
+    def run(self) -> None:
+        content = self.frozen_kw
+        self.output_module = self.init_aggregate(**content)
+        self.output_slot = "result"
+        self.dag_running()
+        replay_next(self.carrier)
 
     def _selm_obs_cb(self, change: AnyType) -> None:
         self.obs_flag = True
