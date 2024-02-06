@@ -2,7 +2,6 @@ import ipywidgets as ipw
 from progressivis import Scheduler
 from progressivis.io import Variable
 from progressivis.core import Sink, aio
-from ..utils import get_backup_content
 from .utils import (
     make_button,
     set_dag,
@@ -14,14 +13,13 @@ from .utils import (
     TypedBase,
     get_widget_by_id,
     get_widget_by_key,
-    backup_widget,
     bunpack,
     replay_list,
     replay_next,
     b642json,
     PARAMS,
-    reset_backup
-
+    reset_recorder,
+    restore_recorder
 )
 
 from typing import (
@@ -53,13 +51,13 @@ class Constructor(RootVBox, TypedBox):
     class Typed(TypedBase):
         h2: ipw.HTML
         start_btn: ipw.Button
-        recording_ck: ipw.Checkbox
+        play_mode_radio: ipw.RadioButtons
+        record_ck: ipw.Checkbox
         csv: Optional[ipw.HBox]
         parquet: Optional[ipw.HBox]
         replay: ipw.Button
 
     last_created = None
-    archive = get_backup_content()
 
     def __init__(
             self,
@@ -84,10 +82,9 @@ class Constructor(RootVBox, TypedBox):
             "Start scheduler ...", cb=self._start_scheduler_cb
         )
         self.child.h2 = ipw.HTML(f"<h2 id='{self.dom_id}'>{name}</h2>")
-        assert not backup_widget  # == []
-        backup_widget.append(backup)
         s = Scheduler.default = Scheduler()
         self.scheduler = s
+        self._backup = backup
         PARAMS["constructor"] = self
 
     def _start_scheduler_cb(self, btn: ipw.Button) -> None:
@@ -95,30 +92,56 @@ class Constructor(RootVBox, TypedBox):
         self._output_module = init_module
         self._output_slot = "result"
         self._output_dtypes = {}
-        self.child.recording_ck = ipw.Checkbox(description="Recording ...")
-        self.child.recording_ck.observe(self._recording_cb, names="value")
+        if self._backup.value:
+            self.child.play_mode_radio = ipw.RadioButtons(
+                options=[('Start a new scenario', 'play'),
+                         ('Replay from recording', 'replay')
+                         ],
+                value='play',
+                #    layout={'width': 'max-content'}, # If the items' names are long
+                # description='Mode:',
+                disabled=False
+            )
+            self.child.play_mode_radio.observe(self._play_mode_cb, names="value")
+        self.child.record_ck = ipw.Checkbox(description="Record this scenario")
+        if self._backup.value:
+            self.child.record_ck.description += "(previous record will be lost)"
+        self.child.record_ck.observe(self._record_cb, names="value")
+
         self.child.csv = self.make_loader_box(ftype="csv")
         self.child.parquet = self.make_loader_box(ftype="parquet")
         self._arch_list = [b642json(elt)
-                           for elt in bunpack(Constructor.archive)
-                           ] if Constructor.archive else []
+                           for elt in bunpack(self._backup.value)
+                           ] if self._backup.value else []
         self.child.replay = make_button(
-            "Replay ...", cb=self._replay_cb, disabled=(not self._arch_list)
+            "Replay ...", cb=self._replay_cb, disabled=True
         )
         btn.disabled = True
         self.dag.register_widget(self, "root", "root", self.dom_id, [])
 
-    def _recording_cb(self, change: dict[str, AnyType]) -> None:
+    def _play_mode_cb(self, change: dict[str, AnyType]) -> None:
+        PARAMS["play_mode"] = change["new"]
+        is_replay = (change["new"] == 'replay')
+        self.child.replay.disabled = not is_replay
+        self.child.csv.children[-1].disabled = is_replay
+        self.child.parquet.children[-1].disabled = is_replay
+        if is_replay:
+            self.child.record_ck.value = False
+        self.child.record_ck.disabled = is_replay
+
+    def _record_cb(self, change: dict[str, AnyType]) -> None:
         if change["new"]:
-            PARAMS["recording"] = True
-            self.child.recording_ck.disabled = True
-            self.child.replay.disabled = True
-            reset_backup()
+            reset_recorder(self._backup.value)
         else:
-            raise ValueError("Recording cannot be disabled")
+            restore_recorder()
 
     def _replay_cb(self, btn: ipw.Button) -> None:
         btn.disabled = True
+        self.child.csv.children[-1].disabled = True
+        self.child.parquet.children[-1].disabled = True
+        self.child.record_ck.value = False
+        self.child.record_ck.disabled = True
+        self.child.play_mode_radio.disabled = True
         replay_list.clear()
         replay_list.extend(self._arch_list)
         replay_list.append({})  # end of tape marker

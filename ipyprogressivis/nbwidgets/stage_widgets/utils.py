@@ -1,6 +1,5 @@
 from weakref import ref, ReferenceType
 import numpy as np
-from traitlets import Unicode
 import json
 import base64
 import logging
@@ -28,12 +27,15 @@ from typing import (
     Sequence,
     cast,
     Protocol,
+    TYPE_CHECKING
 )
 from typing_extensions import TypeAlias  # python 3.9
 from dataclasses import dataclass, KW_ONLY
 from ..backup import BackupWidget
 from ..talker import Talker
 from sidecar import Sidecar  # type: ignore
+if TYPE_CHECKING:
+    from ipyprogressivis.nbwidgets import Constructor
 
 Sniffer = CSVSniffer
 DAGWidget: TypeAlias = DagWidgetController
@@ -42,19 +44,18 @@ logger = logging.getLogger(__name__)
 
 PARAMS: Dict[str, AnyType] = {}
 
-backup_widget: List[BackupWidget] = []
+
 replay_list: List[Dict[str, AnyType]] = []
 
 
 @dataclass
 class Header:
-    from ipyprogressivis.nbwidgets import Constructor
     _: KW_ONLY
     start: bool
     talker: Talker
     backup: BackupWidget
     manager: DagWidgetController
-    constructor: Constructor
+    constructor: "Constructor"
     board: PsBoard
     widgets_out: Sidecar
     modules_out: Sidecar
@@ -94,6 +95,10 @@ def get_header() -> Header:
     return cast(Header, PARAMS["header"])
 
 
+def get_backup_widget() -> BackupWidget:
+    return cast(BackupWidget, PARAMS["header"].backup)
+
+
 def labcommand(cmd: str, **kw: AnyType) -> None:
     hdr = PARAMS["header"]
     hdr.talker.labcommand(cmd, kw)
@@ -117,34 +122,56 @@ def bunpack(bstr: str) -> List[AnyType]:
     return bstr.split(";")
 
 
+class Recorder:
+    def __init__(self, value: str = "") -> None:
+        self.tape = value
+
+    def is_empty(self) -> bool:
+        return not self.tape
+
+    def add_to_record(self, content: Dict[str, AnyType]) -> None:
+        self.tape = (self.tape + ";" + json2b64(content)
+                     if self.tape
+                     else json2b64(content))
+        labcommand("progressivis:set_backup", backup=self.tape)
+
+    def amend_last_record(self, content: Dict[str, AnyType]) -> None:
+        unpacked = bunpack(self.tape)
+        current = b642json(unpacked[-1])
+        current.update(content)
+        unpacked[-1] = json2b64(current)
+        self.tape = ";".join(unpacked)
+        labcommand("progressivis:set_backup", backup=self.tape)
+
+
+def get_recorder() -> Recorder:
+    return cast(Recorder, PARAMS.get("recorder"))
+
+
 def add_to_record(content: Dict[str, AnyType]) -> None:
-    assert len(backup_widget) == 1
-    widget = backup_widget[0]
-    # unpacked = bunpack(widget._value)
-    # unpacked.append(content)
-    # widget._value = bpack(unpacked)
-    widget._value = cast(
-        Unicode,
-        cast(str, widget._value) + ";" + json2b64(content)
-        if widget._value
-        else json2b64(content),
-    )
+    rec = get_recorder()
+    if rec is None:
+        return
+    rec.add_to_record(content)
 
 
 def amend_last_record(content: Dict[str, AnyType]) -> None:
-    assert len(backup_widget) == 1
-    widget = backup_widget[0]
-    unpacked = bunpack(cast(str, widget._value))
-    current = b642json(unpacked[-1])
-    current.update(content)
-    unpacked[-1] = json2b64(current)
-    widget._value = cast(Unicode, ";".join(unpacked))
+    rec = get_recorder()
+    if rec is None:
+        return
+    rec.amend_last_record(content)
 
 
-def reset_backup() -> None:
-    assert len(backup_widget) == 1
-    widget = backup_widget[0]
-    widget._value = cast(Unicode, "")
+def reset_recorder(previous: str = "") -> None:
+    if previous:
+        PARAMS["previous_recorder"] = Recorder(previous)
+    PARAMS["recorder"] = Recorder()
+    labcommand("progressivis:set_backup", backup="")
+
+
+def restore_recorder() -> None:
+    PARAMS["recorder"] = PARAMS["previous_recorder"]
+    labcommand("progressivis:set_backup", backup=PARAMS["recorder"].tape)
 
 
 def replay_next(obj: AnyType) -> None:
