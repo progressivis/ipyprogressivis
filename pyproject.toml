@@ -49,6 +49,7 @@ dependencies = [
     "panel>=1.3.6",
     "jupyter-bokeh>=3.0.7",
     "ipywidgets-bokeh>=1.5.0",
+    "sidecar>=0.7.0",
     "lz4",
 ]
 
