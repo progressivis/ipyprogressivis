@@ -113,13 +113,16 @@ def b642json(b64str: str) -> AnyType:
 
 
 def bpack(bak: List[AnyType]) -> str:
-    # return json.dumps(bak)
     return ";".join([json2b64(elt) for elt in bak])
 
 
 def bunpack(bstr: str) -> List[AnyType]:
     # return json.loads(bstr)
     return bstr.split(";")
+
+
+def backup_to_json() -> AnyType:
+    return [b642json(step) for step in PARAMS["header"].backup.value.split(";")]
 
 
 class Recorder:

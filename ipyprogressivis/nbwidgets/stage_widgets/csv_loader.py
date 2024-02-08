@@ -15,6 +15,30 @@ import operator as op
 
 from typing import List, Optional, Any, Dict, Callable, cast
 
+HOME = os.getenv("HOME")
+assert HOME is not None
+
+
+def _expand_url(url: str) -> str:
+    if url[0] == "~":
+        return f"{HOME}/{url[1:]}"
+    return url
+
+
+def expand_urls(urls: list[str]) -> list[str]:
+    return [_expand_url(url) for url in urls if url]
+
+
+def _relative_url(url: str) -> str:
+    assert HOME is not None
+    if url.startswith(HOME):
+        return url.replace(HOME, "~", 1)
+    return url
+
+
+def relative_urls(urls: list[str]) -> list[str]:
+    return [_relative_url(url) for url in urls if url]
+
 
 def clean_nodefault(d: Dict[str, Any]) -> Dict[str, Any]:
     return {k: v for (k, v) in d.items() if type(v).__name__ != "_NoDefault"}
@@ -106,7 +130,7 @@ class CsvLoaderW(VBoxTyped):
             self.c_.reuse_ck.observe(self._reuse_cb, names="value")
         else:
             self.c_.reuse_ck = None
-        home = os.getenv("HOME")
+        home = HOME
         bmk_disabled = True
         bookmarks = [
             f"no '{home}/.progressivis/' directory found",
@@ -250,6 +274,7 @@ class CsvLoaderW(VBoxTyped):
             to_sniff = self.c_.to_sniff.value.strip()
             if not to_sniff:
                 to_sniff = urls[0]
+            to_sniff = _expand_url(to_sniff)
             n_lines = self.c_.n_lines.value
             self._sniffer = CSVSniffer(path=to_sniff, lines=n_lines)
             self.c_.sniffer = self._sniffer.box
@@ -293,7 +318,7 @@ class CsvLoaderW(VBoxTyped):
             btn.description = "Hide sniffer"
 
     def _start_loader_cb(self, btn: ipw.Button) -> None:
-        urls = self._urls
+        urls = relative_urls(self._urls)
         assert self._sniffer is not None
         pv_params = self._sniffer.progressivis
         filter_ = pv_params.get("filter_values", {})
@@ -314,7 +339,7 @@ class CsvLoaderW(VBoxTyped):
 
     @property
     def dot_progressivis(self) -> str:
-        home = os.getenv("HOME")
+        home = HOME
         pv_dir = f"{home}/.progressivis/"
         if os.path.isdir(pv_dir):
             return pv_dir
@@ -347,7 +372,7 @@ class CsvLoaderW(VBoxTyped):
         schema = get_schema(self._sniffer)
         filter_ = pv_params.get("filter_values", {})
         res = dict(
-            urls=self._urls,
+            urls=relative_urls(self._urls),
             throttle=self.c_.throttle.value,
             sniffed_params=clean_nodefault(self._sniffer.params),
             schema=schema,
@@ -380,7 +405,7 @@ class CsvLoaderW(VBoxTyped):
     ) -> SimpleCSVLoader:
         if urls is None:
             assert self._sniffer is not None
-            urls = self._urls
+            urls = expand_urls(self._urls)
             params = self._sniffer.params.copy()
             pv_params = self._sniffer.progressivis
             if "filter_values" in pv_params:
@@ -388,6 +413,7 @@ class CsvLoaderW(VBoxTyped):
                 params["filter_"] = filter_fnc
             params["throttle"] = self.c_.throttle.value
         else:
+            urls = expand_urls(urls)
             if filter_:
                 filter_ = dict(filter_=make_filter(filter_))
             else:
