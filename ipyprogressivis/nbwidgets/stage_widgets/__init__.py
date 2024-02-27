@@ -1,7 +1,8 @@
 # flake8: noqa
 from .constructor import Constructor
 from .desc_stats import DescStatsW
-from .facade_creator import FacadeCreatorW  # type: ignore
+from .facade_creator import FacadeCreatorW
+from .heatmap import HeatmapW
 from .group_by import GroupByW
 from .aggregate import AggregateW
 from .dump_table import DumpPTableW
@@ -23,5 +24,6 @@ __all__ = [
     "PColumnsW",
     "HistogramW",
     "ScalerW",
-    "FacadeCreatorW"
+    "FacadeCreatorW",
+    "HeatmapW"
     ]

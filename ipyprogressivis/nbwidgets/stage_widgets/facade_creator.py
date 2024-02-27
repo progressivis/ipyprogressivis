@@ -1,13 +1,10 @@
-# type: ignore
-
-from functools import wraps
 import logging
 import ipywidgets as ipw
 import pandas as pd
-from progressivis.core import asynchronize, Sink
-from progressivis.core import Module
+from progressivis.core import Module, Sink
 from progressivis.stats.kll import KLLSketch
 from progressivis.table.range_query import RangeQuery
+from progressivis.table.table_facade import TableFacade
 from ..df_grid import DataFrameGrid
 from .utils import TreeTab, make_button, stage_register, VBox
 
@@ -17,8 +14,7 @@ from typing import (
     Dict,
     List,
     Tuple,
-    Callable,
-    Coroutine,
+    cast
 )
 
 WidgetType = AnyType
@@ -39,49 +35,6 @@ logger = logging.getLogger(__name__)
 
 
 # TODO: use typing annotation below for python>=3.11 and remove "ignores"
-
-
-def asynchronized(func: Callable[..., None]) -> Callable[..., AnyType]:
-    """
-    decorator
-    """
-
-    @wraps(func)
-    def asynchronizer(
-        *args: AnyType,
-    ) -> Callable[[AnyType, AnyType], Coroutine[AnyType, AnyType, None]]:
-        async def _coro(_1: AnyType, _2: AnyType) -> None:
-            _ = _1, _2
-            await asynchronize(func, *args)
-
-        return _coro
-
-    return asynchronizer
-
-
-def asynchronized_wg(func: Callable[..., None]) -> Callable[..., AnyType]:
-    """
-    decorator
-    """
-
-    @wraps(func)
-    def asynchronizer(
-        wg: AnyType, *args: AnyType
-    ) -> Callable[[AnyType, AnyType], Coroutine[AnyType, AnyType, None]]:
-        async def _coro(_1: AnyType, _2: AnyType) -> None:
-            _ = _1, _2
-            if not wg._selection_event:
-                return
-            await asynchronize(func, wg, *args)
-
-        return _coro
-
-    return asynchronizer
-
-
-def _get_func_name(func: str) -> str:
-    _dictionary = {"hide": "❌", "corr": "Corr. Mx", "distinct": "≠", "hist": "1D Hist"}
-    return _dictionary.get(func, func.capitalize())
 
 
 class DynViewer(TreeTab):
@@ -125,7 +78,7 @@ class DynViewer(TreeTab):
         tabs.observe(self.change_tab, names="selected_index")
         self.observe(self.change_upper_tab, names="selected_index")
 
-    def change_tab(self, bunch) -> None:
+    def change_tab(self, bunch: AnyType) -> None:
         tab = bunch.owner
         key = tab.get_selected_title()
         if key == ALL_COLS_TAB_TITLE:
@@ -142,15 +95,16 @@ class DynViewer(TreeTab):
             raise ValueError(f"Unknown tab {key}")
         tab.set_tab(key, gb)
 
-    def change_upper_tab(self, bunch) -> None:
+    def change_upper_tab(self, bunch: AnyType) -> None:
         tab = bunch.owner
         key = tab.get_selected_title()
         if key == SETTINGS_TAB_TITLE:
             return
         assert key == FILTERS_TAB_TITLE
+        assert self.gb_num
         cols = [i for (i, row) in self.gb_num.df.iterrows() if row[-1].value]
         df = pd.DataFrame(index=cols, columns=["Lower", "Upper"], dtype=object)
-        df.loc[:, :] = lambda: ipw.Checkbox(
+        df.loc[:, :] = lambda: ipw.Checkbox(  # type: ignore
             value=False, description="", disabled=False, indent=False
         )
         grid = DataFrameGrid(df, first="200px")
@@ -162,7 +116,7 @@ class DynViewer(TreeTab):
             columns=["Ignore", "Categorical"],
             dtype=object,
         )
-        df.loc[:, :] = lambda: ipw.Checkbox(
+        df.loc[:, :] = lambda: ipw.Checkbox(  # type: ignore
             value=False, description="", disabled=False, indent=False
         )
         grid = DataFrameGrid(df, first="200px")
@@ -197,7 +151,7 @@ class DynViewer(TreeTab):
     def visible_cols(self) -> list[str]:
         assert self.gb_all
         df = self.gb_all.df
-        return [i for (i, row) in df.iterrows() if not row[0].value]
+        return [cast(str, i) for (i, row) in df.iterrows() if not row[0].value]
 
     def draw_matrix_num(self, ext_df: Optional[pd.DataFrame] = None) -> ipw.GridBox:
         num_cols = [
@@ -206,14 +160,14 @@ class DynViewer(TreeTab):
             if col not in self._hidden_set | self._categorical_set
             and (t.startswith("float") or t.startswith("int"))
         ]
-        df = pd.DataFrame(
+        df = pd.DataFrame(  # type: ignore
             index=num_cols, columns=self.num_functions.keys(), dtype=object
         )
-        df.loc[:, :"var"] = lambda: ipw.Checkbox(
+        df.loc[:, :"var"] = lambda: ipw.Checkbox(  # type: ignore
             value=False, description="", disabled=False, indent=False
         )
 
-        def _lower():
+        def _lower() -> ipw.Dropdown:
             return ipw.Dropdown(
                 options=[
                     ("", 0),
@@ -229,7 +183,7 @@ class DynViewer(TreeTab):
 
         df.loc[:, LOWER_COL] = _lower
 
-        def _upper():
+        def _upper() -> ipw.Dropdown:
             return ipw.Dropdown(
                 options=[
                     ("75%", 75),
@@ -259,7 +213,7 @@ class DynViewer(TreeTab):
             if col not in self._hidden_set | self._categorical_set
             and (t.startswith("string") or t.startswith("object"))
         ]
-        df = pd.DataFrame(
+        df = pd.DataFrame(  # type: ignore
             index=str_cols, columns=self.str_functions.keys(), dtype=object
         )
         df.loc[:, :] = lambda: ipw.Checkbox(
@@ -280,7 +234,8 @@ class DynViewer(TreeTab):
             if col not in self._hidden_set | self._categorical_set
             and t.startswith("datetime")
         ]
-        df = pd.DataFrame(index=dt_cols, columns=self.dt_functions.keys(), dtype=object)
+        df = pd.DataFrame(index=dt_cols, columns=self.dt_functions.keys(),
+                          dtype=object)  # type: ignore
         df.loc[:, :] = lambda: ipw.Checkbox(
             value=False, description="", disabled=False, indent=False
         )
@@ -298,7 +253,7 @@ class DynViewer(TreeTab):
             for (col, (c, t)) in self.col_typed_names.items()
             if col in self._categorical_set
         ]
-        df = pd.DataFrame(
+        df = pd.DataFrame(  # type: ignore
             index=cat_cols, columns=self.cat_functions.keys(), dtype=object
         )
         df.loc[:, :] = lambda: ipw.Checkbox(
@@ -328,21 +283,32 @@ class DynViewer(TreeTab):
         settings_tab.set_tab(CAT_COLS_TAB_TITLE, self.gb_cat)
         return settings_tab
 
-    def run(self, carrier: "FacadeCreatorW") -> None:
-        bounds = {
-            i: (row[0].value, row[1].value)
+    def get_num_bounds(self) -> dict[str, tuple[int, int]]:
+        assert self.gb_num
+        return {
+            cast(str, i): (row[0].value, row[1].value)
             for (i, row) in self.gb_num.df.loc[:, [LOWER_COL, UPPER_COL]].iterrows()
         }
+
+    def get_checked_num(self, fnc: str) -> list[str]:
+        assert self.gb_num
+        return [self.untyped(cast(str, i))
+                for (i, cell) in self.gb_num.df.loc[:, fnc].items() if cell.value]
+
+    def untyped(self, tcol: str) -> str:
+        return self.col_typed_names[tcol][0]
+
+    def run(self, carrier: "FacadeCreatorW") -> None:
+        num_bounds = self.get_num_bounds()
+        max_num_cols = self.get_checked_num("max")
+        min_num_cols = self.get_checked_num("min")
         s = carrier.input_module.scheduler()
         with s:
-            # inter = Intersection(scheduler=s)
             inp = carrier.input_module
-            for tcol, (lo, up) in bounds.items():
+            for tcol, (lo, up) in num_bounds.items():
                 if (lo, up) == (0, 100):
                     continue
                 col = self.col_typed_names[tcol][0]
-                # pdict = PDict({"lower": lo, "upper": up})
-                # const =
                 kll = KLLSketch(column=col, scheduler=s)
                 kll.params.quantiles = [lo / 100, up / 100]
                 kll.params.named_quantiles = ["lower", "upper"]
@@ -353,12 +319,15 @@ class DynViewer(TreeTab):
                 range_qry.create_dependent_modules(
                     inp, "result", min_value=kll, max_value=kll
                 )
-
-                # inter.input.table = range_qry.output.result
                 sink = Sink(scheduler=s)
                 sink.input.inp = range_qry.output.result
                 inp = range_qry
-            carrier.output_module = inp
+            facade = TableFacade.get_or_create(inp, "result")
+            if max_num_cols:
+                facade.configure(base="max", hints=max_num_cols, name="max_num")
+            if min_num_cols:
+                facade.configure(base="min", hints=min_num_cols, name="min_num")
+            carrier.output_module = facade  # type: ignore
             carrier.output_slot = "result"
             carrier.output_dtypes = carrier.input_dtypes
 
@@ -374,12 +343,12 @@ class FacadeCreatorW(VBox):
         self.children = (self._dyn_viewer, btn)
 
     def get_underlying_modules(self) -> List[str]:
-        return self._dyn_viewer.get_underlying_modules()
+        return ["TODO"]
 
-    def _start_cb(self, btn) -> None:
+    def _start_cb(self, btn: AnyType) -> None:
         self._dyn_viewer.run(self)
         self.make_chaining_box()
         self.dag_running()
 
 
-stage_register["Facade creator"] = FacadeCreatorW
+stage_register["Facade"] = FacadeCreatorW
