@@ -260,9 +260,8 @@ def refresh_info_hist_1d(
         return
     if not h1d_mod.result:
         return
-    last = h1d_mod.result.last()
-    assert last
-    res = last.to_dict()
+    res = h1d_mod.result
+    assert res
     hist = res["array"]
     min_ = res["min"]
     max_ = res["max"]

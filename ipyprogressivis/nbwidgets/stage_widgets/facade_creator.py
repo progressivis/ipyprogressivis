@@ -12,17 +12,13 @@ from .utils import TreeTab, make_button, stage_register, VBox, TypedBase, IpyVBo
 from progressivis.io import Variable
 from ..vega import VegaWidget
 from .._stacked_hist_schema import stacked_hist_spec_no_data
-from typing import (
-    Any as AnyType,
-    Optional,
-    Dict,
-    List,
-    Tuple,
-    cast,
-    Callable
-)
+from typing import Any as AnyType, Optional, Dict, List, Tuple, cast
 
+NDArray = np.ndarray[AnyType, AnyType]
 WidgetType = AnyType
+
+LBINS = 10
+NBINS = 4096
 
 SETTINGS_TAB_TITLE = "Settings"
 FILTERS_TAB_TITLE = "Filters"
@@ -36,26 +32,15 @@ UPPER_COL = " <"
 RANGE_COL = "Range%"
 QUERY_COL = "Filter"
 HIST_COL = "Histograms"
+PEEL_COL = "Peel"
 # https://stackoverflow.com/questions/56949504/how-to-lazify-output-in-tabbed-layout-in-jupyter-notebook
 
 logger = logging.getLogger(__name__)
 
 
-def __old_make_observer(
-    sk_mod: KLLSketch, var_mod: Variable
-) -> Callable[[AnyType], None]:
-    def _observe_range(val: AnyType) -> None:
-        async def _coro(v: AnyType) -> None:
-            lo, up = v["new"]
-            lower, upper = sk_mod._kll.get_quantiles([lo/100, up/100])
-            await var_mod.from_input({"lower": lower, "upper": upper})
-        aio.create_task(_coro(val))
-
-    return _observe_range
-
-
-def p100_range_slider(desc: str = "", min_: int = 0,
-                      max_: int = 100) -> ipw.IntRangeSlider:
+def p100_range_slider(
+    desc: str = "", min_: int = 0, max_: int = 100
+) -> ipw.IntRangeSlider:
     return ipw.IntRangeSlider(
         value=[min_, max_],
         min=min_,
@@ -67,7 +52,7 @@ def p100_range_slider(desc: str = "", min_: int = 0,
         orientation="horizontal",
         readout=False,
         readout_format="d",
-        layout=ipw.Layout(height='5px', max_height='5px', width="150px")
+        layout=ipw.Layout(height="5px", max_height="5px", width="150px"),
     )
 
 
@@ -78,6 +63,7 @@ class HistSlider(IpyVBoxTyped):
     qry_hist_1d: Histogram1D | None = None
     lo_wg = None
     up_wg = None
+    last_array = None
     grid: DataFrameGrid | None = None
 
     class Typed(TypedBase):
@@ -118,32 +104,41 @@ class HistSlider(IpyVBoxTyped):
         self.up_wg.value = up
         if self.sk_mod:
             assert self.var_mod is not None
-            print("HAS sk_mod, var_mod")
 
             async def _coro(v: AnyType) -> None:
-                """if lo == 0 and up == 100:
-                    lower, upper = None, None
+                assert self.sk_mod is not None
+                if lo == 0 and up == 100:
+                    lower = self.sk_mod._kll.get_min_value()
+                    upper = self.sk_mod._kll.get_max_value()
                 elif lo == 0:
-                    lower = None
-                    upper = self.sk_mod._kll.get_quantiles([up/100])
+                    lower = self.sk_mod._kll.get_min_value()
+                    upper = self.sk_mod._kll.get_quantiles([up / 100])[0]
                 elif up == 100:
-                    upper = None
-                    lower = self.sk_mod._kll.get_quantiles([lo/100])
-                else:"""
-                assert self.sk_mod
-                assert self.sk_mod._kll
-                lower, upper = self.sk_mod._kll.get_quantiles([lo/100, up/100])
-                print("from kll", lo, up, lower, upper,
-                      self.sk_mod._kll.get_min_value(),
-                      self.sk_mod._kll.get_max_value(),
-                      "n:",
-                      self.sk_mod._n,
-                      self.sk_mod.get_input_slot("table"),
-                      self.sk_mod.column
-                      )
+                    upper = self.sk_mod._kll.get_max_value()
+                    lower = self.sk_mod._kll.get_quantiles([lo / 100])[0]
+                else:
+                    assert self.sk_mod
+                    assert self.sk_mod._kll
+                    lower, upper = self.sk_mod._kll.get_quantiles([lo / 100, up / 100])
                 assert self.var_mod
                 await self.var_mod.from_input({"lower": lower, "upper": upper})
+
             aio.create_task(_coro(val))
+
+    def peeling(
+        self, raw_hist: NDArray, qry_hist: NDArray, threshold: int = 0
+    ) -> tuple[NDArray, NDArray]:
+        assert self.grid
+        row, col = self.grid.get_coords(self)
+        assert col == HIST_COL
+        raw_res: list[AnyType] = []
+        qry_res = []
+        for raw, qry in zip(raw_hist, qry_hist):
+            if raw <= threshold and raw_res and raw_res[-1] <= threshold:
+                continue
+            raw_res.append(raw)
+            qry_res.append(qry)
+        return np.array(raw_res), np.array(qry_res)
 
     def update(self, *args: AnyType) -> None:
         raw_hist_1d = self.raw_hist_1d
@@ -152,37 +147,46 @@ class HistSlider(IpyVBoxTyped):
             return
         if raw_hist_1d.result is None or qry_hist_1d.result is None:
             return
-        raw_last = raw_hist_1d.result.last()
-        qry_last = qry_hist_1d.result.last()
-        if not raw_last or not qry_last:
+        raw_res = raw_hist_1d.result
+        qry_res = qry_hist_1d.result
+        if not raw_res or not qry_res:
             return
-        raw_res = raw_last.to_dict()
         raw_hist = raw_res["array"]
+        qry_hist = qry_res["array"]
+        if (
+            self.last_array is not None
+            and self.last_array.shape == qry_hist.shape
+            and np.all(self.last_array == qry_hist)
+        ):
+            return
+        if not np.any(qry_hist):
+            self.last_array = None
+            return
+        self.last_array = qry_hist.copy()
+        raw_hist, qry_hist = self.peeling(raw_hist, qry_hist)
         raw_max = raw_hist.max()
         if raw_max != 0:
-            raw_hist = np.cbrt(raw_hist/raw_max)
-        else:
-            raw_hist = raw_max
-        qry_res = qry_last.to_dict()
-        qry_hist = qry_res["array"]
+            raw_hist = np.cbrt(raw_hist / raw_max)
         qry_max = qry_hist.max()
         if qry_max != 0:
-            qry_hist = np.cbrt(qry_hist/qry_max)
-        else:
-            qry_hist = qry_max
+            qry_hist = np.cbrt(qry_hist / qry_max)
         hist_wg = self.c_.hist
-        raw_df = pd.DataFrame({
-            "nbins": range(len(raw_hist)),
-            "level": raw_hist,
-            "Origin": ["raw"]*len(raw_hist)
-        })
-        qry_df = pd.DataFrame({
-            "nbins": range(len(qry_hist)),
-            "level": qry_hist,
-            "Origin": ["qry"]*len(qry_hist)
-        })
+        raw_df = pd.DataFrame(
+            {
+                "nbins": range(len(raw_hist)),
+                "level": raw_hist,
+                "Origin": ["raw"] * len(raw_hist),
+            }
+        )
+        qry_df = pd.DataFrame(
+            {
+                "nbins": range(len(qry_hist)),
+                "level": qry_hist,
+                "Origin": ["qry"] * len(qry_hist),
+            }
+        )
         source = pd.concat([raw_df, qry_df], ignore_index=True)
-        # hist_wg._displayed = True
+        hist_wg._displayed = True
         hist_wg.update("data", remove="true", insert=source)
 
 
@@ -195,7 +199,7 @@ class DynViewer(TreeTab):
         input_module: Module,
         input_slot: str = "result",
     ):
-        super().__init__(upper=None, known_as="", layout=ipw.Layout(width='90%'))
+        super().__init__(upper=None, known_as="", layout=ipw.Layout(width="90%"))
         self._dtypes = dtypes
         self._input_module = input_module
         self._input_slot = input_slot
@@ -225,7 +229,7 @@ class DynViewer(TreeTab):
         self.conf_box = ipw.VBox([tabs])
         self.set_tab(SETTINGS_TAB_TITLE, self.conf_box)
         self.filter_box = ipw.VBox([ipw.Label("...")])
-        self.set_tab(FILTERS_TAB_TITLE, self.filter_box)
+        # self.set_tab(FILTERS_TAB_TITLE, self.filter_box) see if still necessary
         tabs.observe(self.change_tab, names="selected_index")
         self.observe(self.change_upper_tab, names="selected_index")
 
@@ -369,7 +373,6 @@ class DynViewer(TreeTab):
         def _observe_range(change: Dict[str, AnyType]) -> None:
             obj = change["owner"]
             row, col = grid.get_coords(obj)
-            print("range", row, col, obj.value)
 
         def _observe_query(change: Dict[str, AnyType]) -> None:
             obj = change["owner"]
@@ -417,8 +420,9 @@ class DynViewer(TreeTab):
             if col not in self._hidden_set | self._categorical_set
             and t.startswith("datetime")
         ]
-        df = pd.DataFrame(index=dt_cols, columns=self.dt_functions.keys(),
-                          dtype=object)  # type: ignore
+        df = pd.DataFrame(
+            index=dt_cols, columns=self.dt_functions.keys(), dtype=object
+        )  # type: ignore
         df.loc[:, :] = lambda: ipw.Checkbox(
             value=False, description="", disabled=False, indent=False
         )
@@ -466,13 +470,6 @@ class DynViewer(TreeTab):
         settings_tab.set_tab(CAT_COLS_TAB_TITLE, self.gb_cat)
         return settings_tab
 
-    def __old_get_num_bounds(self) -> dict[str, tuple[int, int]]:
-        assert self.gb_num
-        return {
-            cast(str, i): (row[0].value, row[1].value)
-            for (i, row) in self.gb_num.df.loc[:, [LOWER_COL, UPPER_COL]].iterrows()
-        }
-
     def get_num_bounds(self) -> dict[str, tuple[int, int]]:
         assert self.gb_num
         return {
@@ -483,8 +480,11 @@ class DynViewer(TreeTab):
 
     def get_checked_num(self, fnc: str) -> list[str]:
         assert self.gb_num
-        return [self.untyped(cast(str, i))
-                for (i, cell) in self.gb_num.df.loc[:, fnc].items() if cell.value]
+        return [
+            self.untyped(cast(str, i))
+            for (i, cell) in self.gb_num.df.loc[:, fnc].items()
+            if cell.value
+        ]
 
     def untyped(self, tcol: str) -> str:
         return self.col_typed_names[tcol][0]
@@ -507,9 +507,7 @@ class DynViewer(TreeTab):
                 range_qry.params.watched_key_upper = "upper"
                 variable = Variable({"lower": "*", "upper": "*"}, scheduler=s)
                 range_qry.create_dependent_modules(
-                    inp, "result",
-                    min_value=variable,
-                    max_value=variable
+                    inp, "result", min_value=variable, max_value=variable
                 )
                 sink = Sink(scheduler=s)
                 sink.input.inp = kll.output.result
@@ -518,12 +516,13 @@ class DynViewer(TreeTab):
                 self.gb_num.df.loc[tcol, HIST_COL].var_mod = variable  # type: ignore
                 inp = range_qry
                 raw_hist_1d = Histogram1D(column=col, scheduler=s)
-                raw_hist_1d.input.table = carrier.input_module.output[carrier.input_slot]
+                raw_hist_1d.input.table = carrier.input_module.output[
+                    carrier.input_slot
+                ]
                 raw_hist_index = range_qry.dep.hist_index
                 raw_hist_1d.input.min = raw_hist_index.output.min_out
                 raw_hist_1d.input.max = raw_hist_index.output.max_out
                 # kll.input[0] = raw_hist_index.output.result
-                NBINS = 10
                 raw_hist_1d.params.bins = NBINS
                 sink.input.inp = raw_hist_1d.output.result
                 qry_hist_1d = Histogram1D(column=col, scheduler=s)
