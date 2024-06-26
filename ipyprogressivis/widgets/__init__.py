@@ -11,8 +11,8 @@ from .data_table import *
 from .sparkline_progressbar import *
 from .plotting_progressbar import *
 from .dag_widget import *
-from .stage_widgets.desc_stats import *
-from .stage_widgets.constructor import *
-from .stage_widgets.utils import create_stage_widget, cleanup_cells, get_header
-from .stage_widgets.group_by import *
+from .chaining.desc_stats import *
+from .chaining.constructor import *
+from .chaining.utils import create_stage_widget, cleanup_cells, get_header
+from .chaining.group_by import *
 from .vega import VegaWidget

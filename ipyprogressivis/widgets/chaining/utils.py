@@ -35,7 +35,7 @@ from ..backup import BackupWidget
 from ..talker import Talker
 from sidecar import Sidecar  # type: ignore
 if TYPE_CHECKING:
-    from ipyprogressivis.nbwidgets import Constructor
+    from ipyprogressivis.widgets import Constructor
 
 Sniffer = CSVSniffer
 DAGWidget: TypeAlias = DagWidgetController
@@ -65,7 +65,7 @@ def get_header() -> Header:
     """
     NB: call this function ONLY from the first cell of the notebook!!
     """
-    from ipyprogressivis.nbwidgets import Constructor
+    from ipyprogressivis.widgets import Constructor
 
     if "header" in PARAMS:
         hdr = cast(Header, PARAMS["header"])
