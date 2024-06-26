@@ -1,2 +1,2 @@
-recursive-include nbwidgets/static *.*
+recursive-include widgets/static *.*
 include progressivis-nb-widgets.json
