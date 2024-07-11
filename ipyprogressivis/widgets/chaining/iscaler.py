@@ -2,7 +2,7 @@ import time
 import ipywidgets as ipw
 import weakref
 import pandas as pd
-from progressivis.core import asynchronize, aio, Sink
+from progressivis.core import asynchronize, aio, Sink, Module
 from progressivis.io import Variable
 from progressivis.stats.scaling import MinMaxScaler
 from typing import Any, Dict, List, Callable, cast
@@ -198,6 +198,7 @@ class IScalerIn(ipw.GridBox):
     def _apply_cb(self, _btn: Any) -> None:
         _ = _btn
         m = self.main.output_module
+        assert isinstance(m, Module)
         values = dict(self.values)  # shallow copy
         values["time"] = time.time()  # always make a change
         # wg._dict['reset'].value = False
@@ -281,7 +282,7 @@ class ScalerW(VBoxTyped):
         out: IScalerOut
         start_btn: ipw.Button
 
-    def init(self) -> None:
+    def initialize(self) -> None:
         self.child.inp = IScalerIn(self)
         self.child.inp.disabled = True
         self.child.out = IScalerOut(self)
@@ -313,7 +314,7 @@ class ScalerW(VBoxTyped):
                 {"delta": inp.delta, "ignore_max": inp.ignore_max}, scheduler=s
             )
             sc = MinMaxScaler(reset_threshold=10_000, usecols=inp.selm)
-            sc.create_dependent_modules(self.input_module, hist=True)
+            sc.create_dependent_modules(cast(Module, self.input_module), hist=True)
             sc.dep.control = dvar
             sc.input.control = dvar.output.result
             sink = Sink(scheduler=s)

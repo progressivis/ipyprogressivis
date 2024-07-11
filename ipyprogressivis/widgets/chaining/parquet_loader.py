@@ -83,7 +83,7 @@ class ParquetLoaderW(VBoxTyped):
         sniffer: Sniffer
         start_btn: Optional[ipw.Button]
 
-    def init(self) -> None:
+    def initialize(self) -> None:
         self.child.url = ipw.Text(
             value=os.getenv("PROGRESSIVIS_DEFAULT_PARQUET"),
             placeholder="",
@@ -112,6 +112,7 @@ class ParquetLoaderW(VBoxTyped):
 
     def init_modules(self) -> ParquetLoader:
         sink = self.input_module
+        assert isinstance(sink, Module)
         s = sink.scheduler()
         with s:
             cols = list(self.child.sniffer.get_dtypes().keys())

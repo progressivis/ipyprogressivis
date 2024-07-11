@@ -10,11 +10,12 @@ class DataFrameGrid(ipw.GridBox):
     def __init__(
         self, df: pd.DataFrame, first: str = "200px", repeat: str = "70px",
             sizes: dict[str, str] | None = None,
+            index_title: str = "",
             **kw: Any
     ) -> None:
         self.df = pd.DataFrame(index=df.index, columns=df.columns, dtype=object)
         self.inv_index: dict[int, tuple[Any, Any]] = {}
-        lst: list[WidgetType] = [ipw.Label("")] + [ipw.Label(s) for s in df.columns]
+        lst: list[WidgetType] = [ipw.Label(index_title)] + [ipw.Label(s) for s in df.columns]
         for row in df.index:
             lst.append(ipw.Label(row))
             for col in df.columns:

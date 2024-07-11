@@ -26,7 +26,7 @@ class HistogramW(VBoxTyped):
         btn_apply: ipw.Button
         vega: HVegaWidget
 
-    def init(self) -> None:
+    def initialize(self) -> None:
         self.output_dtypes = None
         self._axis = {}
         lst: List[ipw.DOMWidget] = [

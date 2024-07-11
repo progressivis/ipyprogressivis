@@ -20,7 +20,7 @@ from progressivis.table.compute import (
     is_weekend,
 )
 
-from typing import Any as AnyType, Optional, Tuple, List, Dict, Callable, Union
+from typing import Any as AnyType, Optional, Tuple, List, Dict, Callable, Union, cast
 
 WidgetType = AnyType
 
@@ -218,7 +218,7 @@ class PColumnsW(VBoxTyped):
         keep_stored: KeepStored
         btn_apply: ipw.Button
 
-    def init(self) -> None:
+    def initialize(self) -> None:
         self._col_widgets: Dict[Tuple[str, str], FuncW] = {}
         self._computed: List[Optional[FuncW]] = []
         self._numpy_ufuncs = ipw.Checkbox(
@@ -363,7 +363,7 @@ class PColumnsW(VBoxTyped):
         )
 
     def get_underlying_modules(self) -> List[Module]:
-        return [self.output_module]
+        return [cast(Module, self.output_module)]
 
 
 stage_register["View"] = PColumnsW

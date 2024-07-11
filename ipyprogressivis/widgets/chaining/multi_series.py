@@ -24,7 +24,7 @@ class MultiSeriesW(VBoxTyped):
         btn_apply: ipw.Button
         vega: HVegaWidget
 
-    def init(self) -> None:
+    def initialize(self) -> None:
         self.output_dtypes = None
         self._axis = []
         lst: List[ipw.DOMWidget] = [
@@ -111,6 +111,7 @@ class MultiSeriesW(VBoxTyped):
 
     def _btn_apply_cb(self, btn: AnyType) -> None:
         self.child.vega = HVegaWidget(spec=multi_series_no_data)
+        assert isinstance(self.input_module, Module)
         self.input_module.on_after_run(self._update_vw)
         self.dag_running()
 

@@ -29,7 +29,7 @@ class HeatmapW(VBoxTyped):
         vega: HVegaWidget
     _histogram2d: Histogram2D | None
 
-    def init(self) -> None:
+    def initialize(self) -> None:
         self.output_dtypes = None
         self.c_.x_col = ipw.Dropdown(
             options=list(self.dtypes.keys()) + [""],

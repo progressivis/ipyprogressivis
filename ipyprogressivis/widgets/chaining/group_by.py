@@ -2,6 +2,7 @@ from .utils import (make_button, stage_register,
                     dongle_widget, VBoxTyped,
                     TypedBase, amend_last_record, replay_next)
 import ipywidgets as ipw
+from progressivis.core import Module
 from progressivis.table.group_by import (
     GroupBy,
     UTIME,
@@ -31,7 +32,7 @@ class GroupByW(VBoxTyped):
         freeze_ck: ipw.Checkbox
         start_btn: ipw.Button
 
-    def init(self) -> None:
+    def initialize(self) -> None:
         self.child.grouping_mode = self.make_gr_mode()
         self.child.by_box = self.make_sel_multiple()
         self.child.freeze_ck = ipw.Checkbox(description="Freeze")
@@ -51,6 +52,7 @@ class GroupByW(VBoxTyped):
             return grby
 
     def get_underlying_modules(self) -> List[str]:
+        assert isinstance(self.output_module, Module)
         return [self.output_module.name]
 
     def _add_group_by_cb(self, btn: ipw.Button) -> None:

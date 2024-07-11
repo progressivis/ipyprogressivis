@@ -12,6 +12,7 @@ from .scatterplot import ScatterplotW
 from .columns import PColumnsW
 from .histogram import HistogramW
 from .iscaler import ScalerW
+from .any_vega import AnyVegaW
 __all__ = [
     "Constructor",
     "DescStatsW",
@@ -25,5 +26,6 @@ __all__ = [
     "HistogramW",
     "ScalerW",
     "FacadeCreatorW",
-    "HeatmapW"
+    "HeatmapW",
+    "AnyVegaW"
     ]

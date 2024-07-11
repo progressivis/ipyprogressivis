@@ -4,7 +4,7 @@ import pandas as pd
 from progressivis.table.aggregate import Aggregate
 from progressivis.core import Sink, Module
 
-from typing import Any as AnyType, Optional, List, Tuple, Dict, Callable
+from typing import Any as AnyType, Optional, List, Tuple, Dict, Callable, cast
 
 WidgetType = AnyType
 
@@ -20,7 +20,7 @@ class AggregateW(VBoxTyped):
         freeze_ck: ipw.Checkbox
         start_btn: ipw.Button
 
-    def init(self) -> None:
+    def initialize(self) -> None:
         self.hidden_cols: List[str] = []
         fncs = ["hide"] + list(Aggregate.registry.keys())
         self.all_functions = dict(zip(fncs, fncs))
@@ -116,7 +116,7 @@ class AggregateW(VBoxTyped):
         return _cbk
 
     def get_underlying_modules(self) -> List[Module]:
-        return [self.output_module]
+        return [cast(Module, self.output_module)]
 
 
 stage_register["Aggregate"] = AggregateW

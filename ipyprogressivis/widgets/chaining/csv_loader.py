@@ -4,6 +4,7 @@ import panel as pn
 from jupyter_bokeh.widgets import BokehModel  # type: ignore
 from ..csv_sniffer import CSVSniffer
 from progressivis.io import SimpleCSVLoader
+from progressivis.core import Module
 from progressivis.table import PTable
 from progressivis.table.constant import Constant
 from .utils import (make_button, get_schema, VBoxTyped, IpyVBoxTyped,
@@ -86,7 +87,7 @@ class JsonEditorW(IpyVBoxTyped):
         super().__init__()
         self._parent = parent  # TODO: use a weakref
 
-    def init(self) -> None:
+    def initialize(self) -> None:
         self.c_.mode = ipw.Dropdown(
             options=["tree", "view", "form", "text", "preview"],
             description="Edition mode",
@@ -124,7 +125,7 @@ class CsvLoaderW(VBoxTyped):
         self._sniffer: Optional[CSVSniffer] = None
         self._urls: List[str] = []
 
-    def init(self, urls: List[str] = [], to_sniff: str = "", lines: int = 100) -> None:
+    def initialize(self, urls: List[str] = [], to_sniff: str = "", lines: int = 100) -> None:
         if self.widget_dir and os.listdir(self.widget_dir):
             self.c_.reuse_ck = ipw.Checkbox(description="Reuse previous settings ...")
             self.c_.reuse_ck.observe(self._reuse_cb, names="value")
@@ -205,7 +206,7 @@ class CsvLoaderW(VBoxTyped):
                                                disabled=True
                                            )])
         else:
-            self.init()
+            self.initialize()
 
     def ___old_freeze_cb(self, btn: ipw.Button) -> None:
         file_ = "/".join([self.widget_dir, self.c_.bookmarks.value])
@@ -215,7 +216,7 @@ class CsvLoaderW(VBoxTyped):
 
     def _edit_settings_cb(self, btn: ipw.Button) -> None:
         self.c_.sniffer = JsonEditorW(self)
-        self.c_.sniffer.init()
+        self.c_.sniffer.initialize()
         self.c_.start_save = ipw.HBox(
             [self._freeze_ck,
              make_button("Start loading csv ...", cb=self._start_loader_reuse_cb),
@@ -421,6 +422,7 @@ class CsvLoaderW(VBoxTyped):
             assert sniffed_params is not None
             params = dict(throttle=throttle, **sniffed_params, **filter_)
         sink = self.input_module
+        assert isinstance(sink, Module)
         s = sink.scheduler()
         with s:
             filenames = pd.DataFrame({"filename": urls})

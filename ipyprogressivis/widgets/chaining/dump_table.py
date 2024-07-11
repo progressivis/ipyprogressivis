@@ -4,16 +4,16 @@ from .utils import (
 )
 from ..slot_wg import SlotWg
 from typing import List, cast
-from progressivis.core import Scheduler
+from progressivis.core import Scheduler, Module
 
 
 class DumpPTableW(VBox):
     def __init__(self) -> None:
         super().__init__()
 
-    def init(self) -> None:
+    def initialize(self) -> None:
         self.dag_running()
-        sl_wg = SlotWg(self.input_module, self.input_slot)
+        sl_wg = SlotWg(cast(Module, self.input_module), self.input_slot)
         self.children = (sl_wg,)
         self.input_module.scheduler().on_tick(self._refresh_proc)
 

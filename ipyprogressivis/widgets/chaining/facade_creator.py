@@ -27,11 +27,12 @@ NUM_COLS_TAB_TITLE = "Numerical columns"
 STR_COLS_TAB_TITLE = "String columns"
 DATETIME_COLS_TAB_TITLE = "DateTime columns"
 CAT_COLS_TAB_TITLE = "Categorical columns"
+HIST1D_COL = "Hist1D"
 LOWER_COL = "> "
 UPPER_COL = " <"
 RANGE_COL = "Range%"
 QUERY_COL = "Filter"
-HIST_COL = "Histograms"
+DISTR_COL = "Distributions"
 PEEL_COL = "Peel"
 # https://stackoverflow.com/questions/56949504/how-to-lazify-output-in-tabbed-layout-in-jupyter-notebook
 
@@ -70,7 +71,7 @@ class HistSlider(IpyVBoxTyped):
         hist: VegaWidget
         slider: ipw.IntRangeSlider
 
-    def init(self, grid: DataFrameGrid) -> None:
+    def initialize(self, grid: DataFrameGrid) -> None:
         self.c_.hist = VegaWidget(stacked_hist_spec_no_data)
         self.c_.slider = p100_range_slider()
         self.c_.slider.observe(self.observe_range, "value")
@@ -95,7 +96,7 @@ class HistSlider(IpyVBoxTyped):
         lo, up = val["new"]
         assert self.grid
         row, col = self.grid.get_coords(self)
-        assert col == HIST_COL
+        assert col == DISTR_COL
         if not self.lo_wg:
             self.lo_wg = self.grid.df.loc[row, LOWER_COL]
         if not self.up_wg:
@@ -130,7 +131,7 @@ class HistSlider(IpyVBoxTyped):
     ) -> tuple[NDArray, NDArray]:
         assert self.grid
         row, col = self.grid.get_coords(self)
-        assert col == HIST_COL
+        assert col == DISTR_COL
         raw_res: list[AnyType] = []
         qry_res = []
         for raw, qry in zip(raw_hist, qry_hist):
@@ -210,9 +211,10 @@ class DynViewer(TreeTab):
             "max": 0,
             "mean": 0,
             "var": 0,
+            HIST1D_COL: 0,
             QUERY_COL: 0,
             LOWER_COL: 0,
-            HIST_COL: 0,
+            DISTR_COL: 0,
             UPPER_COL: 0,
         }
         self.str_functions = {"min": 0, "max": 0, "filter_str": 0}
@@ -321,7 +323,7 @@ class DynViewer(TreeTab):
         df.loc[:, :QUERY_COL] = lambda: ipw.Checkbox(  # type: ignore
             value=False, description="", disabled=False, indent=False
         )
-        df.loc[:, HIST_COL] = HistSlider
+        df.loc[:, DISTR_COL] = HistSlider
 
         def _lower() -> ipw.BoundedIntText:
             return ipw.BoundedIntText(
@@ -350,12 +352,26 @@ class DynViewer(TreeTab):
             for i, row in self.gb_num.df.iterrows():
                 if i in df.index:
                     df.loc[i] = row
-        grid = DataFrameGrid(df, repeat="50px", sizes={HIST_COL: "200px"})
+        grid = DataFrameGrid(df, repeat="50px", sizes={DISTR_COL: "200px"})
+
+        def _observe_h1d(change: Dict[str, AnyType]) -> None:
+            obj = change["owner"]
+            row, col = grid.get_coords(obj)
+            if obj.value:
+                grid.df.loc[row, "max"].value = True
+                grid.df.loc[row, "min"].value = True
+                grid.df.loc[row, "max"].disabled = True
+                grid.df.loc[row, "min"].disabled = True
+            else:
+                grid.df.loc[row, "max"].disabled = False
+                grid.df.loc[row, "min"].disabled = False
+
+        grid.observe_col(HIST1D_COL, _observe_h1d)
 
         def _observe_lo(change: Dict[str, AnyType]) -> None:
             obj = change["owner"]
             row, col = grid.get_coords(obj)
-            rge = grid.df.loc[row, HIST_COL].c_.slider
+            rge = grid.df.loc[row, DISTR_COL].c_.slider
             old = rge.value
             rge.value = (obj.value, old[1])
 
@@ -364,7 +380,7 @@ class DynViewer(TreeTab):
         def _observe_up(change: Dict[str, AnyType]) -> None:
             obj = change["owner"]
             row, col = grid.get_coords(obj)
-            rge = grid.df.loc[row, HIST_COL].c_.slider
+            rge = grid.df.loc[row, DISTR_COL].c_.slider
             old = rge.value
             rge.value = (old[0], obj.value)
 
@@ -380,15 +396,15 @@ class DynViewer(TreeTab):
             if change["new"]:
                 grid.df.loc[row, LOWER_COL].disabled = False
                 grid.df.loc[row, UPPER_COL].disabled = False
-                grid.df.loc[row, HIST_COL].disabled = False
+                grid.df.loc[row, DISTR_COL].disabled = False
             else:
                 grid.df.loc[row, LOWER_COL].disabled = True
                 grid.df.loc[row, UPPER_COL].disabled = True
-                grid.df.loc[row, HIST_COL].c_.slider.value = (0, 100)
-                grid.df.loc[row, HIST_COL].disabled = True
+                grid.df.loc[row, DISTR_COL].c_.slider.value = (0, 100)
+                grid.df.loc[row, DISTR_COL].disabled = True
 
         grid.observe_col(QUERY_COL, _observe_query)
-        grid.broadcast_col(HIST_COL, lambda obj: obj.init(grid))
+        grid.broadcast_col(DISTR_COL, lambda obj: obj.initialize(grid))
         self.gb_num = grid
         return grid
 
@@ -474,7 +490,7 @@ class DynViewer(TreeTab):
         assert self.gb_num
         return {
             cast(str, i): row[1].c_.slider.value
-            for (i, row) in self.gb_num.df.loc[:, [QUERY_COL, HIST_COL]].iterrows()
+            for (i, row) in self.gb_num.df.loc[:, [QUERY_COL, DISTR_COL]].iterrows()
             if row[0].value
         }
 
@@ -493,9 +509,11 @@ class DynViewer(TreeTab):
         num_bounds = self.get_num_bounds()
         max_num_cols = self.get_checked_num("max")
         min_num_cols = self.get_checked_num("min")
+        hist1d_cols = self.get_checked_num(HIST1D_COL)
         s = carrier.input_module.scheduler()
         with s:
             inp = carrier.input_module
+            assert isinstance(inp, Module)
             raw_hist_1d = None
             raw_hist_index = None
             for tcol, (lo, up) in num_bounds.items():
@@ -512,8 +530,8 @@ class DynViewer(TreeTab):
                 sink = Sink(scheduler=s)
                 sink.input.inp = kll.output.result
                 sink.input.inp = range_qry.output.result
-                self.gb_num.df.loc[tcol, HIST_COL].sk_mod = kll  # type: ignore
-                self.gb_num.df.loc[tcol, HIST_COL].var_mod = variable  # type: ignore
+                self.gb_num.df.loc[tcol, DISTR_COL].sk_mod = kll  # type: ignore
+                self.gb_num.df.loc[tcol, DISTR_COL].var_mod = variable  # type: ignore
                 inp = range_qry
                 raw_hist_1d = Histogram1D(column=col, scheduler=s)
                 raw_hist_1d.input.table = carrier.input_module.output[
@@ -532,16 +550,23 @@ class DynViewer(TreeTab):
                 qry_hist_1d.params.bins = NBINS
                 sink.input.inp = qry_hist_1d.output.result
                 assert self.gb_num
-                viz_obj = self.gb_num.df.loc[tcol, HIST_COL]
+                viz_obj = self.gb_num.df.loc[tcol, DISTR_COL]
                 viz_obj.raw_hist_1d = raw_hist_1d  # type: ignore
                 viz_obj.qry_hist_1d = qry_hist_1d  # type: ignore
                 qry_hist_1d.on_after_run(viz_obj.update)  # type: ignore
             facade = TableFacade.get_or_create(inp, "result")
+            min_name = "?"
+            max_name = "?"
             if max_num_cols:
-                facade.configure(base="max", hints=max_num_cols, name="max_num")
+                max_name = f"max__{('_'.join(max_num_cols))}"
+                facade.configure(base="max", hints=tuple(max_num_cols), name=max_name)
             if min_num_cols:
-                facade.configure(base="min", hints=min_num_cols, name="min_num")
-            carrier.output_module = facade  # type: ignore
+                min_name = f"min__{('_'.join(min_num_cols))}"
+                facade.configure(base="min", hints=tuple(min_num_cols), name=min_name)
+            for col in hist1d_cols:
+                facade.configure(base="histogram", hints=[col,], name=f"histogram__{col}",
+                                 connect=dict(min=min_name, max=max_name))
+            carrier.output_module = facade
             carrier.output_slot = "result"
             carrier.output_dtypes = carrier.input_dtypes
 
@@ -550,8 +575,8 @@ class FacadeCreatorW(VBox):
     def __init__(self) -> None:
         super().__init__()
 
-    def init(self) -> None:
-        self._dyn_viewer = DynViewer(self.dtypes, self.input_module, self.input_slot)
+    def initialize(self) -> None:
+        self._dyn_viewer = DynViewer(self.dtypes, cast(Module, self.input_module), self.input_slot)
         self.dag.request_attention(self.title, "widget", "PROGRESS_NOTIFICATION", "0")
         btn = make_button("Start", cb=self._start_cb)
         self.children = (self._dyn_viewer, btn)

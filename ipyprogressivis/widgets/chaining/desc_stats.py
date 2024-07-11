@@ -6,9 +6,8 @@ import logging
 import ipywidgets as ipw
 import numpy as np
 import pandas as pd
-from progressivis.core import asynchronize, aio, Sink, Scheduler
+from progressivis.core import asynchronize, aio, Sink, Scheduler, Module
 from progressivis.utils import PDict
-from progressivis.core import Module
 from progressivis.io import Variable
 from progressivis.stats import (
     KLLSketch,
@@ -869,7 +868,8 @@ class DescStatsW(VBox):
     def __init__(self) -> None:
         super().__init__()
 
-    def init(self) -> None:
+    def initialize(self) -> None:
+        assert isinstance(self.input_module, Module)
         self._dyn_viewer = DynViewer(self.dtypes, self.input_module, self.input_slot)
         self.dag.request_attention(self.title, "widget", "PROGRESS_NOTIFICATION", "0")
         self.children = (self._dyn_viewer,)

@@ -6,7 +6,7 @@ from .utils import (
 import ipywidgets as ipw
 from progressivis.table.group_by import UTIME_SHORT_D
 from progressivis.table.join import Join
-from progressivis.core import Sink
+from progressivis.core import Sink, Module
 from typing import (
     Any as AnyType,
     Any,
@@ -15,7 +15,8 @@ from typing import (
     Callable,
     List,
     Union,
-    Literal
+    Literal,
+    cast
 )
 
 WidgetType = AnyType
@@ -60,7 +61,7 @@ class JoinW(VBox):
     def __init__(self) -> None:
         super().__init__()
 
-    def init(self) -> None:
+    def initialize(self) -> None:
         self.output_dtypes = None
         dd_list = [(f"{k}[{n}]" if n
                     else k, (k, n)) for (k, n) in self.current_widget_keys]
@@ -202,8 +203,8 @@ class JoinW(VBox):
             assert related_wg.output_dtypes is not None
             join = Join(how=how, inv_mask=inv_mask, scheduler=s)
             join.create_dependent_modules(
-                related_module=related_wg.output_module,
-                primary_module=primary_wg.output_module,
+                related_module=cast(Module, related_wg.output_module),
+                primary_module=cast(Module, primary_wg.output_module),
                 related_on=related_on,
                 primary_on=primary_on,
                 related_cols=related_cols,

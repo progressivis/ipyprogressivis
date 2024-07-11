@@ -8,6 +8,7 @@ from progressivis.table.dshape import dataframe_dshape
 from progressivis.vis import DataShape
 from progressivis.core import Sink
 from progressivis.core import Module
+from progressivis.table.table_facade import TableFacade
 from progressivis.core.utils import normalize_columns
 from ..csv_sniffer import CSVSniffer
 from collections import defaultdict
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
 
 Sniffer = CSVSniffer
 DAGWidget: TypeAlias = DagWidgetController
+ModuleOrFacade: TypeAlias = Module | TableFacade
 
 logger = logging.getLogger(__name__)
 
@@ -337,27 +339,6 @@ def make_button(
     return btn
 
 
-"""
-def make_guess_types_toc2(
-    obj: AnyType, sel: ipw.Select, fun: Callable[..., AnyType]
-) -> Callable[..., AnyType]:
-    def _guess(m: Module, run_number: int) -> None:
-        global parent_dtypes
-        assert hasattr(m, "result")
-        if m.result is None:
-            return
-        parent_dtypes = {
-            k: "datetime64" if str(v)[0] == "6" else v for (k, v) in m.result.items()
-        }
-        obj.output_dtypes = parent_dtypes
-        fun(obj, sel.value)
-        with m.scheduler() as dataflow:
-            deps = dataflow.collateral_damage(m.name)
-            dataflow.delete_modules(*deps)
-
-    return _guess
-"""
-
 stage_register: Dict[str, AnyType] = {}
 parent_widget: Optional["NodeVBox"] = None
 parent_dtypes: Optional[Dict[str, str]] = None
@@ -393,7 +374,7 @@ def create_stage_widget(key: str, frozen: AnyType = None) -> "NodeCarrier":
     if frozen is not None:
         guest.frozen_kw = frozen
     stage = NodeCarrier(ctx, guest)
-    guest.init()
+    guest.initialize()
     widget_numbers[key] += 1
     assert obj not in obj.subwidgets
     obj.subwidgets.append(stage)
@@ -423,7 +404,7 @@ def create_loader_widget(
     if frozen is not None:
         loader.frozen_kw = frozen
     stage = NodeCarrier(ctx, loader)
-    loader.init()
+    loader.initialize()
     widget_numbers[key] += 1
     obj.subwidgets.append(stage)
     widget_by_id[id(stage)] = stage
@@ -485,25 +466,6 @@ def replay_start_loader(
     parent_widget = obj
     assert parent_widget
     add_new_loader(obj, ftype, alias, frozen=frozen)
-    """
-    def make_guess_types_for_replay(self, sel: ipw.Select) -> Callable[..., AnyType]:
-        def _guess(m: Module, run_number: int) -> None:
-            global parent_dtypes
-            assert hasattr(m, "result")
-            if m.result is None:
-                return
-            parent_dtypes = {
-                k: "datetime64" if str(v)[0] == "6" else v
-                for (k, v) in m.result.items()
-            }
-            self.output_dtypes = parent_dtypes
-            add_new_stage(self, sel.value)  # type: ignore
-            with m.scheduler() as dataflow:
-                deps = dataflow.collateral_damage(m.name)
-                dataflow.delete_modules(*deps)
-
-        return _guess
-    """
 
 
 def replay_new_stage(
@@ -596,7 +558,7 @@ def make_remove(obj: "NodeVBox") -> Callable[..., None]:
 
 class ChainingProtocol(Protocol):
     _output_dtypes: Optional[Dict[str, str]]
-    _output_module: Module
+    _output_module: ModuleOrFacade
 
     def make_guess_types_toc2(self, sel: ipw.Select) -> Callable[..., AnyType]:
         ...
@@ -962,16 +924,16 @@ class ChainingWidget:
         assert "dtypes" in kw
         self._dtypes: Dict[str, str] = kw["dtypes"]
         assert "input_module" in kw
-        self._input_module: Module = cast(Module, kw["input_module"])
+        self._input_module: ModuleOrFacade = cast(ModuleOrFacade, kw["input_module"])
         self._input_slot: str = kw.get("input_slot", "result")
-        self._output_module: Module = self._input_module
+        self._output_module: ModuleOrFacade = self._input_module
         self._output_slot = self._input_slot
         self._output_dtypes: Optional[Dict[str, str]]
         if self._dtypes is not None:  # i.e. not a loader
             self._output_dtypes = None
         self._dag = kw["dag"]
         self.subwidgets: List[ChainingWidget] = []
-        self.managed_modules: List[Module] = []
+        self.managed_modules: List[ModuleOrFacade] = []
 
     def get_underlying_modules(self) -> List[str]:
         raise NotImplementedError()
@@ -1026,7 +988,7 @@ class GuestWidget:
         self.__carrier: Union[int, ReferenceType["NodeCarrier"]] = 0
         self.frozen_kw: Dict[str, Any]
 
-    def init(self) -> None:
+    def initialize(self) -> None:
         pass
 
     @property
@@ -1043,7 +1005,7 @@ class GuestWidget:
         return self.carrier._dtypes
 
     @property
-    def input_module(self) -> Module:
+    def input_module(self) -> ModuleOrFacade:
         return self.carrier._input_module
 
     @property
@@ -1051,11 +1013,11 @@ class GuestWidget:
         return self.carrier._input_slot
 
     @property
-    def output_module(self) -> Module:
+    def output_module(self) -> ModuleOrFacade:
         return self.carrier._output_module
 
     @output_module.setter
-    def output_module(self, value: Module) -> None:
+    def output_module(self, value: ModuleOrFacade) -> None:
         self.carrier._output_module = value
 
     @property
