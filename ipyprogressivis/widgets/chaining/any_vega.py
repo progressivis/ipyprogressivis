@@ -6,11 +6,14 @@ from ..df_grid import DataFrameGrid
 import panel as pn
 from jupyter_bokeh.widgets import BokehModel  # type: ignore
 import pandas as pd
+import numpy as np
 from progressivis.core import Module, Sink, notNone
+from progressivis.table import PTable
 from progressivis.table.table_facade import TableFacade
-from typing import Any as AnyType, Dict, cast, Type, Sequence, Tuple
-from typing_extensions import TypeAlias
+from typing import Any as AnyType, Dict, cast, Type, Tuple, TypeAlias
 import json
+
+NdArray: TypeAlias = np.ndarray[AnyType, AnyType]
 
 WidgetType = AnyType
 
@@ -30,7 +33,30 @@ js_dict = {
         "y": {"type": "quantitative", "field": "level", "title": "Histogram"},
     },
 }
+
 js_code = json.dumps(js_dict)
+
+hist2d_spec_no_data = {
+    "$schema": "https://vega.github.io/schema/vega-lite/v4.8.1.json",
+    "width": 500,
+    "height": 400,
+    "data": {"name": "data"},
+    "encoding": {
+        "color": {
+            "field": "z",
+            "type": "quantitative",
+            # "scale": {
+            # "domain": [0,1]  # Remove if domain changes
+            # }
+        },
+        "x": {"field": "x", "type": "ordinal"},
+        "y": {"field": "y", "type": "ordinal"},
+    },
+    "mark": "rect",
+    "config": {"axis": {"disable": True}},  # Change to False to see the ticks
+}
+
+# js_code = json.dumps(hist2d_spec_no_data)
 
 HVegaWidget: TypeAlias = cast(
     Type[AnyType], historized_widget(VegaWidget, "update")  # noqa: F821
@@ -114,7 +140,7 @@ class AnyVegaW(VBoxTyped):
             disabled=True,
         )
         df.loc[:, "Processing"] = lambda: ipw.Dropdown(  # type: ignore
-            options=["", "enumerate"],
+            options=["", "enumerate", "cbrt"],
             value="",
             disabled=False,
         )
@@ -125,22 +151,44 @@ class AnyVegaW(VBoxTyped):
         self.json_editor.mode = change["new"]
 
     def _update_vw(self, s: Module, run_number: int) -> None:
-        def _processing(fnc: str, arr: Sequence[AnyType]) -> Sequence[AnyType]:
+        def _processing(fnc: str, arr: NdArray) -> NdArray:
             if fnc == "enumerate":
-                return range(len(arr))
+                return range(len(arr))  # type: ignore
+            elif fnc == "cbrt":
+                maxa = arr.max()
+                if maxa != 0:
+                    return cast(NdArray, np.cbrt(arr / maxa))
+                else:
+                    return arr
             assert not fnc
             return arr
+
+        def _as_dict(res: dict[str, AnyType] | PTable) -> dict[str, AnyType]:
+            if isinstance(res, dict):
+                return res
+            return notNone(notNone(res).last()).to_dict()
 
         df_dict = {
             col: _processing(proc, res[sl])
             for (col, (m, attr, sl, proc)) in self.cols_mapping.items()
-            if sl in (res := getattr(m, attr))
+            if sl in (res := _as_dict(getattr(m, attr)))
         }
+
+        def _first_val(d: dict[str, NdArray]) -> NdArray | None:
+            for _, val in d.items():
+                return val
+            return None
+
         if not df_dict:
             print("nothing to do")
             return
-        df = pd.DataFrame(df_dict)
-        self.child.vega.update("data", remove="true", insert=df)
+        first_val = notNone(_first_val(df_dict))
+        data: NdArray | pd.DataFrame
+        if len(df_dict) == 1 and len(first_val.shape) > 1:
+            data = first_val
+        else:
+            data = pd.DataFrame(df_dict)
+        self.child.vega.update("data", remove="true", insert=data)
 
     def _btn_apply_cb(self, btn: AnyType) -> None:
         facade = self.input_module
@@ -151,6 +199,8 @@ class AnyVegaW(VBoxTyped):
             sink = Sink(scheduler=scheduler)
             for i, row in self.c_.grid.df.iterrows():
                 key = row[0].value
+                if not key:
+                    continue
                 sink.input.inp = self.input_module.output[key]
                 out_m = cast(Module, notNone(facade.get(key)).output_module)
                 out_n = notNone(facade.get(key)).output_name

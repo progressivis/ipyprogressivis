@@ -28,6 +28,7 @@ STR_COLS_TAB_TITLE = "String columns"
 DATETIME_COLS_TAB_TITLE = "DateTime columns"
 CAT_COLS_TAB_TITLE = "Categorical columns"
 HIST1D_COL = "Hist1D"
+HIST2D_COL = "Hist2D"
 LOWER_COL = "> "
 UPPER_COL = " <"
 RANGE_COL = "Range%"
@@ -207,11 +208,13 @@ class DynViewer(TreeTab):
         self.col_types = {k: str(t) for (k, t) in self._dtypes.items()}
         self.col_typed_names = {f"{n}:{t}": (n, t) for (n, t) in self.col_types.items()}
         self.num_functions = {
+            "nth": 0,
             "min": 0,
             "max": 0,
             "mean": 0,
             "var": 0,
             HIST1D_COL: 0,
+            HIST2D_COL: 0,
             QUERY_COL: 0,
             LOWER_COL: 0,
             DISTR_COL: 0,
@@ -317,10 +320,23 @@ class DynViewer(TreeTab):
             if col not in self._hidden_set | self._categorical_set
             and (t.startswith("float") or t.startswith("int"))
         ]
+        ord_cols = [str(i) for (i, _) in enumerate(num_cols)]
+        label_ord_cols = [ipw.Label(i) for i in ord_cols]
         df = pd.DataFrame(  # type: ignore
             index=num_cols, columns=self.num_functions.keys(), dtype=object
         )
-        df.loc[:, :QUERY_COL] = lambda: ipw.Checkbox(  # type: ignore
+        df.loc[:, "nth"] = label_ord_cols
+        df.loc[:, "min":HIST1D_COL] = lambda: ipw.Checkbox(  # type: ignore
+            value=False, description="", disabled=False, indent=False
+        )
+        df.loc[:, HIST2D_COL] = lambda: ipw.Dropdown(
+            options=ord_cols + [""],
+            value="",
+            description="",
+            disabled=False,
+            layout={"width": "initial"},
+        )
+        df.loc[:, QUERY_COL] = lambda: ipw.Checkbox(
             value=False, description="", disabled=False, indent=False
         )
         df.loc[:, DISTR_COL] = HistSlider
@@ -367,6 +383,31 @@ class DynViewer(TreeTab):
                 grid.df.loc[row, "min"].disabled = False
 
         grid.observe_col(HIST1D_COL, _observe_h1d)
+
+        def _observe_h2d(change: Dict[str, AnyType]) -> None:
+            print("change", change)
+            obj = change["owner"]
+            row, col = grid.get_coords(obj)
+            if val := obj.value:
+                grid.df.loc[row, "max"].value = True
+                grid.df.loc[row, "min"].value = True
+                grid.df.loc[row, "max"].disabled = True
+                grid.df.loc[row, "min"].disabled = True
+                i = int(val)
+                row2 = grid.df.index[i]
+                grid.df.loc[row2, "max"].value = True
+                grid.df.loc[row2, "min"].value = True
+                grid.df.loc[row2, "max"].disabled = True
+                grid.df.loc[row2, "min"].disabled = True
+            else:
+                grid.df.loc[row, "max"].disabled = False
+                grid.df.loc[row, "min"].disabled = False
+                i = int(change["old"])
+                row2 = grid.df.index[i]
+                grid.df.loc[row2, "max"].disabled = False
+                grid.df.loc[row2, "min"].disabled = False
+
+        grid.observe_col(HIST2D_COL, _observe_h2d)
 
         def _observe_lo(change: Dict[str, AnyType]) -> None:
             obj = change["owner"]
@@ -502,7 +543,22 @@ class DynViewer(TreeTab):
             if cell.value
         ]
 
+    def get_seld_num(self, fnc: str) -> list[tuple[str, str]]:
+        """
+        returns pairs of columns from HIST2D_COLS
+        """
+        assert self.gb_num
+        return [
+            (self.untyped(cast(str, i)), self.untyped(self.gb_num.df.index[int(val)]))
+            for (i, cell) in self.gb_num.df.loc[:, fnc].items()
+            if (val := cell.value)
+        ]
+
     def untyped(self, tcol: str) -> str:
+        """
+        returns the column name name without the type
+        i.e. for "foo:int64" returns "foo"
+        """
         return self.col_typed_names[tcol][0]
 
     def run(self, carrier: "FacadeCreatorW") -> None:
@@ -510,6 +566,7 @@ class DynViewer(TreeTab):
         max_num_cols = self.get_checked_num("max")
         min_num_cols = self.get_checked_num("min")
         hist1d_cols = self.get_checked_num(HIST1D_COL)
+        hist2d_cols = self.get_seld_num(HIST2D_COL)
         s = carrier.input_module.scheduler()
         with s:
             inp = carrier.input_module
@@ -564,8 +621,21 @@ class DynViewer(TreeTab):
                 min_name = f"min__{('_'.join(min_num_cols))}"
                 facade.configure(base="min", hints=tuple(min_num_cols), name=min_name)
             for col in hist1d_cols:
-                facade.configure(base="histogram", hints=[col,], name=f"histogram__{col}",
-                                 connect=dict(min=min_name, max=max_name))
+                facade.configure(
+                    base="histogram",
+                    hints=[
+                        col,
+                    ],
+                    name=f"histogram__{col}",
+                    connect=dict(min=min_name, max=max_name),
+                )
+            for col_x, col_y in hist2d_cols:
+                facade.configure(
+                    base="histogram2d",
+                    hints=dict(x=col_x, y=col_y),
+                    name=f"histogram2d__{col_x}__{col_y}",
+                    connect=dict(min=min_name, max=max_name),
+                )
             carrier.output_module = facade
             carrier.output_slot = "result"
             carrier.output_dtypes = carrier.input_dtypes
@@ -576,7 +646,9 @@ class FacadeCreatorW(VBox):
         super().__init__()
 
     def initialize(self) -> None:
-        self._dyn_viewer = DynViewer(self.dtypes, cast(Module, self.input_module), self.input_slot)
+        self._dyn_viewer = DynViewer(
+            self.dtypes, cast(Module, self.input_module), self.input_slot
+        )
         self.dag.request_attention(self.title, "widget", "PROGRESS_NOTIFICATION", "0")
         btn = make_button("Start", cb=self._start_cb)
         self.children = (self._dyn_viewer, btn)

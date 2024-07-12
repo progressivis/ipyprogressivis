@@ -94,7 +94,7 @@ class HeatmapW(VBoxTyped):
         if maxa != 0:
             hist = np.cbrt(arr/maxa)
         else:
-            hist = maxa
+            hist = arr
         self.c_.vega.update("data", insert=hist, remove="true")
 
     def _btn_apply_cb(self, btn: AnyType) -> None:
