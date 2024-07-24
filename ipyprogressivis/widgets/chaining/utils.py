@@ -1,5 +1,6 @@
 from weakref import ref, ReferenceType
 import numpy as np
+import os
 import json
 import base64
 import logging
@@ -45,6 +46,9 @@ ModuleOrFacade: TypeAlias = Module | TableFacade
 logger = logging.getLogger(__name__)
 
 PARAMS: Dict[str, AnyType] = {}
+
+HOME = os.getenv("HOME")
+assert HOME is not None
 
 
 replay_list: List[Dict[str, AnyType]] = []
@@ -1096,6 +1100,27 @@ class GuestWidget:
             ds.on_after_run(self._make_guess_types(func, args, kw))
             sink = Sink(scheduler=s)
             sink.input.inp = ds.output.result
+
+    @property
+    def dot_progressivis(self) -> str:
+        home = HOME
+        pv_dir = f"{home}/.progressivis/"
+        if os.path.isdir(pv_dir):
+            return pv_dir
+        return ""
+
+    @property
+    def widget_dir(self) -> str:
+        pv_dir = self.dot_progressivis
+        if not pv_dir:
+            return ""
+        settings_dir = f"{pv_dir}/widget_settings/"
+        if not os.path.isdir(settings_dir):
+            os.mkdir(settings_dir)
+        widget_dir = f"{settings_dir}/{type(self).__name__}/"
+        if not os.path.isdir(widget_dir):
+            os.mkdir(widget_dir)
+        return widget_dir
 
 
 class VBox(ipw.VBox, GuestWidget):

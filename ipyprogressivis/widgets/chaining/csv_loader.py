@@ -125,7 +125,8 @@ class CsvLoaderW(VBoxTyped):
         self._sniffer: Optional[CSVSniffer] = None
         self._urls: List[str] = []
 
-    def initialize(self, urls: List[str] = [], to_sniff: str = "", lines: int = 100) -> None:
+    def initialize(self, urls: List[str] = [],
+                   to_sniff: str = "", lines: int = 100) -> None:
         if self.widget_dir and os.listdir(self.widget_dir):
             self.c_.reuse_ck = ipw.Checkbox(description="Reuse previous settings ...")
             self.c_.reuse_ck.observe(self._reuse_cb, names="value")
@@ -193,9 +194,6 @@ class CsvLoaderW(VBoxTyped):
             )
             self.c_.bookmarks.observe(self._enable_reuse_cb, names="value")
             self.c_.throttle = None
-            """self.c_.throttle = make_button("Freeze",
-                                           cb=self._freeze_cb,
-                                           disabled=True)"""
             self.c_.sniff_btn = make_button("Edit settings",
                                             cb=self._edit_settings_cb,
                                             disabled=True)
@@ -207,12 +205,6 @@ class CsvLoaderW(VBoxTyped):
                                            )])
         else:
             self.initialize()
-
-    def ___old_freeze_cb(self, btn: ipw.Button) -> None:
-        file_ = "/".join([self.widget_dir, self.c_.bookmarks.value])
-        with open(file_) as f:
-            content = js.load(f)
-        amend_last_record({'frozen': content})
 
     def _edit_settings_cb(self, btn: ipw.Button) -> None:
         self.c_.sniffer = JsonEditorW(self)
@@ -338,36 +330,17 @@ class CsvLoaderW(VBoxTyped):
         btn.disabled = True
         self.dag_running()
 
-    @property
-    def dot_progressivis(self) -> str:
-        home = HOME
-        pv_dir = f"{home}/.progressivis/"
-        if os.path.isdir(pv_dir):
-            return pv_dir
-        return ""
-
-    @property
-    def widget_dir(self) -> str:
-        pv_dir = self.dot_progressivis
-        if not pv_dir:
-            return ""
-        settings_dir = f"{pv_dir}/widget_settings/"
-        widget_dir = f"{settings_dir}/{type(self).__name__}/"
-        if os.path.isdir(widget_dir):
-            return widget_dir
-        return ""
-
     def _save_settings_cb(self, btn: ipw.Button) -> None:
         pv_dir = self.dot_progressivis
         assert pv_dir
-        settings_dir = f"{pv_dir}/widget_settings/"
+        """settings_dir = f"{pv_dir}/widget_settings/"
         if not os.path.isdir(settings_dir):
             os.mkdir(settings_dir)
         widget_dir = f"{settings_dir}/{type(self).__name__}/"
         if not os.path.isdir(widget_dir):
-            os.mkdir(widget_dir)
+            os.mkdir(widget_dir)"""
         base_name = self.c_.start_save.children[3].value
-        file_name = f"{widget_dir}/{base_name}"
+        file_name = f"{self.widget_dir}/{base_name}"
         assert self._sniffer is not None
         pv_params = self._sniffer.progressivis
         schema = get_schema(self._sniffer)

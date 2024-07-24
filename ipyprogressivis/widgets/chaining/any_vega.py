@@ -12,51 +12,12 @@ from progressivis.table import PTable
 from progressivis.table.table_facade import TableFacade
 from typing import Any as AnyType, Dict, cast, Type, Tuple, TypeAlias
 import json
+import time
+import os
 
 NdArray: TypeAlias = np.ndarray[AnyType, AnyType]
 
 WidgetType = AnyType
-
-js_dict = {
-    "mark": "bar",
-    "$schema": "https://vega.github.io/schema/vega-lite/v4.8.1.json",
-    "encoding": {
-        "x": {
-            "type": "ordinal",
-            "field": "nbins",
-            "title": "Values",
-            "axis": {
-                "labelExpr": "(datum.value%10>0 ? null : "
-                "format(data('data')[datum.value].xvals, '.2f'))"
-            },
-        },
-        "y": {"type": "quantitative", "field": "level", "title": "Histogram"},
-    },
-}
-
-js_code = json.dumps(js_dict)
-
-hist2d_spec_no_data = {
-    "$schema": "https://vega.github.io/schema/vega-lite/v4.8.1.json",
-    "width": 500,
-    "height": 400,
-    "data": {"name": "data"},
-    "encoding": {
-        "color": {
-            "field": "z",
-            "type": "quantitative",
-            # "scale": {
-            # "domain": [0,1]  # Remove if domain changes
-            # }
-        },
-        "x": {"field": "x", "type": "ordinal"},
-        "y": {"field": "y", "type": "ordinal"},
-    },
-    "mark": "rect",
-    "config": {"axis": {"disable": True}},  # Change to False to see the ticks
-}
-
-# js_code = json.dumps(hist2d_spec_no_data)
 
 HVegaWidget: TypeAlias = cast(
     Type[AnyType], historized_widget(VegaWidget, "update")  # noqa: F821
@@ -65,14 +26,17 @@ HVegaWidget: TypeAlias = cast(
 
 class AnyVegaW(VBoxTyped):
     class Typed(TypedBase):
+        schemas: ipw.Dropdown | None
         mode: ipw.Dropdown | None
         editor: BokehModel | None
-        btn_fetch_cols: ipw.Button
+        save_schema: ipw.HBox | None
         grid: DataFrameGrid | None
         btn_apply: ipw.Button
         vega: HVegaWidget
 
-    cols_mapping: dict[str, Tuple[ModuleOrFacade, str, str, str]] = {}
+    def __init__(self, *args: AnyType, **kw: AnyType) -> None:
+        super().__init__(*args, **kw)
+        self.cols_mapping: dict[str, Tuple[ModuleOrFacade, str, str, str]] = {}
 
     def initialize(self) -> None:
         self.c_.mode = ipw.Dropdown(
@@ -81,19 +45,51 @@ class AnyVegaW(VBoxTyped):
             disabled=False,
         )
         self.c_.mode.observe(self._mode_cb, names="value")
-        content = json.loads(js_code)
         self.json_editor = pn.widgets.JSONEditor(
-            value=content, mode="form", width=600  # type: ignore
+            value={}, mode="form", width=600  # type: ignore
         )
         self.json_editor.param.trigger("value")
         self.c_.editor = pn.ipywidget(self.json_editor)
-        self.output_dtypes = None
-        self.child.btn_fetch_cols = self._btn_ok = make_button(
-            "Fetch info", disabled=False, cb=self._btn_fetch_cols_cb
+        self.c_.schemas = ipw.Dropdown(
+                options=[""] + os.listdir(self.widget_dir),
+                value="",
+                rows=5,
+                description="Schemas",
+                disabled=False,
+                layout=ipw.Layout(width="60%"),
+            )
+        self.c_.schemas.observe(self._schemas_cb, names="value")
+        self.c_.save_schema = ipw.HBox(
+            [
+                make_button(
+                    "Fetch info", disabled=False, cb=self._btn_fetch_cols_cb
+                ),
+                make_button(
+                    "Save schema ...",
+                    cb=self._save_schema_cb,
+                    disabled=False,
+                ),
+                ipw.Text(
+                    value=time.strftime("vega%Y%m%d_%H%M%S"),
+                    placeholder="",
+                    description="File:",
+                    disabled=False,
+                    layout=ipw.Layout(width="100%"),
+                )]
         )
+        self.output_dtypes = None
         self.child.btn_apply = self._btn_ok = make_button(
             "Apply", disabled=False, cb=self._btn_apply_cb
         )
+
+    def _save_schema_cb(self, btn: AnyType) -> None:
+        pv_dir = self.dot_progressivis
+        assert pv_dir
+        base_name = self.c_.save_schema.children[2].value
+        file_name = f"{self.widget_dir}/{base_name}"
+        with open(file_name, "w") as f:
+            json.dump(self.json_editor.value, f, indent=4)
+        self.c_.schemas.options = [""] + os.listdir(self.widget_dir)
 
     def _observe_keys(self, change: Dict[str, AnyType]) -> None:
         obj = change["owner"]
@@ -150,7 +146,16 @@ class AnyVegaW(VBoxTyped):
     def _mode_cb(self, change: Dict[str, AnyType]) -> None:
         self.json_editor.mode = change["new"]
 
-    def _update_vw(self, s: Module, run_number: int) -> None:
+    def _schemas_cb(self, change: Dict[str, AnyType]) -> None:
+        base_name = change['new']
+        if not base_name:
+            self.json_editor.value = {}
+            return
+        file_name = f"{self.widget_dir}/{base_name}"
+        with open(file_name) as f:
+            self.json_editor.value = json.load(f)
+
+    def _update_vw(self, _: Module, run_number: int) -> None:
         def _processing(fnc: str, arr: NdArray) -> NdArray:
             if fnc == "enumerate":
                 return range(len(arr))  # type: ignore
