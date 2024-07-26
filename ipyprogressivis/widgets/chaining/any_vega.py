@@ -1,4 +1,5 @@
-from .utils import make_button, stage_register, VBoxTyped, TypedBase, ModuleOrFacade
+from .utils import (make_button, stage_register, VBoxTyped, TypedBase, ModuleOrFacade,
+                    amend_last_record, replay_next)
 from ..utils import historized_widget
 import ipywidgets as ipw
 from ..vega import VegaWidget
@@ -31,8 +32,9 @@ class AnyVegaW(VBoxTyped):
         editor: BokehModel | None
         save_schema: ipw.HBox | None
         grid: DataFrameGrid | None
-        btn_apply: ipw.Button
-        vega: HVegaWidget
+        freeze_ck: ipw.Checkbox | None
+        btn_apply: ipw.Button | None
+        vega: HVegaWidget | None
 
     def __init__(self, *args: AnyType, **kw: AnyType) -> None:
         super().__init__(*args, **kw)
@@ -78,7 +80,8 @@ class AnyVegaW(VBoxTyped):
                 )]
         )
         self.output_dtypes = None
-        self.child.btn_apply = self._btn_ok = make_button(
+        self.c_.freeze_ck = ipw.Checkbox(description="Freeze")
+        self.c_.btn_apply = self._btn_ok = make_button(
             "Apply", disabled=False, cb=self._btn_apply_cb
         )
 
@@ -195,29 +198,47 @@ class AnyVegaW(VBoxTyped):
             data = pd.DataFrame(df_dict)
         self.child.vega.update("data", remove="true", insert=data)
 
-    def _btn_apply_cb(self, btn: AnyType) -> None:
+    def _btn_apply_cb(self, btn: ipw.Button) -> None:
+        df_dict = self.c_.grid.df.to_dict(orient="index")
+        for i, row in df_dict.items():
+            for k, wg in row.items():
+                row[k] = wg.value
+        js_val = self.json_editor.value.copy()
+        if self.child.freeze_ck.value:
+            amend_last_record({'frozen': dict(mapping_dict=df_dict, vega_schema=js_val)})
+        self.init_modules(mapping_dict=df_dict, vega_schema=js_val)
+
+    def init_modules(self,
+                     mapping_dict: dict[str, dict[str, str]],
+                     vega_schema: AnyType) -> None:
         facade = self.input_module
         assert isinstance(facade, TableFacade)
         scheduler = facade.scheduler()
         out_m = None
         with scheduler:
             sink = Sink(scheduler=scheduler)
-            for i, row in self.c_.grid.df.iterrows():
-                key = row[0].value
+            for i, row in mapping_dict.items():
+                key = row["Mapping"]
                 if not key:
                     continue
                 sink.input.inp = self.input_module.output[key]
                 out_m = cast(Module, notNone(facade.get(key)).output_module)
                 out_n = notNone(facade.get(key)).output_name
-                slot = cast(str, row[1].value)
-                proc = cast(str, row[2].value)
+                slot = row["Key"]
+                proc = row["Processing"]
                 self.cols_mapping[i] = out_m, out_n, slot, proc
         if out_m is not None:  # i.e. the last out_m in the previous 'for'
             out_m.on_after_run(self._update_vw)
-        js_val = self.json_editor.value.copy()
-        js_val["data"] = {"name": "data"}
-        self.child.vega = HVegaWidget(spec=js_val)
+        vega_schema["data"] = {"name": "data"}
+        self.child.vega = HVegaWidget(spec=vega_schema)
         self.dag_running()
+
+    def run(self) -> AnyType:
+        content = self.frozen_kw
+        self.init_modules(**content)
+        self.dag_running()
+        replay_next()
+        return self.child.vega
 
 
 stage_register["Any Vega"] = AnyVegaW
