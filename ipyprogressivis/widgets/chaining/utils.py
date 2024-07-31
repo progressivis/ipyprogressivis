@@ -189,7 +189,8 @@ def replay_next(obj: Optional[Union["Constructor", "NodeVBox"]] = None) -> None:
     parent = stage.pop("parent", None)
     if obj is None and stage and "ftype" not in stage:
         assert parent is not None
-        obj = widget_by_key[tuple(parent)]  # type: ignore
+        t0, t1 = parent
+        obj = widget_by_key[(cast(str, t0), cast(int, t1))]
     if not stage:  # i.e. stage == {}, end of tape
         return
     if "ftype" in stage:  # i.e. is a loader
