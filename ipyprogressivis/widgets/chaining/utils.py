@@ -11,6 +11,8 @@ from progressivis.core import Sink
 from progressivis.core import Module
 from progressivis.table.table_facade import TableFacade
 from progressivis.core.utils import normalize_columns
+from ._js import (jslab_func_remove, jslab_func_cleanup,
+                  jslab_func_cell_index)
 from ..csv_sniffer import CSVSniffer
 from collections import defaultdict
 from .. import DagWidgetController  # type: ignore
@@ -495,47 +497,6 @@ def replay_new_stage(
         add_new_stage(obj, title, frozen=frozen)
 
 
-remove_js_func = """
-(function(){{
-  let indices = [];
-  IPython.notebook.get_cells().forEach( function(cell) {{
-    if (cell.metadata !== undefined){{
-      if(cell.metadata.progressivis_tag === "{tag}"){{
-        cell.metadata.editable = true;
-        cell.metadata.deletable = true;
-        let i = IPython.notebook.find_cell_index(cell);
-        indices.push(i);
-      }}
-    }}
-  }});
-  let uIndices = [...new Set(indices)];
-  IPython.notebook.delete_cells(uIndices);
-}})();
-"""
-
-jslab_func_remove = """
-(function(){{
-  var NotebookActions = ProgressiVis.nbactions;
-  var crtWidget = ProgressiVis.nbtracker().currentWidget;
-  var notebook = crtWidget.content;
-  let toDelete = [];
-  notebook.widgets.forEach( function(cell) {{
-      if(cell.model.metadata.progressivis_tag === "{tag}"){{
-        cell.model.sharedModel.setMetadata("deletable", true);
-        cell.model.sharedModel.setMetadata("editable", true);
-        toDelete.push(cell);
-      }}
-  }});
-  for(let c of toDelete){{
-     let i = notebook.widgets.findIndex((x)=> x == c)
-     notebook.model.sharedModel.transact(() => {{
-     notebook.model.sharedModel.deleteCell(i);
-     }});
-  }}
-}})();
-"""
-
-
 def remove_tagged_cells(tag: int) -> None:
     s = jslab_func_remove.format(tag=tag)
     get_dag().exec_js(s)
@@ -694,176 +655,12 @@ class LoaderMixin:
         return ipw.HBox([alias_inp, btn])
 
 
-# https://github.com/jupyterlab/jupyterlab/issues/5660
-
-
-cleanup_js_func = """
-(function(){{
-  let indices = [];
-  IPython.notebook.get_cells().forEach( function(cell) {{
-    if (cell.metadata !== undefined){{
-      if(cell.metadata.progressivis_tag !== undefined){{
-        cell.metadata.editable = true;
-        cell.metadata.deletable = true;
-        let i = IPython.notebook.find_cell_index(cell);
-        indices.push(i);
-      }}
-    }}
-  }});
-  let uIndices = [...new Set(indices)];
-  IPython.notebook.delete_cells(uIndices);
-}})();
-"""
-
-jslab_func_cleanup = """
-(function(){{
-  var NotebookActions = ProgressiVis.nbactions;
-  var crtWidget = ProgressiVis.nbtracker().currentWidget;
-  var notebook = crtWidget.content;
-  let toDelete = [];
-  notebook.widgets.forEach( function(cell) {{
-      console.log("meta", cell.model.sharedModel.metadata);
-      console.log("ptag", cell.model.sharedModel.metadata.progressivis_tag);
-      if(cell.model.sharedModel.metadata.progressivis_tag != undefined){{
-        cell.model.sharedModel.setMetadata("deletable", true);
-        cell.model.sharedModel.setMetadata("editable", true);
-        toDelete.push(cell);
-      }}
-  }});
-  console.log("toDelete", toDelete);
-  for(let c of toDelete){{
-     let i = notebook.widgets.findIndex((x)=> x == c)
-     //notebook.model.sharedModel.transact(() => {{
-     notebook.model.sharedModel.deleteCell(i);
-     //}});
-  }}
-}})();
-"""
-
-
 def cleanup_cells() -> None:
     manager = PARAMS["header"].manager
     manager.exec_js(jslab_func_cleanup)
 
 
-js_func_toc = """
-(function(){{
-  let i = -1;
-  IPython.notebook.get_cells().forEach( function(cell) {{
-    if (cell.metadata !== undefined){{
-      if(cell.metadata.progressivis_tag === "{prev}"){{
-        cell.metadata.editable = true;
-        cell.metadata.deletable = true;
-        i = IPython.notebook.find_cell_index(cell);
-      }}
-    }}
-  }});
-  if(i<0){{
-   i = IPython.notebook.get_cell_elements().length;
-  }} else {{
-    i = i+1;
-  }}
-  IPython.notebook.insert_cell_at_index("markdown", i).set_text("{md}");
-  IPython.notebook.select(i);
-  IPython.notebook.execute_cell(i);
-  let meta = {{
-    "trusted": true,
-    "editable": false,
-    "deletable": false,
-    "progressivis_tag": "{tag}"
-   }};
-  IPython.notebook.get_cell(i).metadata = meta;
-  IPython.notebook.insert_cell_at_index("code", i+1).set_text("{code}");
-  IPython.notebook.select(i+1);
-  IPython.notebook.execute_cell(i+1);
-  IPython.notebook.get_cell(i+1).metadata = meta;
-}})();
-"""
-
-jslab_func_toc = """
-(function(){{
-  var NotebookActions = ProgressiVis.nbactions;
-  var crtWidget = ProgressiVis.nbtracker().currentWidget;
-  var notebook = crtWidget.content;
-  let i = -1;
-  notebook.widgets.forEach( function(cell) {{
-      if(cell.model.metadata.progressivis_tag === "{tag}"){{
-        cell.model.sharedModel.setMetadata("deletable", true);
-        cell.model.sharedModel.setMetadata("editable", true);
-        let i = notebook.widgets.findIndex((x)=> x == cell)
-      }}
-  }});
-  if(i<0){{
-   i = notebook.widgets.length;
-  }} else {{
-    i = i+1;
-  }}
-  notebook.model.sharedModel.insertCell(i, {{
-        "cell_type": "markdown",
-        source: "{md}"
-      }});
-  notebook.activeCellIndex = i;
-  var cell = notebook.widgets[i];
-  NotebookActions.run(notebook, crtWidget.sessionContext);
-  cell.model.sharedModel.setMetadata("trusted", true);
-  cell.model.sharedModel.setMetadata("editable", false);
-  cell.model.sharedModel.setMetadata("deletable", false);
-  cell.model.sharedModel.setMetadata("progressivis_tag", "{tag}");
-  notebook.model.sharedModel.insertCell(i+1, {{
-        "cell_type": "code",
-        source: "{code}"
-      }});
-  notebook.activeCellIndex = i+1;
-  var cell = notebook.widgets[i+1];
-  NotebookActions.run(notebook, crtWidget.sessionContext);
-  cell.model.sharedModel.setMetadata("trusted", true);
-  cell.model.sharedModel.setMetadata("editable", false);
-  cell.model.sharedModel.setMetadata("deletable", false);
-  cell.model.sharedModel.setMetadata("progressivis_tag", "{tag}");
-}})();
-"""
-
-js_func_cell_index = """
-(function(){{
-  IPython.notebook.insert_cell_at_index("{kind}", {index}).set_text("{text}");
-  IPython.notebook.select({index});
-  IPython.notebook.execute_cell({index});
-  let meta = {{
-    "trusted": true,
-    "editable": false,
-    "deletable": false,
-    "progressivis_tag": "{tag}"
-   }};
-  IPython.notebook.get_cell({index}).metadata = meta;
-  }})();
-"""
-
-jslab_func_cell_index = """
-(function(){{
-  var NotebookActions = ProgressiVis.nbactions;
-  var crtWidget = ProgressiVis.nbtracker().currentWidget;
-  var notebook = crtWidget.content;
-  notebook.model.sharedModel.insertCell({index}, {{
-        "cell_type": "{kind}",
-        source: "{text}"
-      }});
-  notebook.activeCellIndex = {index};
-  var cell = notebook.widgets[{index}];
-  cell.model.sharedModel.setMetadata("trusted", true);
-  cell.model.sharedModel.setMetadata("editable", false);
-  cell.model.sharedModel.setMetadata("deletable", false);
-  cell.model.sharedModel.setMetadata("progressivis_tag", "{tag}");
-  NotebookActions.run(notebook, crtWidget.sessionContext);
-  }})();
-"""
-
-
 def insert_cell_at_index(kind: str, text: str, index: int, tag: str) -> None:
-    """display(  # type:ignore
-        Javascript(  # type:ignore
-            js_func_cell_index.format(kind=kind, text=text, index=index, tag=tag)
-        )
-    )"""
     get_dag().exec_js(
         jslab_func_cell_index.format(kind=kind, text=text, index=index, tag=tag)
     )
