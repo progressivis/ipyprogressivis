@@ -7,8 +7,8 @@ from progressivis.io import SimpleCSVLoader
 from progressivis.core import Module
 from progressivis.table import PTable
 from progressivis.table.constant import Constant
-from .utils import (make_button, get_schema, VBoxTyped, IpyVBoxTyped,
-                    TypedBase, amend_last_record, replay_next)
+from .utils import (make_button, get_schema, VBoxTyped, IpyVBoxTyped, TypedBase,
+                    amend_last_record, replay_next, get_recording_state, disable_all)
 import os
 import time
 import json as js
@@ -176,7 +176,10 @@ class CsvLoaderW(VBoxTyped):
         self.c_.n_lines = ipw.IntText(value=lines, description="Rows:", disabled=False)
         self.c_.throttle = ipw.IntText(value=0, description="Throttle:", disabled=False)
         self.c_.sniff_btn = make_button("Sniff ...", cb=self._sniffer_cb)
-        self._freeze_ck = ipw.Checkbox(description="Freeze")
+        is_rec = get_recording_state()
+        self._freeze_ck = ipw.Checkbox(description="Freeze",
+                                       value=is_rec,
+                                       disabled=(not is_rec))
 
     def _reuse_cb(self, change: Dict[str, Any]) -> None:
         if change["new"]:
@@ -255,6 +258,7 @@ class CsvLoaderW(VBoxTyped):
         self.make_chaining_box()
         btn.disabled = True
         self.dag_running()
+        disable_all(self)
 
     def _sniffer_cb(self, btn: ipw.Button) -> None:
         if btn.description.startswith("Sniff"):
@@ -329,6 +333,7 @@ class CsvLoaderW(VBoxTyped):
         self.make_chaining_box()
         btn.disabled = True
         self.dag_running()
+        disable_all(self)
 
     def _save_settings_cb(self, btn: ipw.Button) -> None:
         pv_dir = self.dot_progressivis
@@ -369,7 +374,7 @@ class CsvLoaderW(VBoxTyped):
         self.output_slot = "result"
         self.output_dtypes = schema
         self.dag_running()
-        replay_next(self.carrier)
+        replay_next()
 
     def init_modules(
         self, urls: List[str] | None = None,
@@ -400,7 +405,6 @@ class CsvLoaderW(VBoxTyped):
         with s:
             filenames = pd.DataFrame({"filename": urls})
             cst = Constant(PTable("filenames", data=filenames), scheduler=s)
-            print("params", params)
             csv = SimpleCSVLoader(scheduler=s, **params)
             csv.input.filenames = cst.output[0]
             sink.input.inp = csv.output.result

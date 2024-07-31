@@ -596,7 +596,6 @@ class DynViewer(TreeTab):
 
     @asynchronized_wg
     def refresh_info(self) -> None:
-        # print(".", end="")
         if not self.children:
             selm = ipw.SelectMultiple(
                 options=self.hidden_cols,

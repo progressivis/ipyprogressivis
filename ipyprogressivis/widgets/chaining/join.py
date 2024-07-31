@@ -1,7 +1,7 @@
 from .utils import (
     make_button,
     stage_register,
-    append_child, VBox, amend_last_record, replay_next
+    append_child, VBox, amend_last_record, replay_next, get_recording_state, disable_all
 )
 import ipywidgets as ipw
 from progressivis.table.group_by import UTIME_SHORT_D
@@ -101,7 +101,10 @@ class JoinW(VBox):
             disabled=False,
             style={"description_width": "initial"},
         )
-        self._freeze_ck = ipw.Checkbox(description="Freeze")
+        is_rec = get_recording_state()
+        self._freeze_ck = ipw.Checkbox(description="Freeze",
+                                       value=is_rec,
+                                       disabled=(not is_rec))
         self._btn_start = make_button("Start", disabled=True, cb=self._btn_start_cb)
         self.children = (gb, self._btn_ok,
                          self._cols_setup,
@@ -148,6 +151,7 @@ class JoinW(VBox):
 
         self.make_chaining_box()
         self.dag_running()
+        disable_all(self)
 
     def run(self) -> None:
         content = self.frozen_kw
@@ -166,7 +170,7 @@ class JoinW(VBox):
         self.output_module = self.init_join(**content)
         self.output_slot = "result"
         self.dag_running()
-        replay_next(self.carrier)
+        replay_next()
 
     def init_join(self, primary_cols: list[str], related_cols: list[str],
                   primary_on: str | list[str], related_on: str | list[str],

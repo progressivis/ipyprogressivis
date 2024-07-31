@@ -8,11 +8,12 @@ from progressivis.table.range_query import RangeQuery
 from progressivis.stats import Histogram1D
 from progressivis.table.table_facade import TableFacade
 from ..df_grid import DataFrameGrid
-from .utils import TreeTab, make_button, stage_register, VBox, TypedBase, IpyVBoxTyped
+from .utils import (TreeTab, make_button, stage_register, VBox, TypedBase, IpyVBoxTyped,
+                    amend_last_record, replay_next, get_recording_state, disable_all)
 from progressivis.io import Variable
 from ..vega import VegaWidget
 from .._stacked_hist_schema import stacked_hist_spec_no_data
-from typing import Any as AnyType, Optional, Dict, List, Tuple, cast
+from typing import Any as AnyType, cast
 
 NDArray = np.ndarray[AnyType, AnyType]
 WidgetType = AnyType
@@ -193,11 +194,10 @@ class HistSlider(IpyVBoxTyped):
 
 
 class DynViewer(TreeTab):
-    save_for_cancel: Tuple[AnyType, ...]
 
     def __init__(
         self,
-        dtypes: Dict[str, AnyType],
+        dtypes: dict[str, AnyType],
         input_module: Module,
         input_slot: str = "result",
     ):
@@ -270,7 +270,7 @@ class DynViewer(TreeTab):
         grid = DataFrameGrid(df, first="200px")
         tab.set_tab(key, grid)
 
-    def draw_matrix_all(self, ext_df: Optional[pd.DataFrame] = None) -> ipw.GridBox:
+    def draw_matrix_all(self, ext_df: pd.DataFrame | None = None) -> ipw.GridBox:
         df = pd.DataFrame(
             index=list(self.col_typed_names.keys()),
             columns=["Ignore", "Categorical"],
@@ -281,7 +281,7 @@ class DynViewer(TreeTab):
         )
         grid = DataFrameGrid(df, first="200px")
 
-        def observer(change: Dict[str, AnyType]) -> None:
+        def observer(change: dict[str, AnyType]) -> None:
             obj = change["owner"]
             row, col = grid.get_coords(obj)
             if col == "Categorical":
@@ -313,7 +313,7 @@ class DynViewer(TreeTab):
         df = self.gb_all.df
         return [cast(str, i) for (i, row) in df.iterrows() if not row[0].value]
 
-    def draw_matrix_num(self, ext_df: Optional[pd.DataFrame] = None) -> ipw.GridBox:
+    def draw_matrix_num(self, ext_df: pd.DataFrame | None = None) -> ipw.GridBox:
         num_cols = [
             col
             for (col, (c, t)) in self.col_typed_names.items()
@@ -370,7 +370,7 @@ class DynViewer(TreeTab):
                     df.loc[i] = row
         grid = DataFrameGrid(df, repeat="50px", sizes={DISTR_COL: "200px"})
 
-        def _observe_h1d(change: Dict[str, AnyType]) -> None:
+        def _observe_h1d(change: dict[str, AnyType]) -> None:
             obj = change["owner"]
             row, col = grid.get_coords(obj)
             if obj.value:
@@ -384,8 +384,7 @@ class DynViewer(TreeTab):
 
         grid.observe_col(HIST1D_COL, _observe_h1d)
 
-        def _observe_h2d(change: Dict[str, AnyType]) -> None:
-            print("change", change)
+        def _observe_h2d(change: dict[str, AnyType]) -> None:
             obj = change["owner"]
             row, col = grid.get_coords(obj)
             if val := obj.value:
@@ -409,7 +408,7 @@ class DynViewer(TreeTab):
 
         grid.observe_col(HIST2D_COL, _observe_h2d)
 
-        def _observe_lo(change: Dict[str, AnyType]) -> None:
+        def _observe_lo(change: dict[str, AnyType]) -> None:
             obj = change["owner"]
             row, col = grid.get_coords(obj)
             rge = grid.df.loc[row, DISTR_COL].c_.slider
@@ -418,7 +417,7 @@ class DynViewer(TreeTab):
 
         grid.observe_col(LOWER_COL, _observe_lo)
 
-        def _observe_up(change: Dict[str, AnyType]) -> None:
+        def _observe_up(change: dict[str, AnyType]) -> None:
             obj = change["owner"]
             row, col = grid.get_coords(obj)
             rge = grid.df.loc[row, DISTR_COL].c_.slider
@@ -427,11 +426,11 @@ class DynViewer(TreeTab):
 
         grid.observe_col(UPPER_COL, _observe_up)
 
-        def _observe_range(change: Dict[str, AnyType]) -> None:
+        def _observe_range(change: dict[str, AnyType]) -> None:
             obj = change["owner"]
             row, col = grid.get_coords(obj)
 
-        def _observe_query(change: Dict[str, AnyType]) -> None:
+        def _observe_query(change: dict[str, AnyType]) -> None:
             obj = change["owner"]
             row, col = grid.get_coords(obj)
             if change["new"]:
@@ -449,7 +448,7 @@ class DynViewer(TreeTab):
         self.gb_num = grid
         return grid
 
-    def draw_matrix_str(self, ext_df: Optional[pd.DataFrame] = None) -> ipw.GridBox:
+    def draw_matrix_str(self, ext_df: pd.DataFrame | None = None) -> ipw.GridBox:
         str_cols = [
             col
             for (col, (c, t)) in self.col_typed_names.items()
@@ -470,7 +469,7 @@ class DynViewer(TreeTab):
         self.gb_str = grid
         return grid
 
-    def draw_matrix_dt(self, ext_df: Optional[pd.DataFrame] = None) -> ipw.GridBox:
+    def draw_matrix_dt(self, ext_df: pd.DataFrame | None = None) -> ipw.GridBox:
         dt_cols = [
             col
             for (col, (c, t)) in self.col_typed_names.items()
@@ -491,7 +490,7 @@ class DynViewer(TreeTab):
         self.gb_dt = grid
         return grid
 
-    def draw_matrix_cat(self, ext_df: Optional[pd.DataFrame] = None) -> ipw.GridBox:
+    def draw_matrix_cat(self, ext_df: pd.DataFrame | None = None) -> ipw.GridBox:
         cat_cols = [
             col
             for (col, (c, t)) in self.col_typed_names.items()
@@ -567,6 +566,26 @@ class DynViewer(TreeTab):
         min_num_cols = self.get_checked_num("min")
         hist1d_cols = self.get_checked_num(HIST1D_COL)
         hist2d_cols = self.get_seld_num(HIST2D_COL)
+        if carrier.freeze_ck.value:
+            amend_last_record({'frozen': dict(
+                num_bounds=num_bounds,
+                max_num_cols=max_num_cols,
+                min_num_cols=min_num_cols,
+                hist1d_cols=hist1d_cols,
+                hist2d_cols=hist2d_cols
+            )})
+        self._run(carrier, num_bounds, max_num_cols, min_num_cols, hist1d_cols, hist2d_cols)
+
+    def run_batch(self, carrier: "FacadeCreatorW") -> None:
+        content = carrier.frozen_kw
+        self._run(carrier, **content)
+
+    def _run(self, carrier: "FacadeCreatorW",
+             num_bounds: dict[str, AnyType],
+             max_num_cols: list[str],
+             min_num_cols: list[str],
+             hist1d_cols: list[str],
+             hist2d_cols: list[tuple[str, str]]) -> None:
         s = carrier.input_module.scheduler()
         with s:
             inp = carrier.input_module
@@ -615,10 +634,10 @@ class DynViewer(TreeTab):
             min_name = "?"
             max_name = "?"
             if max_num_cols:
-                max_name = f"max__{('_'.join(max_num_cols))}"
+                max_name = f"max/{('/'.join(max_num_cols))}"
                 facade.configure(base="max", hints=tuple(max_num_cols), name=max_name)
             if min_num_cols:
-                min_name = f"min__{('_'.join(min_num_cols))}"
+                min_name = f"min/{('/'.join(min_num_cols))}"
                 facade.configure(base="min", hints=tuple(min_num_cols), name=min_name)
             for col in hist1d_cols:
                 facade.configure(
@@ -626,14 +645,14 @@ class DynViewer(TreeTab):
                     hints=[
                         col,
                     ],
-                    name=f"histogram__{col}",
+                    name=f"histogram/{col}",
                     connect=dict(min=min_name, max=max_name),
                 )
             for col_x, col_y in hist2d_cols:
                 facade.configure(
                     base="histogram2d",
                     hints=dict(x=col_x, y=col_y),
-                    name=f"histogram2d__{col_x}__{col_y}",
+                    name=f"histogram2d/{col_x}/{col_y}",
                     connect=dict(min=min_name, max=max_name),
                 )
             carrier.output_module = facade
@@ -650,16 +669,26 @@ class FacadeCreatorW(VBox):
             self.dtypes, cast(Module, self.input_module), self.input_slot
         )
         self.dag.request_attention(self.title, "widget", "PROGRESS_NOTIFICATION", "0")
+        is_rec = get_recording_state()
+        self.freeze_ck = ipw.Checkbox(description="Freeze",
+                                      value=is_rec,
+                                      disabled=(not is_rec))
         btn = make_button("Start", cb=self._start_cb)
-        self.children = (self._dyn_viewer, btn)
+        self.children = (self._dyn_viewer, self.freeze_ck, btn)
 
-    def get_underlying_modules(self) -> List[str]:
+    def get_underlying_modules(self) -> list[str]:
         return ["TODO"]
 
     def _start_cb(self, btn: AnyType) -> None:
         self._dyn_viewer.run(self)
         self.make_chaining_box()
         self.dag_running()
+        disable_all(self)
+
+    def run(self) -> None:
+        self._dyn_viewer.run_batch(self)
+        self.dag_running()
+        replay_next()
 
 
 stage_register["Facade"] = FacadeCreatorW

@@ -1,5 +1,5 @@
 from .utils import (make_button, stage_register, VBoxTyped, TypedBase, ModuleOrFacade,
-                    amend_last_record, replay_next)
+                    amend_last_record, replay_next, get_recording_state, disable_all)
 from ..utils import historized_widget
 import ipywidgets as ipw
 from ..vega import VegaWidget
@@ -80,7 +80,10 @@ class AnyVegaW(VBoxTyped):
                 )]
         )
         self.output_dtypes = None
-        self.c_.freeze_ck = ipw.Checkbox(description="Freeze")
+        is_rec = get_recording_state()
+        self.c_.freeze_ck = ipw.Checkbox(description="Freeze",
+                                         value=is_rec,
+                                         disabled=(not is_rec))
         self.c_.btn_apply = self._btn_ok = make_button(
             "Apply", disabled=False, cb=self._btn_apply_cb
         )
@@ -123,7 +126,7 @@ class AnyVegaW(VBoxTyped):
         cols = [v["field"] for (k, v) in en_.items() if "field" in v]
         facade = self.input_module
         assert isinstance(facade, TableFacade)
-        members = facade.members
+        members = [m for m in facade.members if "/" in m]  # only configured members
         df = pd.DataFrame(
             index=cols, columns=["Mapping", "Key", "Processing"], dtype=object
         )
@@ -131,19 +134,22 @@ class AnyVegaW(VBoxTyped):
             options=members + [""],
             value="",
             disabled=False,
-            layout={"width": "initial"},
+            layout={'width': 'max-content'}
         )
         df.loc[:, "Key"] = lambda: ipw.Dropdown(  # type: ignore
             options=[""],
             value="",
             disabled=True,
+
         )
         df.loc[:, "Processing"] = lambda: ipw.Dropdown(  # type: ignore
             options=["", "enumerate", "cbrt"],
             value="",
             disabled=False,
         )
-        self.c_.grid = DataFrameGrid(df, first="200px", index_title="Vega columns")
+        self.c_.grid = DataFrameGrid(df, index_title="Vega columns",
+                                     grid_template_columns="100px 200px 100px 100px"
+                                     )
         self.c_.grid.observe_col("Mapping", self._observe_keys)
 
     def _mode_cb(self, change: Dict[str, AnyType]) -> None:
@@ -207,6 +213,7 @@ class AnyVegaW(VBoxTyped):
         if self.child.freeze_ck.value:
             amend_last_record({'frozen': dict(mapping_dict=df_dict, vega_schema=js_val)})
         self.init_modules(mapping_dict=df_dict, vega_schema=js_val)
+        disable_all(self)
 
     def init_modules(self,
                      mapping_dict: dict[str, dict[str, str]],

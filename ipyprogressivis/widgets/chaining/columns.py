@@ -282,10 +282,6 @@ class PColumnsW(VBoxTyped):
             self.c_.cols_funcs.c_.funcs.disabled = True
             self.c_.cols_funcs.c_.computed = None
         elif self.c_.cols_funcs.c_.funcs.value:
-            """key = (self._columns.value, self._functions.value)
-            if key not in self._col_widgets:
-                self._col_widgets[key] = FuncW(*key)
-            self._computed_col = self._col_widgets[key]"""
             self.set_selection()
         else:
             self.c_.cols_funcs.c_.computed = None

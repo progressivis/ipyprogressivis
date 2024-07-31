@@ -1,6 +1,5 @@
-from .utils import (make_button, stage_register,
-                    dongle_widget, VBoxTyped,
-                    TypedBase, amend_last_record, replay_next)
+from .utils import (make_button, stage_register, dongle_widget, VBoxTyped, TypedBase,
+                    amend_last_record, replay_next, get_recording_state, disable_all)
 import ipywidgets as ipw
 from progressivis.core import Module
 from progressivis.table.group_by import (
@@ -35,7 +34,10 @@ class GroupByW(VBoxTyped):
     def initialize(self) -> None:
         self.child.grouping_mode = self.make_gr_mode()
         self.child.by_box = self.make_sel_multiple()
-        self.child.freeze_ck = ipw.Checkbox(description="Freeze")
+        is_rec = get_recording_state()
+        self.child.freeze_ck = ipw.Checkbox(description="Freeze",
+                                            value=is_rec,
+                                            disabled=(not is_rec))
         self.child.start_btn = make_button(
             "Activate", cb=self._add_group_by_cb, disabled=True
         )
@@ -79,13 +81,14 @@ class GroupByW(VBoxTyped):
         btn.disabled = True
         self.make_chaining_box()
         self.dag_running()
+        disable_all(self)
 
     def run(self) -> None:
         content = self.frozen_kw
         self.output_module = self.init_group_by(**content)
         self.output_slot = "result"
         self.dag_running()
-        replay_next(self.carrier)
+        replay_next()
 
     def _on_grouping_cb(self, val: AnyType) -> None:
         if val["new"] == "columns":
@@ -97,7 +100,9 @@ class GroupByW(VBoxTyped):
         wg: Union[ipw.Label, ipw.RadioButtons]
         if "datetime64" in self.input_dtypes.values():
             wg = ipw.RadioButtons(
-                options=["columns", "datetime subcolumn", "multi index subcolumn"],
+                options=["columns",
+                         "datetime subcolumn",
+                         "multi index subcolumn"],
                 description="Grouping mode:",
                 disabled=False,
                 style={"description_width": "initial"},

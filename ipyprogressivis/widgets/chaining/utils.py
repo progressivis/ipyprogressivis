@@ -17,8 +17,8 @@ from .. import DagWidgetController  # type: ignore
 from .. import PsBoard
 from typing import (
     Any,
-    Union,
     Tuple,
+    Union,
     Any as AnyType,
     Optional,
     Dict,
@@ -181,20 +181,19 @@ def restore_recorder() -> None:
     labcommand("progressivis:set_backup", backup=PARAMS["recorder"].tape)
 
 
-def replay_next(obj: "Constructor" | "NodeVBox" | None = None) -> None:
+def replay_next(obj: Optional[Union["Constructor", "NodeVBox"]] = None) -> None:
     assert replay_list
     stage = replay_list.pop(0)
-    print("replay next", stage)
     parent = stage.pop("parent", None)
-    if obj is None and stage:
+    if obj is None and stage and "ftype" not in stage:
         assert parent is not None
         obj = widget_by_key[tuple(parent)]  # type: ignore
     if not stage:  # i.e. stage == {}, end of tape
         return
-    assert obj is not None
     if "ftype" in stage:  # i.e. is a loader
         replay_start_loader(PARAMS["constructor"], **stage)
     else:
+        assert obj is not None
         replay_new_stage(obj, **stage)  # type: ignore
 
 
@@ -327,6 +326,14 @@ def get_schema(sniffer: Sniffer) -> AnyType:
     return dtypes
 
 
+def disable_all(wg: Any, exceptions: frozenset[Any] = frozenset()) -> None:
+    if hasattr(wg, "disabled") and wg not in exceptions:
+        wg.disabled = True
+    if hasattr(wg, "children") and wg not in exceptions:
+        for ch in wg.children:
+            disable_all(ch, exceptions)
+
+
 def make_button(
     label: str,
     disabled: bool = False,
@@ -353,6 +360,7 @@ key_by_id: Dict[int, Tuple[str, int]] = {}
 widget_by_id: Dict[int, "NodeVBox"] = {}
 widget_by_key: Dict[Tuple[str, int], "NodeVBox"] = {}
 widget_numbers: Dict[str, int] = defaultdict(int)
+recording_state: bool = False
 
 
 class _Dag:
@@ -432,6 +440,15 @@ def get_widget_by_key(key: str, num: int) -> "NodeVBox":
     return widget_by_key[(key, num)]
 
 
+def get_recording_state() -> bool:
+    return recording_state
+
+
+def set_recording_state(val: bool) -> None:
+    global recording_state
+    recording_state = val
+
+
 def _make_btn_start_loader(
         obj: "NodeVBox", ftype: str, alias: WidgetType, frozen: AnyType = None
 ) -> Callable[..., None]:
@@ -441,7 +458,9 @@ def _make_btn_start_loader(
         assert parent_widget
         add_new_loader(obj, ftype, alias.value, frozen)
         alias.value = ""
-
+        disable_all(obj,
+                    exceptions=frozenset(
+                        [obj.child.csv, obj.child.parquet]))  # type: ignore
     return _cbk
 
 
@@ -618,9 +637,6 @@ class ChainingMixin:
 
     def _make_replay_chaining_box(self: ChainingProtocol) -> ipw.HBox:
         next_stage = replay_list.pop(0)
-        print("next_stage", id(self), next_stage)
-        if "frozen" in next_stage:
-            print("found frozen", next_stage["frozen"])
         frozen = next_stage.get("frozen")
         if "ftype" in next_stage:
             title = next_stage["alias"]
@@ -663,16 +679,16 @@ class ChainingMixin:
 
 
 class LoaderMixin:
-    def make_loader_box(self, ftype: str = "csv") -> ipw.HBox:
+    def make_loader_box(self, ftype: str = "csv", disabled: bool = False) -> ipw.HBox:
         alias_inp = ipw.Text(
             value="",
             placeholder="optional alias",
             description=f"{ftype.upper()} loader:",
-            disabled=False,
+            disabled=disabled,
         )
         btn = make_button(
             "Create",
-            disabled=False,
+            disabled=disabled,
             cb=_make_btn_start_loader(self, ftype, alias_inp),  # type:ignore
         )
         return ipw.HBox([alias_inp, btn])
@@ -896,7 +912,6 @@ def add_new_loader(
             code = new_stage_cell.format(key=title, num=n, end=end)
         else:
             code = new_stage_cell_0.format(key=title, end=end)
-    print("new loader", md, frozen)
     labcommand("progressivis:create_stage_cells", tag=tag, md=md, code=code)
     add_to_record(dict(ftype=ftype, alias=alias))
 
