@@ -7,7 +7,7 @@ import logging
 import ipywidgets as ipw
 from progressivis.table.dshape import dataframe_dshape
 from progressivis.vis import DataShape
-from progressivis.core import Sink
+from progressivis.core import Sink, Scheduler
 from progressivis.core import Module
 from progressivis.table.table_facade import TableFacade
 from progressivis.core.utils import normalize_columns
@@ -67,6 +67,47 @@ class Header:
     board: PsBoard
     widgets_out: Sidecar
     modules_out: Sidecar
+
+
+class Proxy:
+    def __init__(self, carrier: "NodeCarrier") -> None:
+        self.__carrier = carrier
+
+    @property
+    def input_module(self) -> ModuleOrFacade | None:
+        if self.__carrier is PARAMS["constructor"]:
+            return None
+        return self.__carrier._input_module
+
+    @property
+    def input_slot(self) -> str | None:
+        if self.__carrier is PARAMS["constructor"]:
+            return None
+        return self.__carrier._input_slot
+
+    @property
+    def input_dtypes(self) -> dict[str, str] | None:
+        if self.__carrier is PARAMS["constructor"]:
+            return None
+        return self.__carrier._dtypes
+
+    @property
+    def scheduler(self) -> Scheduler:
+        if self.__carrier is PARAMS["constructor"]:
+            assert PARAMS["constructor"] is not None
+            return cast(Scheduler, PARAMS["constructor"].scheduler)
+        assert self.input_module is not None
+        return self.input_module.scheduler()
+
+    def resume(self, output_module: ModuleOrFacade,
+               output_slot: str = "result",
+               output_dtypes: dict[str, str] | None = None,
+               freeze: bool = False) -> "NodeCarrier":
+        self.__carrier._output_module = output_module
+        self.__carrier._output_slot = output_slot
+        self.__carrier._output_dtypes = output_dtypes
+        self.__carrier.make_chaining_box()
+        return self.__carrier
 
 
 def get_header() -> Header:
@@ -357,11 +398,11 @@ def make_button(
 
 
 stage_register: Dict[str, AnyType] = {}
-parent_widget: Optional["NodeVBox"] = None
+parent_widget: Optional["NodeCarrier"] = None
 parent_dtypes: Optional[Dict[str, str]] = None
 key_by_id: Dict[int, Tuple[str, int]] = {}
-widget_by_id: Dict[int, "NodeVBox"] = {}
-widget_by_key: Dict[Tuple[str, int], "NodeVBox"] = {}
+widget_by_id: Dict[int, "NodeCarrier"] = {}
+widget_by_key: Dict[Tuple[str, int], "NodeCarrier"] = {}
 widget_numbers: Dict[str, int] = defaultdict(int)
 recording_state: bool = False
 
@@ -412,13 +453,16 @@ def create_loader_widget(
     ctx = dict(parent=obj, dtypes=dtypes, input_module=obj._output_module, dag=dag)
     from .csv_loader import CsvLoaderW
     from .parquet_loader import ParquetLoaderW
+    from .custom_loader import CustomLoaderW
 
-    loader: Union[CsvLoaderW, ParquetLoaderW]
+    loader: CsvLoaderW | ParquetLoaderW | CustomLoaderW
     if ftype == "csv":
         loader = CsvLoaderW()
-    else:
-        assert ftype == "parquet"
+    elif ftype == "parquet":
         loader = ParquetLoaderW()
+    else:
+        assert ftype == "custom"
+        loader = CustomLoaderW()
     if frozen is not None:
         loader.frozen_kw = frozen
     stage = NodeCarrier(ctx, loader)
@@ -435,11 +479,11 @@ def create_loader_widget(
     return stage
 
 
-def get_widget_by_id(key: int) -> "NodeVBox":
+def get_widget_by_id(key: int) -> "NodeCarrier":
     return widget_by_id[key]
 
 
-def get_widget_by_key(key: str, num: int) -> "NodeVBox":
+def get_widget_by_key(key: str, num: int) -> "NodeCarrier":
     return widget_by_key[(key, num)]
 
 
@@ -453,7 +497,7 @@ def set_recording_state(val: bool) -> None:
 
 
 def _make_btn_start_loader(
-        obj: "NodeVBox", ftype: str, alias: WidgetType, frozen: AnyType = None
+        obj: "NodeCarrier", ftype: str, alias: WidgetType, frozen: AnyType = None
 ) -> Callable[..., None]:
     def _cbk(btn: ipw.Button) -> None:
         global parent_widget
@@ -468,7 +512,7 @@ def _make_btn_start_loader(
 
 
 def replay_start_loader(
-    obj: "NodeVBox", ftype: str, alias: str, frozen: AnyType | None = None
+    obj: "NodeCarrier", ftype: str, alias: str, frozen: AnyType | None = None
 ) -> None:
     global parent_widget
     parent_widget = obj
@@ -477,7 +521,7 @@ def replay_start_loader(
 
 
 def replay_new_stage(
-    obj: "NodeVBox", title: str, frozen: AnyType | None = None
+    obj: "NodeCarrier", title: str, frozen: AnyType | None = None
 ) -> None:
     class _FakeSel:
         value: str
@@ -675,6 +719,58 @@ def get_previous(obj: "ChainingWidget") -> "ChainingWidget":
 
 new_stage_cell_0 = "Constructor.widget('{key}'){end}"
 new_stage_cell = "Constructor.widget('{key}', {num}){end}"
+new_stage_cell_code = ("proxy = Constructor.proxy('{key}', {num})\n"
+                       "# proxy object provides the following attributes:\n"
+                       "#  input_module: Module | TableFacade \n"
+                       "#  input_slot: str \n"
+                       "#  input_dtypes: dict[str, str] | None\n"
+                       "#  scheduler: Scheduler\n"
+                       "# Warning: keep the code above unchanged\n"
+                       "# Put your own code here\n"
+                       "...\n"
+                       "...\n"
+                       "...\n"
+                       "# fill in the following variables:\n"
+                       "output_module: 'Module | TableFacade' = ...\n"
+                       "output_slot: str = 'result'\n"
+                       "output_dtypes: dict[str, str] | None = None\n"
+                       "freeze: bool = False\n"
+                       "# Warning: keep the code below unchanged\n"
+                       "proxy.resume(output_module, output_slot, output_dtypes, freeze)"
+                       "{end}"
+                       )
+
+new_loader_cell_code = ("proxy = Constructor.proxy('{key}', {num})\n"
+                        "scheduler = proxy.scheduler\n"
+                        "# Warning: keep the code above unchanged\n"
+                        "# Put your own imports here\n"
+                        "... \n"
+                        "with scheduler:\n"
+                        "    # Put your own code here\n"
+                        "    ...\n"
+                        "    ...\n"
+                        "    # fill in the following variables:\n"
+                        "    output_module: 'Module | TableFacade' = ...\n"
+                        "    output_slot: str = 'result'\n"
+                        "    output_dtypes: dict[str, str] | None = None\n"
+                        "    freeze: bool = False\n"
+                        "    # Warning: keep the code below unchanged\n"
+                        "    display(proxy.resume(output_module, output_slot,"
+                        " output_dtypes, freeze))"
+                        "{end}"
+                        )
+
+
+def get_stage_cell(key: str, num: int, end: str) -> tuple[str, bool, bool]:
+    if key == "Python":
+        return new_stage_cell_code.format(key=key, num=num, end=end), True, False
+    return new_stage_cell.format(key=key, num=num, end=end), False, True
+
+
+def get_loader_cell(key: str, ftype: str, num: int, end: str) -> tuple[str, bool, bool]:
+    if ftype == "custom":
+        return new_loader_cell_code.format(key=key, num=num, end=end), True, False
+    return new_stage_cell.format(key=key, num=num, end=end), False, True
 
 
 def add_new_stage(parent: "ChainingWidget", title: str, frozen: AnyType = None) -> None:
@@ -686,8 +782,8 @@ def add_new_stage(parent: "ChainingWidget", title: str, frozen: AnyType = None) 
     if frozen is not None:
         end = ".run()"
     md = "## " + title + (f"[{n}]" if n else "")
-    code = new_stage_cell.format(key=title, num=n, end=end)
-    labcommand("progressivis:create_stage_cells", tag=tag, md=md, code=code)
+    code, rw, run = get_stage_cell(key=title, num=n, end=end)
+    labcommand("progressivis:create_stage_cells", tag=tag, md=md, code=code, rw=rw, run=run)
     add_to_record(dict(title=title, parent=parent_key))
 
 
@@ -703,14 +799,10 @@ def add_new_loader(
         end = ".run();"
     if alias:
         md = f"## {alias}"
-        code = new_stage_cell_0.format(key=alias, end=end)
     else:
         md = "## " + title + (f"[{n}]" if n else "")
-        if n:
-            code = new_stage_cell.format(key=title, num=n, end=end)
-        else:
-            code = new_stage_cell_0.format(key=title, end=end)
-    labcommand("progressivis:create_stage_cells", tag=tag, md=md, code=code)
+    code, rw, run = get_loader_cell(key=alias or title, ftype=ftype, num=n, end=end)
+    labcommand("progressivis:create_stage_cells", tag=tag, md=md, code=code, rw=rw, run=run)
     add_to_record(dict(ftype=ftype, alias=alias))
 
 

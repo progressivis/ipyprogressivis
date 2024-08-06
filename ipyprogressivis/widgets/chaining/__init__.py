@@ -13,6 +13,8 @@ from .columns import PColumnsW
 from .histogram import HistogramW
 from .iscaler import ScalerW
 from .any_vega import AnyVegaW
+from .code_cell import CodeCellW
+
 __all__ = [
     "Constructor",
     "DescStatsW",
@@ -27,5 +29,6 @@ __all__ = [
     "ScalerW",
     "FacadeCreatorW",
     "HeatmapW",
-    "AnyVegaW"
+    "AnyVegaW",
+    "CodeCellW"
     ]

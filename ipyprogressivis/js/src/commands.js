@@ -93,7 +93,7 @@ export function setBackup(nbtracker, backupstring) {
   backupCell.model.sharedModel.setMetadata("progressivis_backup", backupstring);
 }
 
-export function createStageCells(nbtracker, tag, md, code) {
+export function createStageCells(nbtracker, tag, md, code, rw, run) {
   var crtWidget = nbtracker.currentWidget;
   var notebook = crtWidget.content;
   var tag = tag.toString();
@@ -128,9 +128,11 @@ export function createStageCells(nbtracker, tag, md, code) {
   });
   notebook.activeCellIndex = i + 1;
   var cell = notebook.widgets[i + 1];
-  NotebookActions.run(notebook, crtWidget.sessionContext);
+  if(run){
+      NotebookActions.run(notebook, crtWidget.sessionContext);
+  }
   cell.model.sharedModel.setMetadata("trusted", true);
-  cell.model.sharedModel.setMetadata("editable", false);
+  cell.model.sharedModel.setMetadata("editable", rw);
   cell.model.sharedModel.setMetadata("deletable", false);
   cell.model.sharedModel.setMetadata("progressivis_tag", tag);
 }

@@ -6,10 +6,11 @@ from .utils import (
     make_button,
     set_dag,
     _Dag,
+    Proxy,
     DAGWidget,
     RootVBox,
     TypedBox,
-    NodeVBox,
+    NodeCarrier,
     TypedBase,
     get_widget_by_id,
     get_widget_by_key,
@@ -58,6 +59,7 @@ class Constructor(RootVBox, TypedBox):
         record_ck: ipw.Checkbox
         csv: Optional[ipw.HBox]
         parquet: Optional[ipw.HBox]
+        custom: Optional[ipw.HBox]
         replay: ipw.Button
 
     last_created = None
@@ -126,6 +128,8 @@ class Constructor(RootVBox, TypedBox):
         self.child.csv = self.make_loader_box(ftype="csv", disabled=self._locked())
         self.child.parquet = self.make_loader_box(ftype="parquet",
                                                   disabled=self._locked())
+        self.child.custom = self.make_loader_box(ftype="custom",
+                                                 disabled=self._locked())
         self._arch_list = [b642json(elt)
                            for elt in bunpack(self._backup.value)
                            ] if self._backup.value else []
@@ -142,6 +146,8 @@ class Constructor(RootVBox, TypedBox):
         for wg in self.child.csv.children:
             wg.disabled = is_replay
         for wg in self.child.parquet.children:
+            wg.disabled = is_replay
+        for wg in self.child.custom.children:
             wg.disabled = is_replay
 
         if is_replay:
@@ -160,6 +166,7 @@ class Constructor(RootVBox, TypedBox):
         btn.disabled = True
         self.child.csv.children[-1].disabled = True
         self.child.parquet.children[-1].disabled = True
+        self.child.custom.children[-1].disabled = True
         self.child.record_ck.value = False
         self.child.record_ck.disabled = True
         self.child.play_mode_radio.disabled = True
@@ -170,12 +177,17 @@ class Constructor(RootVBox, TypedBox):
         replay_next(self)
 
     @staticmethod
-    def widget_by_id(key: int) -> NodeVBox:
+    def widget_by_id(key: int) -> NodeCarrier:
         return get_widget_by_id(key)
 
     @staticmethod
-    def widget(key: str, num: int = 0) -> NodeVBox:
+    def widget(key: str, num: int = 0) -> NodeCarrier:
         return get_widget_by_key(key, num)
+
+    @staticmethod
+    def proxy(key: str, num: int = 0) -> Proxy:
+        widget = get_widget_by_key(key, num)
+        return Proxy(widget)
 
     @property
     def dom_id(self) -> str:

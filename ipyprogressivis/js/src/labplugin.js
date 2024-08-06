@@ -87,7 +87,7 @@ export const progressivisPlugin = {
       label: "Create stage cells",
       caption: "Create stage cells",
       execute: (args) => {
-        cmds.createStageCells(nbtracker, args.tag, args.md, args.code);
+          cmds.createStageCells(nbtracker, args.tag, args.md, args.code, args.rw, args.run);
       },
     });
     const TalkerView = class extends DOMWidgetView {
