@@ -91,6 +91,7 @@ class Constructor(RootVBox, TypedBox):
         self.scheduler = s
         self._backup = backup
         PARAMS["constructor"] = self
+        PARAMS["is_replay"] = False
         set_recording_state(False)
 
     def _locked(self) -> bool:
@@ -164,6 +165,7 @@ class Constructor(RootVBox, TypedBox):
 
     def _replay_cb(self, btn: ipw.Button) -> None:
         btn.disabled = True
+        PARAMS["is_replay"] = True
         self.child.csv.children[-1].disabled = True
         self.child.parquet.children[-1].disabled = True
         self.child.custom.children[-1].disabled = True

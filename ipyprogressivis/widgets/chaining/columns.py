@@ -5,6 +5,9 @@ from .utils import (
     VBoxTyped,
     IpyHBoxTyped,
     TypedBase,
+    get_recording_state,
+    amend_last_record,
+    replay_next,
 )
 import ipywidgets as ipw
 import numpy as np
@@ -24,8 +27,11 @@ from typing import Any as AnyType, Optional, Tuple, List, Dict, Callable, Union,
 
 WidgetType = AnyType
 
-DTYPES = ([np.dtype(e).name for lst in np.sctypes.values() for e in lst] +  # type: ignore
-          ["datetime64"])
+DTYPES = [
+    np.dtype(e).name for lst in np.sctypes.values() for e in lst  # type: ignore
+] + [
+    "datetime64"
+]
 UFUNCS: Dict[str, Callable[..., AnyType]] = {
     k: v for (k, v) in np.__dict__.items() if isinstance(v, np.ufunc) and v.nin == 1
 }
@@ -216,6 +222,7 @@ class PColumnsW(VBoxTyped):
         cols_funcs: ColsFuncs
         func_table: Optional[Union[ipw.Label, ipw.GridBox]]
         keep_stored: KeepStored
+        freeze_ck: ipw.Checkbox
         btn_apply: ipw.Button
 
     def initialize(self) -> None:
@@ -256,9 +263,11 @@ class PColumnsW(VBoxTyped):
         )
         keep_stored.c_.keep_all.observe(self._keep_all_cb, names="value")
         self.c_.keep_stored = keep_stored
-        self.c_.btn_apply = make_button(
-            "Apply", disabled=False, cb=self._btn_apply_cb
+        is_rec = get_recording_state()
+        self.child.freeze_ck = ipw.Checkbox(
+            description="Freeze", value=is_rec, disabled=(not is_rec)
         )
+        self.c_.btn_apply = make_button("Apply", disabled=False, cb=self._btn_apply_cb)
 
     def _keep_all_cb(self, change: AnyType) -> None:
         val = change["new"]
@@ -302,32 +311,40 @@ class PColumnsW(VBoxTyped):
             self._col_widgets[key] = FuncW(self, *key)
         self.c_.cols_funcs.c_.computed = self._col_widgets[key]
 
+    def _make_computed_list(self) -> list[dict[str, str]]:
+        return [
+            dict(col=col, fname=fname, wg_name=wg._name.value, wg_dtype=wg._dtype.value)
+            for (col, fname), wg in self._col_widgets.items()
+            if wg._use.value
+        ]
+
     def _btn_apply_cb(self, btn: AnyType) -> None:
-        """
-        add_ufunc_column(self, name: str,
-                         col: str,
-                         ufunc: Callable,
-                         dtype: Optional[np.dtype[Any]] = None,
-                         xshape: Shape = ()) -> None:
-        """
-        comp = Computed()
-        for (col, fname), wg in self._col_widgets.items():
-            if not wg._use.value:
-                continue
-            func = ALL_FUNCS[fname]
-            comp.add_ufunc_column(wg._name.value, col, func, np.dtype(wg._dtype.value))
-        self.output_module = self.init_module(
-            comp, columns=list(self.c_.keep_stored.c_.stored_cols.value)
-        )
+        comp_list = self._make_computed_list()
+        cols = list(self.c_.keep_stored.c_.stored_cols.value)
+        if self.child.freeze_ck.value:
+            amend_last_record({"frozen": dict(comp_list=comp_list, columns=cols)})
+        self.output_module = self.init_module(comp_list, columns=cols)
         self.make_chaining_box()
         self.dag_running()
 
-    def init_module(
-        self, computed: Computed, columns: List[str]
-    ) -> Repeater:
+    def run(self) -> None:
+        content = self.frozen_kw
+        self.output_module = self.init_module(**content)
+        self.output_slot = "result"
+        self.dag_running()
+        replay_next()
+
+    def init_module(self, comp_list: list[dict[str, str]],
+                    columns: List[str]) -> Repeater:
+        comp = Computed()
+        for d_ in comp_list:
+            func = ALL_FUNCS[d_["fname"]]
+            comp.add_ufunc_column(
+                d_["wg_name"], d_["col"], func, np.dtype(d_["wg_dtype"])
+            )
         s = self.input_module.scheduler()
         with s:
-            rep = Repeater(computed=computed, scheduler=s)
+            rep = Repeater(computed=comp, scheduler=s)
             rep.input.table = self.input_module.output[self.input_slot][tuple(columns)]
             sink = Sink(scheduler=s)
             sink.input.inp = rep.output.result

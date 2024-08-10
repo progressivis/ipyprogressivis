@@ -338,12 +338,6 @@ class CsvLoaderW(VBoxTyped):
     def _save_settings_cb(self, btn: ipw.Button) -> None:
         pv_dir = self.dot_progressivis
         assert pv_dir
-        """settings_dir = f"{pv_dir}/widget_settings/"
-        if not os.path.isdir(settings_dir):
-            os.mkdir(settings_dir)
-        widget_dir = f"{settings_dir}/{type(self).__name__}/"
-        if not os.path.isdir(widget_dir):
-            os.mkdir(widget_dir)"""
         base_name = self.c_.start_save.children[3].value
         file_name = f"{self.widget_dir}/{base_name}"
         assert self._sniffer is not None

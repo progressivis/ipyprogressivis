@@ -72,6 +72,11 @@ class Header:
 class Proxy:
     def __init__(self, carrier: "NodeCarrier") -> None:
         self.__carrier = carrier
+        self.output_module: ModuleOrFacade | None = None
+        self.output_slot: str = 'result'
+        self.output_dtypes: dict[str, str] | None = None
+        self.freeze = False
+        self.cell_content: str = "no code"
 
     @property
     def input_module(self) -> ModuleOrFacade | None:
@@ -99,13 +104,16 @@ class Proxy:
         assert self.input_module is not None
         return self.input_module.scheduler()
 
-    def resume(self, output_module: ModuleOrFacade,
-               output_slot: str = "result",
-               output_dtypes: dict[str, str] | None = None,
-               freeze: bool = False) -> "NodeCarrier":
-        self.__carrier._output_module = output_module
-        self.__carrier._output_slot = output_slot
-        self.__carrier._output_dtypes = output_dtypes
+    def resume(self) -> "NodeCarrier":
+        self.__carrier._output_module = self.output_module  # type: ignore
+        self.__carrier._output_slot = self.output_slot
+        self.__carrier._output_dtypes = self.output_dtypes
+        if self.freeze and not is_replay():
+            amend_last_record({'frozen': dict(cell=self.cell_content)})
+        self.__carrier.dag_running()
+        if is_replay():
+            replay_next()
+            return self.__carrier
         self.__carrier.make_chaining_box()
         return self.__carrier
 
@@ -691,6 +699,7 @@ class LoaderMixin:
             placeholder="optional alias",
             description=f"{ftype.upper()} loader:",
             disabled=disabled,
+            style={'description_width': 'initial'}
         )
         btn = make_button(
             "Create",
@@ -719,56 +728,73 @@ def get_previous(obj: "ChainingWidget") -> "ChainingWidget":
 
 new_stage_cell_0 = "Constructor.widget('{key}'){end}"
 new_stage_cell = "Constructor.widget('{key}', {num}){end}"
-new_stage_cell_code = ("proxy = Constructor.proxy('{key}', {num})\n"
+new_stage_cell_code = ("%%pv_run_cell\n"
+                       "proxy = Constructor.proxy('{key}', {num})\n"
                        "# proxy object provides the following attributes:\n"
                        "#  input_module: Module | TableFacade \n"
                        "#  input_slot: str \n"
                        "#  input_dtypes: dict[str, str] | None\n"
                        "#  scheduler: Scheduler\n"
                        "# Warning: keep the code above unchanged\n"
-                       "# Put your own code here\n"
+                       "# Put your own imports here\n"
                        "...\n"
                        "...\n"
-                       "...\n"
-                       "# fill in the following variables:\n"
-                       "output_module: 'Module | TableFacade' = ...\n"
-                       "output_slot: str = 'result'\n"
-                       "output_dtypes: dict[str, str] | None = None\n"
-                       "freeze: bool = False\n"
-                       "# Warning: keep the code below unchanged\n"
-                       "proxy.resume(output_module, output_slot, output_dtypes, freeze)"
+                       "with scheduler:\n"
+                       "    # Put your own code here\n"
+                       "    ...\n"
+                       "    ...\n"
+                       "    # fill in the following proxy attributes:\n"
+                       "    proxy.output_module = ...  # Module | TableFacade\n"
+                       "    proxy.output_slot = 'result'  # str\n"
+                       "    proxy.freeze = True  # bool\n"
+                       "    # Warning: keep the code below unchanged\n"
+                       "    proxy.cell_content = __pv_cell__"
+                       "    display(proxy.resume())"
                        "{end}"
                        )
 
-new_loader_cell_code = ("proxy = Constructor.proxy('{key}', {num})\n"
+new_loader_cell_code = ("%%pv_run_cell\n"
+                        "proxy = Constructor.proxy('{key}', {num})\n"
                         "scheduler = proxy.scheduler\n"
                         "# Warning: keep the code above unchanged\n"
                         "# Put your own imports here\n"
+                        "... \n"
                         "... \n"
                         "with scheduler:\n"
                         "    # Put your own code here\n"
                         "    ...\n"
                         "    ...\n"
-                        "    # fill in the following variables:\n"
-                        "    output_module: 'Module | TableFacade' = ...\n"
-                        "    output_slot: str = 'result'\n"
-                        "    output_dtypes: dict[str, str] | None = None\n"
-                        "    freeze: bool = False\n"
+                        "    # fill in the following proxy attributes:\n"
+                        "    proxy.output_module = ...  # Module | TableFacade\n"
+                        "    proxy.output_slot = 'result'  # str\n"
+                        "    proxy.freeze = True  # bool\n"
                         "    # Warning: keep the code below unchanged\n"
-                        "    display(proxy.resume(output_module, output_slot,"
-                        " output_dtypes, freeze))"
+                        "    proxy.cell_content = __pv_cell__"
+                        "    display(proxy.resume())"
                         "{end}"
                         )
 
 
-def get_stage_cell(key: str, num: int, end: str) -> tuple[str, bool, bool]:
+def is_replay() -> bool:
+    return cast(bool, PARAMS.get("is_replay", False))
+
+
+def get_stage_cell(key: str, num: int, end: str,
+                   frozen: AnyType = None) -> tuple[str, bool, bool]:
     if key == "Python":
+        if is_replay() and frozen:
+            assert "cell" in frozen
+            return frozen["cell"], False, True
         return new_stage_cell_code.format(key=key, num=num, end=end), True, False
     return new_stage_cell.format(key=key, num=num, end=end), False, True
 
 
-def get_loader_cell(key: str, ftype: str, num: int, end: str) -> tuple[str, bool, bool]:
+def get_loader_cell(key: str, ftype: str, num: int,
+                    end: str, frozen: AnyType = None) -> tuple[str, bool, bool]:
     if ftype == "custom":
+        if is_replay() and frozen:
+            assert "cell" in frozen
+            return frozen["cell"], False, True
         return new_loader_cell_code.format(key=key, num=num, end=end), True, False
     return new_stage_cell.format(key=key, num=num, end=end), False, True
 
@@ -779,11 +805,12 @@ def add_new_stage(parent: "ChainingWidget", title: str, frozen: AnyType = None) 
     tag = id(stage)
     n = stage.number
     end = ""
-    if frozen is not None:
+    if frozen is not None and is_replay():
         end = ".run()"
     md = "## " + title + (f"[{n}]" if n else "")
-    code, rw, run = get_stage_cell(key=title, num=n, end=end)
-    labcommand("progressivis:create_stage_cells", tag=tag, md=md, code=code, rw=rw, run=run)
+    code, rw, run = get_stage_cell(key=title, num=n, end=end, frozen=frozen)
+    labcommand("progressivis:create_stage_cells", tag=tag,
+               md=md, code=code, rw=rw, run=run)
     add_to_record(dict(title=title, parent=parent_key))
 
 
@@ -795,14 +822,16 @@ def add_new_loader(
     tag = id(stage)
     n = stage.number
     end = ""
-    if frozen is not None:
+    if frozen is not None and is_replay():
         end = ".run();"
     if alias:
         md = f"## {alias}"
     else:
         md = "## " + title + (f"[{n}]" if n else "")
-    code, rw, run = get_loader_cell(key=alias or title, ftype=ftype, num=n, end=end)
-    labcommand("progressivis:create_stage_cells", tag=tag, md=md, code=code, rw=rw, run=run)
+    code, rw, run = get_loader_cell(key=alias or title,
+                                    ftype=ftype, num=n, end=end, frozen=frozen)
+    labcommand("progressivis:create_stage_cells", tag=tag, md=md,
+               code=code, rw=rw, run=run)
     add_to_record(dict(ftype=ftype, alias=alias))
 
 
