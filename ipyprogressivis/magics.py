@@ -11,6 +11,7 @@ from IPython.core.magic import (
     magics_class,
     cell_magic,
     line_magic,
+    line_cell_magic,
     needs_local_scope,
 )
 from IPython.core import magic_arguments as ma
@@ -84,37 +85,73 @@ class IpyProgressivisMagic(Magics):
         self._save_cell(args.base_name, args.force, cell)
 
     @ma.magic_arguments()  # type: ignore
+    @ma.argument("--proxy", "-p",  help="The proxy id")  # type: ignore
+    @ma.argument(  # type: ignore
+        "--file",
+        "-f",
+        default="",
+        help="""
+        Python file to run
+        """,
+    )
     @ma.argument(  # type: ignore
         "--save",
         "-s",
         default="",
         help="""
-        Save the cell before run
+        Save the cell (do not run)
         """,
     )
     @ma.argument(  # type: ignore
-        "--force",
-        "-f",
+        "--overwrite",
+        "-o",
         action="store_true",
         help="""
         Force writings
         """,
     )
-    @cell_magic  # type: ignore
+    @line_cell_magic  # type: ignore
     @needs_local_scope  # type: ignore
-    def pv_run_cell(self, line: str, cell: str,
+    def pv_run_cell(self, line: str, cell: str = "",
                     local_ns: dict[str, Any] | Any = None) -> Any:
         args = ma.parse_argstring(self.pv_run_cell, line)  # type: ignore
         if args.save:
-            self._save_cell(args.save, args.force, cell)
-        local_ns["__pv_cell__"] = "\n".join(["%%pv_run_cell " + line, cell])
-        self.shell.run_cell(cell)  # type: ignore
+            self._save_cell(args.save, args.overwrite, cell)
+            return
+        if args.file and cell:
+            print("The --file(-f) option and cell code are mutually exclusive."
+                  " You must choose one of them!")
+            return
+        if args.file:
+            with open(self._get_py_files_path() / args.file) as f:
+                content = f.read()
+        else:
+            assert cell
+            content = cell
+        wg, ns = args.proxy.split(",")
+        n = int(ns)
+        Constructor = local_ns["Constructor"]
+        proxy = Constructor.proxy(wg, n)
+        proxy.cell_content = "\n".join([f"%%pv_run_cell -p {args.proxy}", content])
+        local_ns["proxy"] = proxy
+        self.shell.run_cell(content)  # type: ignore
 
+    @ma.magic_arguments()  # type: ignore
+    @ma.argument("--proxy", "-p",  help="The proxy id")  # type: ignore
+    @ma.argument("base_name", type=str, help="A Python file name")  # type: ignore
     @line_magic  # type: ignore
     @needs_local_scope  # type: ignore
     def pv_run_file(self, line: str, local_ns: dict[str, Any] | Any = None) -> Any:
         # print("run_file", line, local_ns)
-        with open(self._get_py_files_path() / line) as f:
+        args = ma.parse_argstring(self.pv_run_file, line)  # type: ignore
+        print("args", args)
+        print("pair", args.proxy)
+        wg, ns = args.proxy.split(",")
+        n = int(ns)
+        Constructor = local_ns["Constructor"]
+        proxy = Constructor.proxy(wg, n)
+        local_ns["proxy"] = proxy
+        with open(self._get_py_files_path() / args.base_name) as f:
             content = f.read()
         local_ns["__pv_cell__"] = "%pv_run_file " + line
         self.shell.run_cell(content)  # type: ignore
