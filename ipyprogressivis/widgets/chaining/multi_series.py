@@ -1,4 +1,4 @@
-from .utils import make_button, stage_register, dongle_widget, VBoxTyped, TypedBase
+from .utils import make_button, stage_register, dongle_widget, VBoxTyped, TypedBase, replay_next
 from ..utils import historized_widget
 from ._multi_series import multi_series_no_data
 import ipywidgets as ipw
@@ -44,6 +44,7 @@ class MultiSeriesW(VBoxTyped):
         self.child.btn_apply = self._btn_ok = make_button(
             "Apply", disabled=True, cb=self._btn_apply_cb
         )
+        replay_next()
 
     def _axis_row(self, axis: str) -> Dict[str, ipw.DOMWidget]:
         axis_w = _l(axis)
@@ -114,6 +115,9 @@ class MultiSeriesW(VBoxTyped):
         assert isinstance(self.input_module, Module)
         self.input_module.on_after_run(self._update_vw)
         self.dag_running()
+
+    def get_underlying_modules(self) -> List[str]:
+        return []
 
 
 stage_register["MultiSeries"] = MultiSeriesW

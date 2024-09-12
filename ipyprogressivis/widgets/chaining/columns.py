@@ -7,7 +7,6 @@ from .utils import (
     TypedBase,
     get_recording_state,
     amend_last_record,
-    replay_next,
 )
 import ipywidgets as ipw
 import numpy as np
@@ -331,8 +330,7 @@ class PColumnsW(VBoxTyped):
         content = self.frozen_kw
         self.output_module = self.init_module(**content)
         self.output_slot = "result"
-        self.dag_running()
-        replay_next()
+        self.post_run()
 
     def init_module(self, comp_list: list[dict[str, str]],
                     columns: List[str]) -> Repeater:

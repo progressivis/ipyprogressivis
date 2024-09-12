@@ -54,6 +54,7 @@ assert HOME is not None
 
 
 replay_list: List[Dict[str, AnyType]] = []
+# chaining_boxes_to_make = []
 
 
 @dataclass
@@ -180,6 +181,10 @@ def backup_to_json() -> AnyType:
     return [b642json(step) for step in PARAMS["header"].backup.value.split(";")]
 
 
+def dump_backup(s: str) -> AnyType:
+    return [b642json(step) for step in s.split(";")]
+
+
 class Recorder:
     def __init__(self, value: str = "") -> None:
         self.tape = value
@@ -207,6 +212,11 @@ def get_recorder() -> Recorder:
 
 
 def add_to_record(content: Dict[str, AnyType]) -> None:
+    if PARAMS["switch_to_resume"]:
+        return
+    if "title" in content and content["title"] == "Dump_table":
+        print("ADD", content, "sw:", PARAMS["switch_to_resume"],
+              "replay:", PARAMS["is_replay"], "resume:", PARAMS["is_resume"],)
     rec = get_recorder()
     if rec is None:
         return
@@ -220,11 +230,11 @@ def amend_last_record(content: Dict[str, AnyType]) -> None:
     rec.amend_last_record(content)
 
 
-def reset_recorder(previous: str = "") -> None:
+def reset_recorder(previous: str = "", init_val: str = "") -> None:
     if previous:
         PARAMS["previous_recorder"] = Recorder(previous)
-    PARAMS["recorder"] = Recorder()
-    labcommand("progressivis:set_backup", backup="")
+    PARAMS["recorder"] = Recorder(value=init_val)
+    labcommand("progressivis:set_backup", backup=init_val)
 
 
 def restore_recorder() -> None:
@@ -233,6 +243,8 @@ def restore_recorder() -> None:
 
 
 def replay_next(obj: Optional[Union["Constructor", "NodeVBox"]] = None) -> None:
+    if not is_replay():
+        return
     assert replay_list
     stage = replay_list.pop(0)
     parent = stage.pop("parent", None)
@@ -241,6 +253,16 @@ def replay_next(obj: Optional[Union["Constructor", "NodeVBox"]] = None) -> None:
         t0, t1 = parent
         obj = widget_by_key[(cast(str, t0), cast(int, t1))]
     if not stage:  # i.e. stage == {}, end of tape
+        if PARAMS["switch_to_resume"]:
+            PARAMS["is_replay"] = False
+            PARAMS["is_resume"] = True
+            PARAMS["switch_to_resume"] = False
+            # restore_recorder()
+            # for obj in chaining_boxes_to_make:
+            #    obj.make_chaining_box()
+            # chaining_boxes_to_make.clear()
+            reset_recorder(init_val=PARAMS["constructor"]._backup.value)
+            set_recording_state(True)
         return
     if "ftype" in stage:  # i.e. is a loader
         replay_start_loader(PARAMS["constructor"], **stage)
@@ -547,6 +569,7 @@ def replay_new_stage(
             sink = Sink(scheduler=s)
             sink.input.inp = ds.output.result
     else:
+        print("replay_new_stage", title)
         add_new_stage(obj, title, frozen=frozen)
 
 
@@ -589,9 +612,13 @@ class ChainingProtocol(Protocol):
 
 
 class ChainingMixin:
+    _output_module: ModuleOrFacade
+
     def make_guess_types_toc2(
         self, sel: ipw.Select, frozen: AnyType | None = None
     ) -> Callable[..., AnyType]:
+        no_record = PARAMS["is_replay"]
+
         def _guess(m: Module, run_number: int) -> None:
             global parent_dtypes
             assert hasattr(m, "result")
@@ -602,11 +629,11 @@ class ChainingMixin:
                 for (k, v) in m.result.items()
             }
             self.output_dtypes = parent_dtypes
-            add_new_stage(self, sel.value, frozen)  # type: ignore
+            print("guess new stage", sel.value)
+            add_new_stage(self, sel.value, frozen, no_record=no_record)  # type: ignore
             with m.scheduler() as dataflow:
                 deps = dataflow.collateral_damage(m.name)
                 dataflow.delete_modules(*deps)
-
         return _guess
 
     def _make_btn_chain_it_cb(
@@ -624,11 +651,28 @@ class ChainingMixin:
                     sink = Sink(scheduler=s)
                     sink.input.inp = ds.output.result
             else:
+                print("make btn new stage", sel.value)
                 add_new_stage(self, sel.value, frozen=frozen)  # type: ignore
 
         return _cbk
 
-    def _make_chaining_box(self: ChainingProtocol) -> ipw.HBox:
+    def _progress_bar(self) -> ipw.FloatProgress:
+        prog_wg = ipw.FloatProgress(description="Progress",
+                                    min=0.0, max=1.0, layout={'width': '100%'})
+        mod_ = self._output_module
+        assert isinstance(mod_, Module)
+
+        def _proc(m: Module, r: int) -> None:
+            n, d = m.get_progress()
+            prog_wg.value = n/d
+        mod_.on_after_run(_proc)
+        return prog_wg
+
+    def _make_progress_bar(self) -> ipw.VBox:
+        prog_wg = self._progress_bar()
+        return ipw.VBox([prog_wg])
+
+    def _make_chaining_box(self: ChainingProtocol) -> ipw.Box:
         sel = ipw.Dropdown(
             options=[""] + list(stage_register.keys()),
             value="",
@@ -645,11 +689,12 @@ class ChainingMixin:
                 btn.disabled = False
             else:
                 btn.disabled = True
-
+        prog_wg = self._progress_bar()  # type: ignore
         sel.observe(_on_sel_change, names="value")
-        return ipw.HBox([sel, btn, del_btn])
+        chaining = ipw.HBox([sel, btn, del_btn])
+        return ipw.VBox([prog_wg, chaining])
 
-    def _make_replay_chaining_box(self: ChainingProtocol) -> ipw.HBox:
+    def _make_replay_chaining_box(self: ChainingProtocol) -> ipw.Box:
         next_stage = replay_list.pop(0)
         frozen = next_stage.get("frozen")
         if "ftype" in next_stage:
@@ -689,7 +734,9 @@ class ChainingMixin:
                 btn.disabled = True
 
         sel.observe(_on_sel_change, names="value")
-        return ipw.HBox([sel, btn, del_btn])
+        prog_wg = self._progress_bar()  # type: ignore
+        chaining = ipw.HBox([sel, btn, del_btn])
+        return ipw.VBox([prog_wg, chaining])
 
 
 class LoaderMixin:
@@ -796,7 +843,8 @@ def get_loader_cell(key: str, ftype: str, num: int,
     return new_stage_cell.format(key=key, num=num, end=end), False, True
 
 
-def add_new_stage(parent: "ChainingWidget", title: str, frozen: AnyType = None) -> None:
+def add_new_stage(parent: "ChainingWidget", title: str, frozen: AnyType = None,
+                  no_record: bool = False) -> None:
     stage = create_stage_widget(title, frozen)
     parent_key = key_by_id[id(parent)]
     tag = id(stage)
@@ -808,7 +856,8 @@ def add_new_stage(parent: "ChainingWidget", title: str, frozen: AnyType = None) 
     code, rw, run = get_stage_cell(key=title, num=n, end=end, frozen=frozen)
     labcommand("progressivis:create_stage_cells", tag=tag,
                md=md, code=code, rw=rw, run=run)
-    add_to_record(dict(title=title, parent=parent_key))
+    if not no_record:
+        add_to_record(dict(title=title, parent=parent_key))
 
 
 def add_new_loader(
@@ -820,7 +869,7 @@ def add_new_loader(
     n = stage.number
     end = ""
     if frozen is not None and is_replay():
-        end = ".run();"
+        end = ".run()"
     if alias:
         md = f"## {alias}"
     else:
@@ -1029,6 +1078,17 @@ class GuestWidget:
             os.mkdir(widget_dir)
         return widget_dir
 
+    def post_run(self) -> "NodeCarrier":
+        self.dag_running()
+        self.carrier.children = (ipw.Label("..."),)
+        if PARAMS["switch_to_resume"]:
+            self.make_chaining_box()
+            # chaining_boxes_to_make.append(self)
+        else:
+            self.carrier.make_progress_bar()
+        replay_next()
+        return self.carrier
+
 
 class VBox(ipw.VBox, GuestWidget):
     def __init__(self, *args: Any, **kw: Any) -> None:
@@ -1074,10 +1134,16 @@ class NodeCarrier(NodeVBox):
     def make_chaining_box(self) -> None:
         if len(self.children) > 1:
             raise ValueError("The chaining box already exists")
-        if replay_list:
+        if replay_list and not PARAMS["switch_to_resume"]:
             box = self._make_replay_chaining_box()
         else:
             box = self._make_chaining_box()
+        if not box:
+            return
+        self.children = (self.children[0], box)
+
+    def make_progress_bar(self) -> None:
+        box = self._make_progress_bar()
         self.children = (self.children[0], box)
 
 

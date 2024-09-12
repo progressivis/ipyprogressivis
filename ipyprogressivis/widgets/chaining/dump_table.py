@@ -1,6 +1,7 @@
 from .utils import (
     stage_register,
-    VBox
+    VBox,
+    replay_next
 )
 from ..slot_wg import SlotWg
 from typing import List, cast
@@ -16,6 +17,7 @@ class DumpPTableW(VBox):
         sl_wg = SlotWg(cast(Module, self.input_module), self.input_slot)
         self.children = (sl_wg,)
         self.input_module.scheduler().on_tick(self._refresh_proc)
+        replay_next()
 
     async def _refresh_proc(self, scheduler: Scheduler, run_number: int) -> None:
         await cast(SlotWg, self.children[0]).refresh()

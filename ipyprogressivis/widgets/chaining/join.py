@@ -1,7 +1,7 @@
 from .utils import (
     make_button,
     stage_register,
-    append_child, VBox, amend_last_record, replay_next, get_recording_state, disable_all
+    append_child, VBox, amend_last_record, get_recording_state, disable_all
 )
 import ipywidgets as ipw
 from progressivis.table.group_by import UTIME_SHORT_D
@@ -169,8 +169,7 @@ class JoinW(VBox):
             self.dag.add_parent(self.title,  related_wg.title)
         self.output_module = self.init_join(**content)
         self.output_slot = "result"
-        self.dag_running()
-        replay_next()
+        self.post_run()
 
     def init_join(self, primary_cols: list[str], related_cols: list[str],
                   primary_on: str | list[str], related_on: str | list[str],

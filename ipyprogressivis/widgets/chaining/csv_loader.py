@@ -8,7 +8,7 @@ from progressivis.core import Module
 from progressivis.table import PTable
 from progressivis.table.constant import Constant
 from .utils import (make_button, get_schema, VBoxTyped, IpyVBoxTyped, TypedBase,
-                    amend_last_record, replay_next, get_recording_state, disable_all)
+                    amend_last_record, get_recording_state, disable_all)
 import os
 import time
 import json as js
@@ -354,7 +354,7 @@ class CsvLoaderW(VBoxTyped):
         with open(file_name, "w") as f:
             js.dump(res, f, indent=4)
 
-    def run(self) -> None:
+    def run(self) -> Any:
         content = self.frozen_kw
         urls = content["urls"]
         throttle = content["throttle"]
@@ -367,8 +367,7 @@ class CsvLoaderW(VBoxTyped):
         self.output_module = csv_module
         self.output_slot = "result"
         self.output_dtypes = schema
-        self.dag_running()
-        replay_next()
+        return self.post_run()
 
     def init_modules(
         self, urls: List[str] | None = None,
