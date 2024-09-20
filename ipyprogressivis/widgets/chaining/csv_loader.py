@@ -98,7 +98,7 @@ class JsonEditorW(IpyVBoxTyped):
         with open(file_) as f:
             content = js.load(f)
         # pn.extension('ace', 'jsoneditor', 'ipywidgets')  # run it in a nb cell
-        self.json_editor = pn.widgets.JSONEditor(value=content,  # type: ignore
+        self.json_editor = pn.widgets.JSONEditor(value=content,
                                                  mode="form",
                                                  width=600)
         self.json_editor.param.trigger("value")

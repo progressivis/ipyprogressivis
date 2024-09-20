@@ -14,7 +14,7 @@ repos:
       - id: mypy
         args: [--strict, --explicit-package-bases]
         additional_dependencies:
-          - 'numpy'
+          - 'numpy<2'
           - 'ipython'
           - 'jinja2'
           - 'sqlalchemy-stubs'

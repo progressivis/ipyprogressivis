@@ -48,7 +48,7 @@ class AnyVegaW(VBoxTyped):
         )
         self.c_.mode.observe(self._mode_cb, names="value")
         self.json_editor = pn.widgets.JSONEditor(
-            value={}, mode="form", width=600  # type: ignore
+            value={}, mode="form", width=600
         )
         self.json_editor.param.trigger("value")
         self.c_.editor = pn.ipywidget(self.json_editor)
