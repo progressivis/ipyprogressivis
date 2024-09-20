@@ -1,5 +1,5 @@
 from .utils import (make_button, stage_register, VBoxTyped, TypedBase,
-                    amend_last_record, get_recording_state, disable_all)
+                    amend_last_record, get_recording_state, disable_all, runner)
 import ipywidgets as ipw
 import pandas as pd
 from progressivis.table.aggregate import Aggregate
@@ -90,12 +90,13 @@ class AggregateW(VBoxTyped):
         self.make_chaining_box()
         self.dag_running()
         disable_all(self)
+        self.manage_replay()
 
+    @runner
     def run(self) -> AnyType:
         content = self.frozen_kw
         self.output_module = self.init_aggregate(**content)
         self.output_slot = "result"
-        return self.post_run()
 
     def _selm_obs_cb(self, change: AnyType) -> None:
         self.obs_flag = True

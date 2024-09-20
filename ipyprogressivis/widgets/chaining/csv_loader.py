@@ -8,7 +8,7 @@ from progressivis.core import Module
 from progressivis.table import PTable
 from progressivis.table.constant import Constant
 from .utils import (make_button, get_schema, VBoxTyped, IpyVBoxTyped, TypedBase,
-                    amend_last_record, get_recording_state, disable_all)
+                    amend_last_record, get_recording_state, disable_all, runner)
 import os
 import time
 import json as js
@@ -259,6 +259,7 @@ class CsvLoaderW(VBoxTyped):
         btn.disabled = True
         self.dag_running()
         disable_all(self)
+        self.manage_replay()
 
     def _sniffer_cb(self, btn: ipw.Button) -> None:
         if btn.description.startswith("Sniff"):
@@ -354,6 +355,7 @@ class CsvLoaderW(VBoxTyped):
         with open(file_name, "w") as f:
             js.dump(res, f, indent=4)
 
+    @runner
     def run(self) -> Any:
         content = self.frozen_kw
         urls = content["urls"]
@@ -367,7 +369,6 @@ class CsvLoaderW(VBoxTyped):
         self.output_module = csv_module
         self.output_slot = "result"
         self.output_dtypes = schema
-        return self.post_run()
 
     def init_modules(
         self, urls: List[str] | None = None,

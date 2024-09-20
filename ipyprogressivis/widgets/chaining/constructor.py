@@ -62,6 +62,7 @@ class Constructor(RootVBox, TypedBox):
         custom: Optional[ipw.HBox]
         replay: ipw.Button
         resume: ipw.Button
+        sbs: ipw.Button
 
     last_created = None
 
@@ -93,8 +94,8 @@ class Constructor(RootVBox, TypedBox):
         self._backup = backup
         PARAMS["constructor"] = self
         PARAMS["is_replay"] = False
-        PARAMS["switch_to_resume"] = False
-        PARAMS["is_resume"] = False
+        PARAMS["replay_before_resume"] = False
+        PARAMS["step_by_step"] = False
         set_recording_state(False)
 
     def _locked(self) -> bool:
@@ -105,6 +106,7 @@ class Constructor(RootVBox, TypedBox):
         self.child.play_mode_radio.disabled = not change["new"]
         self.child.record_ck.disabled = not change["new"]
         self.child.resume.disabled = not (change["new"] and self._backup.value)
+        self.child.sbs.disabled = not (change["new"] and self._backup.value)
 
     def _start_scheduler_cb(self, btn: ipw.Button) -> None:
         init_module = init_dataflow(self.scheduler)
@@ -117,7 +119,7 @@ class Constructor(RootVBox, TypedBox):
             self.child.allow_overwrite.observe(self._allow_overwrite_cb, names="value")
             self.child.play_mode_radio = ipw.RadioButtons(
                 options=[('Start a new scenario', 'play'),
-                         ('Replay or resume from recording', 'replay')
+                         ('Replay/Resume/Edit', 'replay')
                          ],
                 value='replay',
                 #    layout={'width': 'max-content'}, # If the items' names are long
@@ -148,6 +150,11 @@ class Constructor(RootVBox, TypedBox):
                 self._backup.value and self.child.allow_overwrite.value
             )
         )
+        self.child.sbs = make_button(
+            "Step by step", cb=self._step_by_step_cb, disabled=not (
+                self._backup.value and self.child.allow_overwrite.value
+            )
+        )
         self.dag.register_widget(self, "root", "root", self.dom_id, [])
 
     def _play_mode_cb(self, change: dict[str, AnyType]) -> None:
@@ -167,7 +174,7 @@ class Constructor(RootVBox, TypedBox):
 
     def _record_cb(self, change: dict[str, AnyType]) -> None:
         if change["new"]:
-            reset_recorder(self._backup.value)
+            reset_recorder()
             set_recording_state(True)
         else:
             restore_recorder()
@@ -188,16 +195,25 @@ class Constructor(RootVBox, TypedBox):
         disable_all(self)
         replay_next(self)
 
-    def _replay_cb(self, btn: ipw.Button) -> None:
-        btn.disabled = True
+    def disable_all_btn(self) -> None:
+        self.child.replay.disabled = True
         self.child.resume.disabled = True
+        self.child.sbs.disabled = True
+
+    def _replay_cb(self, btn: ipw.Button) -> None:
+        self.disable_all_btn()
         self.do_replay()
 
     def _resume_cb(self, btn: ipw.Button) -> None:
-        btn.disabled = True
-        self.child.replay.disabled = True
-        PARAMS["switch_to_resume"] = True
+        self.disable_all_btn()
+        PARAMS["replay_before_resume"] = True
+        reset_recorder()
+        set_recording_state(True)
         self.do_replay()
+
+    def _step_by_step_cb(self, btn: ipw.Button) -> None:
+        PARAMS["step_by_step"] = True
+        self._resume_cb(btn)
 
     @staticmethod
     def widget_by_id(key: int) -> NodeCarrier:

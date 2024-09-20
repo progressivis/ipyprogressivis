@@ -1,6 +1,6 @@
 from .utils import (make_button, stage_register, dongle_widget, VBoxTyped,
                     TypedBase, amend_last_record,
-                    get_recording_state, disable_all)
+                    get_recording_state, disable_all, runner)
 import ipywidgets as ipw
 from progressivis.core import Module
 from progressivis.table.group_by import (
@@ -83,12 +83,14 @@ class GroupByW(VBoxTyped):
         self.make_chaining_box()
         self.dag_running()
         disable_all(self)
+        self.manage_replay()
 
+    @runner
     def run(self) -> AnyType:
         content = self.frozen_kw
+        print("group by content", content)
         self.output_module = self.init_group_by(**content)
         self.output_slot = "result"
-        return self.post_run()
 
     def _on_grouping_cb(self, val: AnyType) -> None:
         if val["new"] == "columns":

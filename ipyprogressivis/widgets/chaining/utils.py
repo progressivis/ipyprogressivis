@@ -17,6 +17,7 @@ from ..csv_sniffer import CSVSniffer
 from collections import defaultdict
 from .. import DagWidgetController  # type: ignore
 from .. import PsBoard
+import copy
 from typing import (
     Any,
     Tuple,
@@ -52,9 +53,48 @@ PARAMS: Dict[str, AnyType] = {}
 HOME = os.getenv("HOME")
 assert HOME is not None
 
-
 replay_list: List[Dict[str, AnyType]] = []
 # chaining_boxes_to_make = []
+
+
+def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
+    def wrapper(*args: Any, **kwargs: Any) -> "NodeCarrier":
+        self_ = args[0]
+        assert isinstance(self_, GuestWidget)
+        if PARAMS["step_by_step"]:
+            wg_copy = copy.copy(self_.carrier.children)
+
+            def _continue_cb(b: Any) -> "NodeCarrier":
+                assert isinstance(self_, GuestWidget)
+                self_.carrier.children = wg_copy
+                func(*args, **kwargs)
+                content = copy.copy(self_.frozen_kw)
+                amend_last_record({'frozen': content})
+                return self_.post_run()
+
+            def _edit_cb(b: Any) -> "NodeCarrier":
+                assert isinstance(self_, GuestWidget)
+                self_.carrier.children = wg_copy
+                self_._do_replay_next = True
+                return self_.carrier
+
+            def _delete_cb(b: Any) -> "NodeCarrier":
+                assert isinstance(self_, GuestWidget)
+                self_.carrier.children = wg_copy
+                amend_last_record({'deleted': True})
+                return self_.post_run()
+            btn_c = make_button("Continue", cb=_continue_cb)
+            btn_e = make_button("Edit", cb=_edit_cb)
+            # btn_d = make_button("Delete", cb=_delete_cb)
+            box = ipw.HBox([btn_c, btn_e])
+            self_.carrier.children = (box,)
+            return self_.carrier
+        else:
+            func(*args, **kwargs)
+            content = copy.copy(self_.frozen_kw)
+            amend_last_record({'frozen': content})
+            return self_.post_run()
+    return wrapper
 
 
 @dataclass
@@ -212,11 +252,6 @@ def get_recorder() -> Recorder:
 
 
 def add_to_record(content: Dict[str, AnyType]) -> None:
-    if PARAMS["switch_to_resume"]:
-        return
-    if "title" in content and content["title"] == "Dump_table":
-        print("ADD", content, "sw:", PARAMS["switch_to_resume"],
-              "replay:", PARAMS["is_replay"], "resume:", PARAMS["is_resume"],)
     rec = get_recorder()
     if rec is None:
         return
@@ -253,16 +288,9 @@ def replay_next(obj: Optional[Union["Constructor", "NodeVBox"]] = None) -> None:
         t0, t1 = parent
         obj = widget_by_key[(cast(str, t0), cast(int, t1))]
     if not stage:  # i.e. stage == {}, end of tape
-        if PARAMS["switch_to_resume"]:
+        if PARAMS["replay_before_resume"]:
             PARAMS["is_replay"] = False
-            PARAMS["is_resume"] = True
-            PARAMS["switch_to_resume"] = False
-            # restore_recorder()
-            # for obj in chaining_boxes_to_make:
-            #    obj.make_chaining_box()
-            # chaining_boxes_to_make.clear()
-            reset_recorder(init_val=PARAMS["constructor"]._backup.value)
-            set_recording_state(True)
+            PARAMS["replay_before_resume"] = False
         return
     if "ftype" in stage:  # i.e. is a loader
         replay_start_loader(PARAMS["constructor"], **stage)
@@ -569,7 +597,6 @@ def replay_new_stage(
             sink = Sink(scheduler=s)
             sink.input.inp = ds.output.result
     else:
-        print("replay_new_stage", title)
         add_new_stage(obj, title, frozen=frozen)
 
 
@@ -617,7 +644,6 @@ class ChainingMixin:
     def make_guess_types_toc2(
         self, sel: ipw.Select, frozen: AnyType | None = None
     ) -> Callable[..., AnyType]:
-        no_record = PARAMS["is_replay"]
 
         def _guess(m: Module, run_number: int) -> None:
             global parent_dtypes
@@ -629,8 +655,7 @@ class ChainingMixin:
                 for (k, v) in m.result.items()
             }
             self.output_dtypes = parent_dtypes
-            print("guess new stage", sel.value)
-            add_new_stage(self, sel.value, frozen, no_record=no_record)  # type: ignore
+            add_new_stage(self, sel.value, frozen)  # type: ignore
             with m.scheduler() as dataflow:
                 deps = dataflow.collateral_damage(m.name)
                 dataflow.delete_modules(*deps)
@@ -651,7 +676,6 @@ class ChainingMixin:
                     sink = Sink(scheduler=s)
                     sink.input.inp = ds.output.result
             else:
-                print("make btn new stage", sel.value)
                 add_new_stage(self, sel.value, frozen=frozen)  # type: ignore
 
         return _cbk
@@ -947,6 +971,7 @@ class GuestWidget:
     def __init__(self) -> None:
         self.__carrier: Union[int, ReferenceType["NodeCarrier"]] = 0
         self.frozen_kw: Dict[str, Any]
+        self._do_replay_next: bool = False
 
     def initialize(self) -> None:
         pass
@@ -1081,13 +1106,17 @@ class GuestWidget:
     def post_run(self) -> "NodeCarrier":
         self.dag_running()
         self.carrier.children = (ipw.Label("..."),)
-        if PARAMS["switch_to_resume"]:
+        if PARAMS["replay_before_resume"]:
             self.make_chaining_box()
             # chaining_boxes_to_make.append(self)
         else:
             self.carrier.make_progress_bar()
         replay_next()
         return self.carrier
+
+    def manage_replay(self) -> None:
+        if self._do_replay_next:
+            replay_next()
 
 
 class VBox(ipw.VBox, GuestWidget):
@@ -1134,7 +1163,7 @@ class NodeCarrier(NodeVBox):
     def make_chaining_box(self) -> None:
         if len(self.children) > 1:
             raise ValueError("The chaining box already exists")
-        if replay_list and not PARAMS["switch_to_resume"]:
+        if replay_list and not PARAMS["replay_before_resume"]:
             box = self._make_replay_chaining_box()
         else:
             box = self._make_chaining_box()
