@@ -11,8 +11,7 @@ from progressivis.core import Sink, Scheduler
 from progressivis.core import Module
 from progressivis.table.table_facade import TableFacade
 from progressivis.core.utils import normalize_columns
-from ._js import (jslab_func_remove, jslab_func_cleanup,
-                  jslab_func_cell_index)
+from ._js import jslab_func_remove, jslab_func_cleanup, jslab_func_cell_index
 from ..csv_sniffer import CSVSniffer
 from collections import defaultdict
 from .. import DagWidgetController  # type: ignore
@@ -33,12 +32,13 @@ from typing import (
     cast,
     Protocol,
     TypeAlias,
-    TYPE_CHECKING
+    TYPE_CHECKING,
 )
 from dataclasses import dataclass, KW_ONLY
 from ..backup import BackupWidget
 from ..talker import Talker
 from sidecar import Sidecar  # type: ignore
+
 if TYPE_CHECKING:
     from ipyprogressivis.widgets import Constructor
 
@@ -69,7 +69,7 @@ def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
                 self_.carrier.children = wg_copy
                 func(*args, **kwargs)
                 content = copy.copy(self_.frozen_kw)
-                amend_last_record({'frozen': content})
+                amend_last_record({"frozen": content})
                 return self_.post_run()
 
             def _edit_cb(b: Any) -> "NodeCarrier":
@@ -81,19 +81,30 @@ def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
             def _delete_cb(b: Any) -> "NodeCarrier":
                 assert isinstance(self_, GuestWidget)
                 self_.carrier.children = wg_copy
-                amend_last_record({'deleted': True})
-                return self_.post_run()
-            btn_c = make_button("Continue", cb=_continue_cb)
+                amend_last_record({"deleted": True})
+                PARAMS["deleted_stages"].add(
+                    (self_.carrier.label, self_.carrier.number)
+                )
+                print("deleted stages", PARAMS["deleted_stages"])
+                assert self_.carrier.parent is not None
+                parent_title = self_.carrier.parent.title
+                title = self_.carrier.title
+                self_.dag.remove_parent(title, parent_title)
+                self_.dag.remove_node(title)
+                return self_.post_delete()
+
+            btn_c = make_button("Next", cb=_continue_cb)
             btn_e = make_button("Edit", cb=_edit_cb)
-            # btn_d = make_button("Delete", cb=_delete_cb)
-            box = ipw.HBox([btn_c, btn_e])
+            btn_d = make_button("Delete", cb=_delete_cb)
+            box = ipw.HBox([btn_c, btn_e, btn_d])
             self_.carrier.children = (box,)
             return self_.carrier
         else:
             func(*args, **kwargs)
             content = copy.copy(self_.frozen_kw)
-            amend_last_record({'frozen': content})
+            amend_last_record({"frozen": content})
             return self_.post_run()
+
     return wrapper
 
 
@@ -114,7 +125,7 @@ class Proxy:
     def __init__(self, carrier: "NodeCarrier") -> None:
         self.__carrier = carrier
         self.output_module: ModuleOrFacade | None = None
-        self.output_slot: str = 'result'
+        self.output_slot: str = "result"
         self.output_dtypes: dict[str, str] | None = None
         self.freeze = False
         self.cell_content: str = "no code"
@@ -150,7 +161,7 @@ class Proxy:
         self.__carrier._output_slot = self.output_slot
         self.__carrier._output_dtypes = self.output_dtypes
         if self.freeze and not is_replay():
-            amend_last_record({'frozen': dict(cell=self.cell_content)})
+            amend_last_record({"frozen": dict(cell=self.cell_content)})
         self.__carrier.dag_running()
         if is_replay():
             replay_next()
@@ -233,9 +244,9 @@ class Recorder:
         return not self.tape
 
     def add_to_record(self, content: Dict[str, AnyType]) -> None:
-        self.tape = (self.tape + ";" + json2b64(content)
-                     if self.tape
-                     else json2b64(content))
+        self.tape = (
+            self.tape + ";" + json2b64(content) if self.tape else json2b64(content)
+        )
         labcommand("progressivis:set_backup", backup=self.tape)
 
     def amend_last_record(self, content: Dict[str, AnyType]) -> None:
@@ -282,8 +293,16 @@ def replay_next(obj: Optional[Union["Constructor", "NodeVBox"]] = None) -> None:
         return
     assert replay_list
     stage = replay_list.pop(0)
-    parent = stage.pop("parent", None)
-    if obj is None and stage and "ftype" not in stage:
+    print("STAGE:", stage)
+    parent = stage.get("parent", None)
+    if (
+        parent is not None and tuple(parent) in PARAMS["deleted_stages"]
+    ):  # skipping deleted
+        return replay_next(obj)
+    if "deleted" in stage:
+        PARAMS["deleted_stages"].add((stage["title"], stage["number"]))
+        return replay_next(obj)
+    if obj is None and stage and "ftype" not in stage:  # not a loader => has a parent
         assert parent is not None
         t0, t1 = parent
         obj = widget_by_key[(cast(str, t0), cast(int, t1))]
@@ -478,13 +497,18 @@ class _Dag:
         self._alias = alias
 
 
-def create_stage_widget(key: str, frozen: AnyType = None) -> "NodeCarrier":
+def create_stage_widget(
+    key: str, frozen: AnyType = None, number: int | None = None
+) -> "NodeCarrier":
     obj = parent_widget
     assert obj is not None
     dtypes = obj._output_dtypes
     if dtypes is None:
         dtypes = parent_dtypes
-    dag = _Dag(label=key, number=widget_numbers[key], dag=get_dag())
+    if number is not None and number > widget_numbers[key]:
+        widget_numbers[key] = number
+    number_ = widget_numbers[key] if number is None else number
+    dag = _Dag(label=key, number=number_, dag=get_dag())
     ctx = dict(parent=obj, dtypes=dtypes, input_module=obj._output_module, dag=dag)
     guest = stage_register[key]()
     if frozen is not None:
@@ -501,13 +525,16 @@ def create_stage_widget(key: str, frozen: AnyType = None) -> "NodeCarrier":
 
 
 def create_loader_widget(
-    key: str, ftype: str, alias: str, frozen: AnyType = None
+    key: str, ftype: str, alias: str, frozen: AnyType = None, number: int | None = None
 ) -> "NodeCarrier":
     obj = parent_widget
     dtypes = None
     assert obj is not None
     assert obj not in obj.subwidgets
-    dag = _Dag(label=key, number=widget_numbers[key], dag=get_dag(), alias=alias)
+    if number is not None and number > widget_numbers[key]:
+        widget_numbers[key] = number
+    number_ = widget_numbers[key] if number is None else number
+    dag = _Dag(label=key, number=number_, dag=get_dag(), alias=alias)
     ctx = dict(parent=obj, dtypes=dtypes, input_module=obj._output_module, dag=dag)
     from .csv_loader import CsvLoaderW
     from .parquet_loader import ParquetLoaderW
@@ -555,7 +582,7 @@ def set_recording_state(val: bool) -> None:
 
 
 def _make_btn_start_loader(
-        obj: "NodeCarrier", ftype: str, alias: WidgetType, frozen: AnyType = None
+    obj: "NodeCarrier", ftype: str, alias: WidgetType, frozen: AnyType = None
 ) -> Callable[..., None]:
     def _cbk(btn: ipw.Button) -> None:
         global parent_widget
@@ -563,27 +590,41 @@ def _make_btn_start_loader(
         assert parent_widget
         add_new_loader(obj, ftype, alias.value, frozen)
         alias.value = ""
-        disable_all(obj,
-                    exceptions=frozenset(
-                        [obj.child.csv, obj.child.parquet]))  # type: ignore
+        disable_all(
+            obj, exceptions=frozenset([
+                obj.child.csv, obj.child.parquet  # type: ignore
+            ])
+        )
+
     return _cbk
 
 
 def replay_start_loader(
-    obj: "NodeCarrier", ftype: str, alias: str, frozen: AnyType | None = None
+    obj: "NodeCarrier",
+    ftype: str,
+    alias: str,
+    frozen: AnyType | None = None,
+    number: int | None = None,
+    **kw: AnyType,
 ) -> None:
     global parent_widget
     parent_widget = obj
+    print("kw stage", kw)
     assert parent_widget
-    add_new_loader(obj, ftype, alias, frozen=frozen)
+    add_new_loader(obj, ftype, alias, frozen=frozen, number=number)
 
 
 def replay_new_stage(
-    obj: "NodeCarrier", title: str, frozen: AnyType | None = None
+    obj: "NodeCarrier",
+    title: str,
+    frozen: AnyType | None = None,
+    number: int | None = None,
+    **kw: AnyType,
 ) -> None:
     class _FakeSel:
         value: str
 
+    print("kw stage", kw)
     sel = _FakeSel()
     sel.value = title
     global parent_widget
@@ -593,11 +634,11 @@ def replay_new_stage(
         with s:
             ds = DataShape(scheduler=s)
             ds.input.table = obj._output_module.output.result
-            ds.on_after_run(obj.make_guess_types_toc2(sel, frozen))  # type: ignore
+            ds.on_after_run(obj.make_guess_types_toc2(sel, frozen, number=number))  # type: ignore
             sink = Sink(scheduler=s)
             sink.input.inp = ds.output.result
     else:
-        add_new_stage(obj, title, frozen=frozen)
+        add_new_stage(obj, title, frozen=frozen, number=number)
 
 
 def remove_tagged_cells(tag: int) -> None:
@@ -629,12 +670,14 @@ class ChainingProtocol(Protocol):
     _output_dtypes: Optional[Dict[str, str]]
     _output_module: ModuleOrFacade
 
-    def make_guess_types_toc2(self, sel: ipw.Select,
-                              frozen: AnyType | None = None) -> Callable[..., AnyType]:
+    def make_guess_types_toc2(
+        self, sel: ipw.Select, frozen: AnyType | None = None, number: int | None = None
+    ) -> Callable[..., AnyType]:
         ...
 
-    def _make_btn_chain_it_cb(self, sel: AnyType,
-                              frozen: AnyType | None = None) -> Callable[..., None]:
+    def _make_btn_chain_it_cb(
+        self, sel: AnyType, frozen: AnyType | None = None, number: int | None = None
+    ) -> Callable[..., None]:
         ...
 
 
@@ -642,9 +685,8 @@ class ChainingMixin:
     _output_module: ModuleOrFacade
 
     def make_guess_types_toc2(
-        self, sel: ipw.Select, frozen: AnyType | None = None
+        self, sel: ipw.Select, frozen: AnyType | None = None, number: int | None = None
     ) -> Callable[..., AnyType]:
-
         def _guess(m: Module, run_number: int) -> None:
             global parent_dtypes
             assert hasattr(m, "result")
@@ -655,14 +697,18 @@ class ChainingMixin:
                 for (k, v) in m.result.items()
             }
             self.output_dtypes = parent_dtypes
-            add_new_stage(self, sel.value, frozen)  # type: ignore
+            add_new_stage(self, sel.value, frozen, number=number)  # type: ignore
             with m.scheduler() as dataflow:
                 deps = dataflow.collateral_damage(m.name)
                 dataflow.delete_modules(*deps)
+
         return _guess
 
     def _make_btn_chain_it_cb(
-            self: ChainingProtocol, sel: AnyType, frozen: AnyType = None
+        self: ChainingProtocol,
+        sel: AnyType,
+        frozen: AnyType = None,
+        number: int | None = None,
     ) -> Callable[..., None]:
         def _cbk(btn: ipw.Button) -> None:
             global parent_widget
@@ -676,19 +722,21 @@ class ChainingMixin:
                     sink = Sink(scheduler=s)
                     sink.input.inp = ds.output.result
             else:
-                add_new_stage(self, sel.value, frozen=frozen)  # type: ignore
+                add_new_stage(self, sel.value, frozen=frozen, number=number)  # type: ignore
 
         return _cbk
 
     def _progress_bar(self) -> ipw.FloatProgress:
-        prog_wg = ipw.FloatProgress(description="Progress",
-                                    min=0.0, max=1.0, layout={'width': '100%'})
+        prog_wg = ipw.FloatProgress(
+            description="Progress", min=0.0, max=1.0, layout={"width": "100%"}
+        )
         mod_ = self._output_module
         assert isinstance(mod_, Module)
 
         def _proc(m: Module, r: int) -> None:
             n, d = m.get_progress()
-            prog_wg.value = n/d
+            prog_wg.value = n / d
+
         mod_.on_after_run(_proc)
         return prog_wg
 
@@ -713,6 +761,7 @@ class ChainingMixin:
                 btn.disabled = False
             else:
                 btn.disabled = True
+
         prog_wg = self._progress_bar()  # type: ignore
         sel.observe(_on_sel_change, names="value")
         chaining = ipw.HBox([sel, btn, del_btn])
@@ -770,7 +819,7 @@ class LoaderMixin:
             placeholder="optional alias",
             description=f"{ftype.upper()} loader:",
             disabled=disabled,
-            style={'description_width': 'initial'}
+            style={"description_width": "initial"},
         )
         btn = make_button(
             "Create",
@@ -799,56 +848,59 @@ def get_previous(obj: "ChainingWidget") -> "ChainingWidget":
 
 new_stage_cell_0 = "Constructor.widget('{key}'){end}"
 new_stage_cell = "Constructor.widget('{key}', {num}){end}"
-new_stage_cell_code = ("%%pv_run_cell -p {key},{num}\n"
-                       "# The 'proxy' name is present in this context"
-                       " and you can reference it.\n"
-                       "# it provides the following attributes:\n"
-                       "#  - proxy.input_module: Module | TableFacade \n"
-                       "#  - proxy.input_slot: str \n"
-                       "#  - proxy.input_dtypes: dict[str, str] | None\n"
-                       "#  - proxy.scheduler: Scheduler\n"
-                       "# Put your own imports here\n"
-                       "...\n"
-                       "...\n"
-                       "with scheduler:\n"
-                       "    # Put your own code here\n"
-                       "    ...\n"
-                       "    ...\n"
-                       "    # fill in the following proxy attributes:\n"
-                       "    proxy.output_module = ...  # Module | TableFacade\n"
-                       "    proxy.output_slot = 'result'  # str\n"
-                       "    proxy.freeze = True  # bool\n"
-                       "    # Warning: keep the code below unchanged\n"
-                       "    display(proxy.resume())"
-                       "{end}"
-                       )
+new_stage_cell_code = (
+    "%%pv_run_cell -p {key},{num}\n"
+    "# The 'proxy' name is present in this context"
+    " and you can reference it.\n"
+    "# it provides the following attributes:\n"
+    "#  - proxy.input_module: Module | TableFacade \n"
+    "#  - proxy.input_slot: str \n"
+    "#  - proxy.input_dtypes: dict[str, str] | None\n"
+    "#  - proxy.scheduler: Scheduler\n"
+    "# Put your own imports here\n"
+    "...\n"
+    "...\n"
+    "with scheduler:\n"
+    "    # Put your own code here\n"
+    "    ...\n"
+    "    ...\n"
+    "    # fill in the following proxy attributes:\n"
+    "    proxy.output_module = ...  # Module | TableFacade\n"
+    "    proxy.output_slot = 'result'  # str\n"
+    "    proxy.freeze = True  # bool\n"
+    "    # Warning: keep the code below unchanged\n"
+    "    display(proxy.resume())"
+    "{end}"
+)
 
-new_loader_cell_code = ("%%pv_run_cell -p {key},{num}\n"
-                        "scheduler = proxy.scheduler\n"
-                        "# Warning: keep the code above unchanged\n"
-                        "# Put your own imports here\n"
-                        "... \n"
-                        "... \n"
-                        "with scheduler:\n"
-                        "    # Put your own code here\n"
-                        "    ...\n"
-                        "    ...\n"
-                        "    # fill in the following proxy attributes:\n"
-                        "    proxy.output_module = ...  # Module | TableFacade\n"
-                        "    proxy.output_slot = 'result'  # str\n"
-                        "    proxy.freeze = True  # bool\n"
-                        "    # Warning: keep the code below unchanged\n"
-                        "    display(proxy.resume())"
-                        "{end}"
-                        )
+new_loader_cell_code = (
+    "%%pv_run_cell -p {key},{num}\n"
+    "scheduler = proxy.scheduler\n"
+    "# Warning: keep the code above unchanged\n"
+    "# Put your own imports here\n"
+    "... \n"
+    "... \n"
+    "with scheduler:\n"
+    "    # Put your own code here\n"
+    "    ...\n"
+    "    ...\n"
+    "    # fill in the following proxy attributes:\n"
+    "    proxy.output_module = ...  # Module | TableFacade\n"
+    "    proxy.output_slot = 'result'  # str\n"
+    "    proxy.freeze = True  # bool\n"
+    "    # Warning: keep the code below unchanged\n"
+    "    display(proxy.resume())"
+    "{end}"
+)
 
 
 def is_replay() -> bool:
     return cast(bool, PARAMS.get("is_replay", False))
 
 
-def get_stage_cell(key: str, num: int, end: str,
-                   frozen: AnyType = None) -> tuple[str, bool, bool]:
+def get_stage_cell(
+    key: str, num: int, end: str, frozen: AnyType = None
+) -> tuple[str, bool, bool]:
     if key == "Python":
         if is_replay() and frozen:
             assert "cell" in frozen
@@ -857,8 +909,9 @@ def get_stage_cell(key: str, num: int, end: str,
     return new_stage_cell.format(key=key, num=num, end=end), False, True
 
 
-def get_loader_cell(key: str, ftype: str, num: int,
-                    end: str, frozen: AnyType = None) -> tuple[str, bool, bool]:
+def get_loader_cell(
+    key: str, ftype: str, num: int, end: str, frozen: AnyType = None
+) -> tuple[str, bool, bool]:
     if ftype == "custom":
         if is_replay() and frozen:
             assert "cell" in frozen
@@ -867,9 +920,14 @@ def get_loader_cell(key: str, ftype: str, num: int,
     return new_stage_cell.format(key=key, num=num, end=end), False, True
 
 
-def add_new_stage(parent: "ChainingWidget", title: str, frozen: AnyType = None,
-                  no_record: bool = False) -> None:
-    stage = create_stage_widget(title, frozen)
+def add_new_stage(
+    parent: "ChainingWidget",
+    title: str,
+    frozen: AnyType = None,
+    number: int | None = None,
+    no_record: bool = False,
+) -> None:
+    stage = create_stage_widget(title, frozen, number=number)
     parent_key = key_by_id[id(parent)]
     tag = id(stage)
     n = stage.number
@@ -878,17 +936,22 @@ def add_new_stage(parent: "ChainingWidget", title: str, frozen: AnyType = None,
         end = ".run()"
     md = "## " + title + (f"[{n}]" if n else "")
     code, rw, run = get_stage_cell(key=title, num=n, end=end, frozen=frozen)
-    labcommand("progressivis:create_stage_cells", tag=tag,
-               md=md, code=code, rw=rw, run=run)
+    labcommand(
+        "progressivis:create_stage_cells", tag=tag, md=md, code=code, rw=rw, run=run
+    )
     if not no_record:
-        add_to_record(dict(title=title, parent=parent_key))
+        add_to_record(dict(title=title, parent=parent_key, number=stage.number))
 
 
 def add_new_loader(
-    parent: "ChainingWidget", ftype: str, alias: str, frozen: AnyType = None
+    parent: "ChainingWidget",
+    ftype: str,
+    alias: str,
+    frozen: AnyType = None,
+    number: int | None = None,
 ) -> None:
     title = f"{ftype.upper()} loader"
-    stage = create_loader_widget(title, ftype, alias, frozen)
+    stage = create_loader_widget(title, ftype, alias, frozen=frozen, number=number)
     tag = id(stage)
     n = stage.number
     end = ""
@@ -898,10 +961,12 @@ def add_new_loader(
         md = f"## {alias}"
     else:
         md = "## " + title + (f"[{n}]" if n else "")
-    code, rw, run = get_loader_cell(key=alias or title,
-                                    ftype=ftype, num=n, end=end, frozen=frozen)
-    labcommand("progressivis:create_stage_cells", tag=tag, md=md,
-               code=code, rw=rw, run=run)
+    code, rw, run = get_loader_cell(
+        key=alias or title, ftype=ftype, num=n, end=end, frozen=frozen
+    )
+    labcommand(
+        "progressivis:create_stage_cells", tag=tag, md=md, code=code, rw=rw, run=run
+    )
     add_to_record(dict(ftype=ftype, alias=alias))
 
 
@@ -1111,6 +1176,11 @@ class GuestWidget:
             # chaining_boxes_to_make.append(self)
         else:
             self.carrier.make_progress_bar()
+        replay_next()
+        return self.carrier
+
+    def post_delete(self) -> "NodeCarrier":
+        self.carrier.children = (ipw.Label("deleted"),)
         replay_next()
         return self.carrier
 

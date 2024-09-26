@@ -96,6 +96,7 @@ class Constructor(RootVBox, TypedBox):
         PARAMS["is_replay"] = False
         PARAMS["replay_before_resume"] = False
         PARAMS["step_by_step"] = False
+        PARAMS["deleted_stages"] = set()
         set_recording_state(False)
 
     def _locked(self) -> bool:
