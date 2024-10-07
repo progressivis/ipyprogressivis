@@ -463,8 +463,11 @@ class CSVSniffer:
                 else:
                     types[name] = type
         if types:
-            self._types = types
-            self.params["dtype"] = types
+            self._types = {col: typ for (col, typ) in types.items() if col not in parse_dates}
+            if not self._types:
+                self._types = None
+            else:
+                self.params["dtype"] = self._types
         else:
             self._types = None
             if "dtype" in self.params:
