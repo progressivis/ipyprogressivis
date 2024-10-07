@@ -2,15 +2,14 @@ import logging
 import ipywidgets as ipw
 import pandas as pd
 import numpy as np
-from progressivis.core import Module, Sink, aio
-from progressivis.stats.kll import KLLSketch
-from progressivis.table.range_query import RangeQuery
-from progressivis.stats import Histogram1D
-from progressivis.table.table_facade import TableFacade
+from progressivis.core.api import Module, Sink
+import progressivis.core.aio as aio
+from progressivis.table.api import RangeQuery, TableFacade
+from progressivis.stats.api import Histogram1D, KLLSketch
 from ..df_grid import DataFrameGrid
 from .utils import (TreeTab, make_button, stage_register, VBox, TypedBase, IpyVBoxTyped,
                     amend_last_record, get_recording_state, disable_all)
-from progressivis.io import Variable
+from progressivis.io.api import Variable
 from ..vega import VegaWidget
 from .._stacked_hist_schema import stacked_hist_spec_no_data
 from typing import Any as AnyType, cast

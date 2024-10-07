@@ -3,10 +3,9 @@ import pandas as pd
 import panel as pn
 from jupyter_bokeh.widgets import BokehModel  # type: ignore
 from ..csv_sniffer import CSVSniffer
-from progressivis.io import SimpleCSVLoader
-from progressivis.core import Module
-from progressivis.table import PTable
-from progressivis.table.constant import Constant
+from progressivis.io.api import SimpleCSVLoader
+from progressivis.core.api import Module
+from progressivis.table.api import PTable, Constant
 from .utils import (make_button, get_schema, VBoxTyped, IpyVBoxTyped, TypedBase,
                     amend_last_record, get_recording_state, disable_all, runner)
 import os

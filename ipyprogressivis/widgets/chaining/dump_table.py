@@ -5,7 +5,7 @@ from .utils import (
 )
 from ..slot_wg import SlotWg
 from typing import List, cast
-from progressivis.core import Scheduler, Module
+from progressivis.core.api import Scheduler, Module
 
 
 class DumpPTableW(VBox):

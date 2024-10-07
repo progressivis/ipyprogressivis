@@ -7,9 +7,8 @@ import logging
 import ipywidgets as ipw
 from progressivis.table.dshape import dataframe_dshape
 from progressivis.vis import DataShape
-from progressivis.core import Sink, Scheduler
-from progressivis.core import Module
-from progressivis.table.table_facade import TableFacade
+from progressivis.core.api import Sink, Scheduler, Module
+from progressivis.table.api import TableFacade
 from progressivis.core.utils import normalize_columns
 from ._js import jslab_func_remove, jslab_func_cleanup, jslab_func_cell_index
 from ..csv_sniffer import CSVSniffer
@@ -440,6 +439,8 @@ def get_schema(sniffer: Sniffer) -> AnyType:
     assert sniffer._df is not None
     norm_cols = dict(zip(sniffer._df.columns, normalize_columns(sniffer._df.columns)))
     dtypes = {col: _ds(col, dt) for (col, dt) in sniffer._df.dtypes.to_dict().items()}
+    print("norm_cols", norm_cols)
+    print("dtypes", dtypes, list(sniffer._df.dtypes.to_dict().items()))
     if usecols is not None:
         dtypes = {norm_cols[col]: dtypes[col] for col in usecols}
     else:

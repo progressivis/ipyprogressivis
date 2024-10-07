@@ -5,7 +5,7 @@ import ipywidgets as widgets
 from typing import Any as AnyType, TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from progressivis.core.scheduler import Scheduler
+    from progressivis.core.api import Scheduler
 
 
 class ControlPanel(widgets.HBox):  # pylint: disable=too-many-ancestors

@@ -4,8 +4,8 @@ from .._hist2d_schema import hist2d_spec_no_data
 import ipywidgets as ipw
 from ..vega import VegaWidget
 import numpy as np
-from progressivis.core import Scheduler, Sink
-from progressivis.stats import Histogram2D
+from progressivis.core.api import Scheduler, Sink
+from progressivis.stats.api import Histogram2D
 from typing import Any as AnyType, Dict, cast, Type, TypeAlias
 
 WidgetType = AnyType

@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 import ipywidgets as ipw
 from jinja2 import Template
-from progressivis.core import JSONEncoderNp
+from progressivis.core.api import JSONEncoderNp
 from .control_panel import ControlPanel
 from .sensitive_html import SensitiveHTML
 from .utils import update_widget
@@ -22,8 +22,7 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from progressivis.core import Scheduler
-    from progressivis.core import Module, JSon
+    from progressivis.core.api import Scheduler, Module, JSon
 
 WidgetType = AnyType
 

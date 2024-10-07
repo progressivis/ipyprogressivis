@@ -8,8 +8,8 @@ import panel as pn
 from jupyter_bokeh.widgets import BokehModel  # type: ignore
 import pandas as pd
 import numpy as np
-from progressivis.core import Module, Sink, notNone
-from progressivis.table import PTable
+from progressivis.core.api import Module, Sink, notNone
+from progressivis.table.api import PTable
 from progressivis.table.table_facade import TableFacade
 from typing import Any as AnyType, Dict, cast, Type, Tuple, TypeAlias
 import json

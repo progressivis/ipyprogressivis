@@ -2,8 +2,8 @@ from .utils import (make_button, stage_register, VBoxTyped, TypedBase,
                     amend_last_record, get_recording_state, disable_all, runner)
 import ipywidgets as ipw
 import pandas as pd
-from progressivis.table.aggregate import Aggregate
-from progressivis.core import Sink, Module
+from progressivis.table.api import Aggregate
+from progressivis.core.api import Sink, Module
 
 from typing import Any as AnyType, Optional, List, Tuple, Dict, Callable, cast
 

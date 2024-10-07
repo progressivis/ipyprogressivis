@@ -5,7 +5,8 @@ from ipydatawidgets.ndarray.serializers import (  # type: ignore
     array_to_compressed_json,
     array_from_compressed_json,
 )
-from progressivis.core import asynchronize, aio
+from progressivis.core.api import asynchronize
+import progressivis.core.aio as aio
 # from ipykernel import connect_qtconsole, get_connection_file, get_connection_info
 from typing import Any, Callable, Dict, Type, cast
 

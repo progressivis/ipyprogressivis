@@ -4,7 +4,7 @@ from ._multi_series import multi_series_no_data
 import ipywidgets as ipw
 from ..vega import VegaWidget
 import pandas as pd
-from progressivis.core import Module
+from progressivis.core.api import Module
 from typing import Any as AnyType, Dict, cast, Type, List, Union
 from typing_extensions import TypeAlias
 

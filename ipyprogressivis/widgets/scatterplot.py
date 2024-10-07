@@ -5,7 +5,7 @@ import ipywidgets as widgets
 from ipydatawidgets import DataUnion  # type: ignore
 from ipydatawidgets.widgets import DataWidget  # type: ignore
 from traitlets import Unicode, Any, Bool  # type: ignore
-from progressivis.core import JSONEncoderNp as JS, asynchronize
+from progressivis.core.api import JSONEncoderNp as JS, asynchronize
 import progressivis.core.aio as aio
 from .utils import data_union_serialization_compress
 from .. _frontend import NPM_PACKAGE, NPM_PACKAGE_RANGE

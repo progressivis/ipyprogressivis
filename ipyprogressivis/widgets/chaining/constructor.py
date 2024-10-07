@@ -1,7 +1,7 @@
 import ipywidgets as ipw
-from progressivis import Scheduler
-from progressivis.io import Variable
-from progressivis.core import Sink, aio
+from progressivis.io.api import Variable
+from progressivis.core.api import Sink, Scheduler
+import progressivis.core.aio as aio
 from .utils import (
     make_button,
     set_dag,

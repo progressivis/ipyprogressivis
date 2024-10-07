@@ -6,10 +6,11 @@ import logging
 import ipywidgets as ipw
 import numpy as np
 import pandas as pd
-from progressivis.core import asynchronize, aio, Sink, Scheduler, Module
-from progressivis.utils import PDict
-from progressivis.io import Variable
-from progressivis.stats import (
+from progressivis.core.api import asynchronize, Sink, Scheduler, Module
+import progressivis.core.aio as aio
+from progressivis.utils.api import PDict
+from progressivis.io.api import Variable
+from progressivis.stats.api import (
     KLLSketch,
     Corr,
     Histogram1D,

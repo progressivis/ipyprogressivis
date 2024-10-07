@@ -5,8 +5,8 @@ from .utils import (
 )
 import ipywidgets as ipw
 from progressivis.table.group_by import UTIME_SHORT_D
-from progressivis.table.join import Join
-from progressivis.core import Sink, Module
+from progressivis.table.api import Join
+from progressivis.core.api import Sink, Module
 from typing import (
     Any as AnyType,
     Any,

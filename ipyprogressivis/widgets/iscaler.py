@@ -3,9 +3,8 @@ import ipywidgets as ipw
 
 # import altair as alt
 import pandas as pd
-from progressivis.core import asynchronize, aio
-from progressivis.core.module import Module
-from progressivis.core.scheduler import Scheduler
+from progressivis.core.api import asynchronize, Module, Scheduler
+import progressivis.core.aio as aio
 from .vega import VegaWidget
 
 from typing import Any, Optional, List, Dict, Callable

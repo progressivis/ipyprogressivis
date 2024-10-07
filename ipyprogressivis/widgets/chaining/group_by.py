@@ -2,7 +2,7 @@ from .utils import (make_button, stage_register, dongle_widget, VBoxTyped,
                     TypedBase, amend_last_record,
                     get_recording_state, disable_all, runner)
 import ipywidgets as ipw
-from progressivis.core import Module
+from progressivis.core.api import Module, Sink
 from progressivis.table.group_by import (
     GroupBy,
     UTIME,
@@ -10,7 +10,6 @@ from progressivis.table.group_by import (
     SubPColumn as SC,
     UTIME_SHORT_D,
 )
-from progressivis.core import Sink
 
 from typing import Any as AnyType, Union, List, cast
 

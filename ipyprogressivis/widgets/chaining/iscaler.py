@@ -2,8 +2,9 @@ import time
 import ipywidgets as ipw
 import weakref
 import pandas as pd
-from progressivis.core import asynchronize, aio, Sink, Module
-from progressivis.io import Variable
+from progressivis.core.api import asynchronize, Sink, Module
+import progressivis.core.aio as aio
+from progressivis.io.api import Variable
 from progressivis.stats.scaling import MinMaxScaler
 from typing import Any, Dict, List, Callable, cast
 from .utils import make_button, stage_register, VBoxTyped, TypedBase

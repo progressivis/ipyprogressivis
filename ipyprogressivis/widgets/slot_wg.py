@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from progressivis.core import JSONEncoderNp as JSON
-from progressivis.table import PagingHelper
+from progressivis.core.api import JSONEncoderNp as JSON
+from progressivis.table.api import PagingHelper
 from .utils import update_widget
 from .data_table import DataPTable
 
 from typing import Any, Dict, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from progressivis.core import Module
+    from progressivis.core.api import Module
 
 
 debug_console = None

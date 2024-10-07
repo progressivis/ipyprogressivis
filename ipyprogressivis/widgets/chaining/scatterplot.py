@@ -4,7 +4,7 @@ from ._multi_series import scatterplot_no_data
 import ipywidgets as ipw
 from ..vega import VegaWidget
 import pandas as pd
-from progressivis.core import Scheduler
+from progressivis.core.api import Scheduler
 from typing import Any as AnyType, Dict, cast, Type, List
 from typing_extensions import TypeAlias
 import copy

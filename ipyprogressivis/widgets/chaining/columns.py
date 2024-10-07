@@ -13,7 +13,7 @@ import numpy as np
 import operator as op
 import weakref
 from progressivis.table.repeater import Repeater, Computed
-from progressivis.core import Sink, Module
+from progressivis.core.api import Sink, Module
 from progressivis.table.compute import (
     week_day,
     UNCHANGED,
@@ -26,8 +26,16 @@ from typing import Any as AnyType, Optional, Tuple, List, Dict, Callable, Union,
 
 WidgetType = AnyType
 
+
+# NB: `np.sctypes` was removed in the NumPy 2.0 release. Access dtypes explicitly instead.
+np_sctypes = [[np.int8, np.int16, np.int32, np.int64],
+              [np.uint8, np.uint16, np.uint32, np.uint64],
+              [np.float16, np.float32, np.float64, np.longdouble],
+              [np.complex64, np.complex128, np.clongdouble],
+              [bool, object, bytes, str, np.void]]
+
 DTYPES = [
-    np.dtype(e).name for lst in np.sctypes.values() for e in lst  # type: ignore
+    np.dtype(e).name for lst in np_sctypes for e in lst  # type: ignore
 ] + [
     "datetime64"
 ]
