@@ -736,7 +736,7 @@ class ChainingMixin:
 
         def _proc(m: Module, r: int) -> None:
             n, d = m.get_progress()
-            prog_wg.value = n / d
+            prog_wg.value = n / d if d else 0.
 
         mod_.on_after_run(_proc)
         return prog_wg
