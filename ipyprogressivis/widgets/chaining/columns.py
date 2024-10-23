@@ -7,6 +7,7 @@ from .utils import (
     TypedBase,
     get_recording_state,
     amend_last_record,
+    runner
 )
 import ipywidgets as ipw
 import numpy as np
@@ -334,6 +335,7 @@ class PColumnsW(VBoxTyped):
         self.make_chaining_box()
         self.dag_running()
 
+    @runner
     def run(self) -> None:
         content = self.frozen_kw
         self.output_module = self.init_module(**content)
