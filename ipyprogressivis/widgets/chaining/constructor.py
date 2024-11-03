@@ -17,6 +17,7 @@ from .utils import (
     bunpack,
     replay_list,
     replay_next,
+    replay_sequence,
     b642json,
     PARAMS,
     reset_recorder,
@@ -97,6 +98,7 @@ class Constructor(RootVBox, TypedBox):
         PARAMS["replay_before_resume"] = False
         PARAMS["step_by_step"] = False
         PARAMS["deleted_stages"] = set()
+        PARAMS["command_list"] = []
         set_recording_state(False)
 
     def _locked(self) -> bool:
@@ -181,7 +183,7 @@ class Constructor(RootVBox, TypedBox):
             restore_recorder()
             set_recording_state(False)
 
-    def do_replay(self) -> None:
+    def do_replay(self, batch: bool = False) -> None:
         PARAMS["is_replay"] = True
         self.child.csv.children[-1].disabled = True
         self.child.parquet.children[-1].disabled = True
@@ -194,7 +196,10 @@ class Constructor(RootVBox, TypedBox):
         replay_list.append({})  # end of tape marker
         # chaining_boxes_to_make.clear()
         disable_all(self)
-        replay_next(self)
+        if batch:
+            replay_sequence(self)
+        else:
+            replay_next(self)
 
     def disable_all_btn(self) -> None:
         self.child.replay.disabled = True
@@ -203,18 +208,22 @@ class Constructor(RootVBox, TypedBox):
 
     def _replay_cb(self, btn: ipw.Button) -> None:
         self.disable_all_btn()
-        self.do_replay()
+        self.do_replay(batch=True)
 
     def _resume_cb(self, btn: ipw.Button) -> None:
         self.disable_all_btn()
         PARAMS["replay_before_resume"] = True
         reset_recorder()
         set_recording_state(True)
-        self.do_replay()
+        self.do_replay(batch=True)
 
     def _step_by_step_cb(self, btn: ipw.Button) -> None:
         PARAMS["step_by_step"] = True
-        self._resume_cb(btn)
+        self.disable_all_btn()
+        PARAMS["replay_before_resume"] = True
+        reset_recorder()
+        set_recording_state(True)
+        self.do_replay(batch=False)
 
     @staticmethod
     def widget_by_id(key: int) -> NodeCarrier:

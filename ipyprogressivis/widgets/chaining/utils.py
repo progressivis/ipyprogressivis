@@ -53,6 +53,10 @@ HOME = os.getenv("HOME")
 assert HOME is not None
 
 replay_list: List[Dict[str, AnyType]] = []
+# chaining_boxes_to_make = []
+md_list: list[str] = []
+widget_list: AnyType = []
+REPLAY_BATCH = False
 
 
 def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
@@ -99,9 +103,29 @@ def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
         else:
             func(*args, **kwargs)
             content = copy.copy(self_.frozen_kw)
-            amend_last_record({"frozen": content})
+            if not is_replay_batch():
+                amend_last_record({"frozen": content})
             return self_.post_run()
 
+    return wrapper
+
+
+def needs_dtypes(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
+    def wrapper(*args: Any, **kwargs: Any) -> None:
+        self_ = args[0]
+        assert isinstance(self_, GuestWidget)
+        if self_.dtypes is None:
+            if self_.parent.output_dtypes:
+                self_.carrier._dtypes = self_.parent.output_dtypes
+                self_.carrier._output_dtypes = None
+                func(*args, **kwargs)
+                return
+            else:
+                self_.parent.compute_dtypes_then_call(func, args, kwargs)
+                return
+        else:
+            func(*args, **kwargs)
+            return
     return wrapper
 
 
@@ -159,16 +183,18 @@ class Proxy:
         self.__carrier._output_module = self.output_module  # type: ignore
         self.__carrier._output_slot = self.output_slot
         self.__carrier._output_dtypes = self.output_dtypes
-        if self.freeze:
+        """if self.freeze:
             frozen = {"frozen": dict(cell=self.cell_content)}
-            self.guest.frozen_kw = frozen  # type: ignore
-            amend_last_record(frozen)
+            self.guest.frozen_kw = frozen
+            amend_last_record(frozen)"""
         self.__carrier.dag_running()
         if PARAMS["replay_before_resume"] or not is_replay():
             self.__carrier.make_chaining_box()
+            # chaining_boxes_to_make.append(self)
         else:
             self.__carrier.make_progress_bar()
         parent_widget = self.__carrier
+        replay_next_if(self.__carrier)
         return self.__carrier
 
 
@@ -209,7 +235,35 @@ def get_backup_widget() -> BackupWidget:
     return cast(BackupWidget, PARAMS["header"].backup)
 
 
+def get_proxy_line(line: str, code: str) -> str:  # TODO: write/use a decent parser!
+    cls, n = line.split(" ")[-1].split(",")
+    return f"proxy = Constructor.proxy('{cls}', {n}); proxy.cell_content = cell_content"
+
+
+def fetch_widget(line: str) -> str:
+    if line.startswith("%%pv_run_cell"):
+        cls, n = line.split(" ")[-1].split(",")
+        return f"Constructor.widget('{cls}', {n})"
+    return line.replace(".run()", "")
+
+
+def unmagic(code: str) -> str:
+    if code.startswith("%%pv_run_cell"):
+        code_list = code.split("\n")
+        code = "\n".join([get_proxy_line(code_list[0], code)]+code_list[1:])
+        return code
+    return code
+
+
 def labcommand(cmd: str, **kw: AnyType) -> None:
+    if is_replay_batch() and cmd == "progressivis:create_stage_cells":
+        code = kw["code"]
+        line = code.split("\n")[0]
+        wg = fetch_widget(line)
+        widget_list.append((kw["md"], wg))
+        code = "from ipyprogressivis.widgets import get_header, Constructor\n"+unmagic(code)
+        exec(code)
+        return
     hdr = PARAMS["header"]
     hdr.talker.labcommand(cmd, kw)
 
@@ -301,10 +355,10 @@ def replay_next(obj: Optional[Union["Constructor", "NodeVBox"]] = None) -> None:
     if (
         parent is not None and tuple(parent) in PARAMS["deleted_stages"]
     ):  # skipping deleted
-        return replay_next()
+        return replay_next_if()
     if "deleted" in stage:
         PARAMS["deleted_stages"].add((stage["title"], stage["number"]))
-        return replay_next()
+        return replay_next_if()
     if obj is None and stage and "ftype" not in stage:  # not a loader => has a parent
         assert parent is not None
         t0, t1 = parent
@@ -319,6 +373,30 @@ def replay_next(obj: Optional[Union["Constructor", "NodeVBox"]] = None) -> None:
     else:
         assert obj is not None
         replay_new_stage(obj, **stage)  # type: ignore
+
+
+def replay_next_if(obj: Optional[Union["Constructor", "NodeVBox"]] = None) -> None:
+    if is_replay_batch():
+        return
+    return replay_next(obj)
+
+
+def replay_sequence(obj: "Constructor") -> None:
+    global REPLAY_BATCH
+    REPLAY_BATCH = True
+    md_list.clear()
+    widget_list.clear()
+    replay_next(obj)
+    while True:
+        replay_next()
+        if not replay_list:
+            break
+    REPLAY_BATCH = False
+    for md, code in widget_list:
+        labcommand(
+            "progressivis:create_stage_cells", tag=id(md),
+            md=md, code=code, rw=True, run=True
+        )
 
 
 def get_dag() -> DAGWidget:
@@ -401,7 +479,9 @@ class HandyTab(ipw.Tab):
 
     def get_selected_title(self) -> Optional[str]:
         if self.selected_index is None or self.selected_index >= len(self.titles):
+            # logger.warning("no selected title")
             return None
+        # logger.warning(f"selected title {self.selected_index} {self.titles}")
         return self.get_title(self.selected_index)
 
     def get_selected_child(self) -> ipw.DOMWidget:
@@ -637,12 +717,12 @@ def replay_new_stage(
     sel.value = title
     global parent_widget
     parent_widget = obj
-    if obj._output_dtypes is None:
+    if obj._output_dtypes is None and False:
         s = obj._output_module.scheduler()
         with s:
             ds = DataShape(scheduler=s)
             ds.input.table = obj._output_module.output.result
-            ds.on_after_run(obj.make_guess_types_toc2(sel, frozen, number=number))  # type: ignore
+            ds.on_after_run(obj.make_guess_types_toc2(sel, frozen, number=number))
             sink = Sink(scheduler=s)
             sink.input.inp = ds.output.result
     else:
@@ -912,6 +992,10 @@ def is_replay_only() -> bool:
     return is_replay() and not PARAMS["step_by_step"]
 
 
+def is_replay_batch() -> bool:
+    return REPLAY_BATCH and not PARAMS["step_by_step"]
+
+
 def get_stage_cell(
     key: str, num: int, end: str, frozen: AnyType = None
 ) -> tuple[str, bool, bool]:
@@ -950,9 +1034,9 @@ def add_new_stage(
     md = "## " + title + (f"[{n}]" if n else "")
     code, rw, run = get_stage_cell(key=title, num=n, end=end, frozen=frozen)
     labcommand(
-        "progressivis:create_stage_cells", tag=tag, md=md, code=code, rw=rw, run=run
+        "progressivis:create_stage_cells", frozen=frozen, tag=tag, md=md, code=code, rw=rw, run=run
     )
-    add_to_record(dict(title=title, parent=parent_key, number=stage.number))
+    add_to_record(dict(title=title, parent=parent_key, number=stage.number, frozen=frozen))
 
 
 def add_new_loader(
@@ -977,9 +1061,9 @@ def add_new_loader(
         key=alias or title, ftype=ftype, num=n, end=end, frozen=frozen
     )
     labcommand(
-        "progressivis:create_stage_cells", tag=tag, md=md, code=code, rw=rw, run=run
+        "progressivis:create_stage_cells", frozen=frozen, tag=tag, md=md, code=code, rw=rw, run=run
     )
-    add_to_record(dict(ftype=ftype, alias=alias))
+    add_to_record(dict(ftype=ftype, alias=alias, frozen=frozen))
 
 
 class ChainingWidget:
@@ -993,7 +1077,7 @@ class ChainingWidget:
         self._input_slot: str = kw.get("input_slot", "result")
         self._output_module: ModuleOrFacade = self._input_module
         self._output_slot = self._input_slot
-        self._output_dtypes: Optional[Dict[str, str]]
+        self._output_dtypes: Optional[Dict[str, str]] = None
         if self._dtypes is not None:  # i.e. not a loader
             self._output_dtypes = None
         self._dag = kw["dag"]
@@ -1130,7 +1214,7 @@ class GuestWidget:
     def _make_guess_types(
         self, fun: Callable[..., None], args: Iterable[Any], kw: Dict[str, Any]
     ) -> Callable[[Module, int], None]:
-        def _guess(m: Module, run_number: int) -> None:
+        def _guess2(m: Module, run_number: int) -> None:
             assert hasattr(m, "result")
             if m.result is None:
                 return
@@ -1138,12 +1222,14 @@ class GuestWidget:
                 k: "datetime64" if str(v)[0] == "6" else v
                 for (k, v) in m.result.items()
             }
+            self_ = args[0]  # type: ignore
+            self_.carrier._dtypes = self.output_dtypes
             fun(*args, **kw)
             with m.scheduler() as dataflow:
                 deps = dataflow.collateral_damage(m.name)
                 dataflow.delete_modules(*deps)
 
-        return _guess
+        return _guess2
 
     def compute_dtypes_then_call(
         self,
@@ -1151,7 +1237,7 @@ class GuestWidget:
         args: Iterable[Any] = (),
         kw: Dict[str, Any] = {},
     ) -> None:
-        if is_replay_only():
+        if is_replay_batch():
             self.output_dtypes = {}
             return
         s = self.output_module.scheduler()
@@ -1185,27 +1271,39 @@ class GuestWidget:
 
     def post_run(self) -> "NodeCarrier":
         self.dag_running()
-        self.carrier.children = (make_replay_next_btn()
-                                 if is_replay_only() else ipw.Label("..."),)
+        # self.carrier.children = (make_replay_next_btn()
+        #                         if is_replay_only() else ipw.Label("..."),)
+        subst = Substitute("...")
+        self.carrier.children = (subst,)
+        subst._GuestWidget__carrier = ref(self.carrier)  # type: ignore
+
         if PARAMS["replay_before_resume"]:
             self.make_chaining_box()
+            # chaining_boxes_to_make.append(self)
         else:
             self.carrier.make_progress_bar()
+        replay_next_if(self.carrier)
         return self.carrier
 
     def post_delete(self) -> "NodeCarrier":
         self.carrier.children = (ipw.Label("deleted"),)
+        replay_next_if()
         return self.carrier
 
     def manage_replay(self) -> None:
         if self._do_replay_next:
-            pass
-            # replay_next() ?
+            replay_next_if()
 
 
 class VBox(ipw.VBox, GuestWidget):
     def __init__(self, *args: Any, **kw: Any) -> None:
         ipw.VBox.__init__(self, *args, **kw)
+        GuestWidget.__init__(self)
+
+
+class Substitute(ipw.Label, GuestWidget):
+    def __init__(self, *args: Any, **kw: Any) -> None:
+        ipw.Label.__init__(self, *args, **kw)
         GuestWidget.__init__(self)
 
 

@@ -1,6 +1,6 @@
 from .utils import (make_button, stage_register, dongle_widget, VBoxTyped,
                     TypedBase, amend_last_record,
-                    get_recording_state, disable_all, runner)
+                    get_recording_state, disable_all, runner, needs_dtypes)
 import ipywidgets as ipw
 from progressivis.core.api import Module, Sink
 from progressivis.table.group_by import (
@@ -31,6 +31,7 @@ class GroupByW(VBoxTyped):
         freeze_ck: ipw.Checkbox
         start_btn: ipw.Button
 
+    @needs_dtypes
     def initialize(self) -> None:
         self.child.grouping_mode = self.make_gr_mode()
         self.child.by_box = self.make_sel_multiple()

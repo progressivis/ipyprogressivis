@@ -1,5 +1,4 @@
-from .utils import (VBoxTyped, TypedBase, stage_register,
-                    make_replay_next_btn, is_replay_only)
+from .utils import VBoxTyped, TypedBase, stage_register
 
 import ipywidgets as ipw
 
@@ -9,8 +8,7 @@ class CodeCellW(VBoxTyped):
         dongle: ipw.Label | ipw.Button
 
     def initialize(self) -> None:
-        self.c_.dongle = (make_replay_next_btn() if is_replay_only()
-                          else ipw.Label("Chaining ..."))
+        self.c_.dongle = ipw.Label("Code cell")
 
 
 stage_register["Python"] = CodeCellW

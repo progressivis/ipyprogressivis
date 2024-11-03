@@ -1,5 +1,5 @@
 from .utils import (make_button, stage_register, VBoxTyped, TypedBase,
-                    amend_last_record, get_recording_state, disable_all, runner)
+                    amend_last_record, get_recording_state, disable_all, runner, needs_dtypes)
 import ipywidgets as ipw
 import pandas as pd
 from progressivis.table.api import Aggregate
@@ -21,6 +21,7 @@ class AggregateW(VBoxTyped):
         freeze_ck: ipw.Checkbox
         start_btn: ipw.Button
 
+    @needs_dtypes
     def initialize(self) -> None:
         self.hidden_cols: List[str] = []
         fncs = ["hide"] + list(Aggregate.registry.keys())
