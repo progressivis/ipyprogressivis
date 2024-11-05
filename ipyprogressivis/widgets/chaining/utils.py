@@ -194,7 +194,6 @@ class Proxy:
         else:
             self.__carrier.make_progress_bar()
         parent_widget = self.__carrier
-        print("replay_next_if() from resume")
         replay_next_if(self.__carrier)
         return self.__carrier
 
@@ -358,11 +357,9 @@ def replay_next(obj: Optional[Union["Constructor", "NodeVBox"]] = None) -> None:
     if (
         parent is not None and tuple(parent) in PARAMS["deleted_stages"]
     ):  # skipping deleted
-        print("replay_next_if() from replay_next 1")
         return replay_next_if()
     if "deleted" in stage:
         PARAMS["deleted_stages"].add((stage["title"], stage["number"]))
-        print("replay_next_if() from replay_next 2")
         return replay_next_if()
     if obj is None and stage and "ftype" not in stage:  # not a loader => has a parent
         assert parent is not None
@@ -722,16 +719,7 @@ def replay_new_stage(
     sel.value = title
     global parent_widget
     parent_widget = obj
-    if obj._output_dtypes is None and False:
-        s = obj._output_module.scheduler()
-        with s:
-            ds = DataShape(scheduler=s)
-            ds.input.table = obj._output_module.output.result
-            ds.on_after_run(obj.make_guess_types_toc2(sel, frozen, number=number))
-            sink = Sink(scheduler=s)
-            sink.input.inp = ds.output.result
-    else:
-        add_new_stage(obj, title, frozen=frozen, number=number)
+    add_new_stage(obj, title, frozen=frozen, number=number)
 
 
 def remove_tagged_cells(tag: int) -> None:
@@ -763,11 +751,6 @@ class ChainingProtocol(Protocol):
     _output_dtypes: Optional[Dict[str, str]]
     _output_module: ModuleOrFacade
 
-    def make_guess_types_toc2(
-        self, sel: ipw.Select, frozen: AnyType | None = None, number: int | None = None
-    ) -> Callable[..., AnyType]:
-        ...
-
     def _make_btn_chain_it_cb(
         self, sel: AnyType, frozen: AnyType | None = None, number: int | None = None
     ) -> Callable[..., None]:
@@ -776,26 +759,6 @@ class ChainingProtocol(Protocol):
 
 class ChainingMixin:
     _output_module: ModuleOrFacade
-
-    def make_guess_types_toc2(
-        self, sel: ipw.Select, frozen: AnyType | None = None, number: int | None = None
-    ) -> Callable[..., AnyType]:
-        def _guess(m: Module, run_number: int) -> None:
-            global parent_dtypes
-            assert hasattr(m, "result")
-            if m.result is None:
-                return
-            parent_dtypes = {
-                k: "datetime64" if str(v)[0] == "6" else v
-                for (k, v) in m.result.items()
-            }
-            self.output_dtypes = parent_dtypes
-            add_new_stage(self, sel.value, frozen, number=number)  # type: ignore
-            with m.scheduler() as dataflow:
-                deps = dataflow.collateral_damage(m.name)
-                dataflow.delete_modules(*deps)
-
-        return _guess
 
     def _make_btn_chain_it_cb(
         self: ChainingProtocol,
@@ -806,16 +769,7 @@ class ChainingMixin:
         def _cbk(btn: ipw.Button) -> None:
             global parent_widget
             parent_widget = self  # type: ignore
-            if self._output_dtypes is None:
-                s = self._output_module.scheduler()
-                with s:
-                    ds = DataShape(scheduler=s)
-                    ds.input.table = self._output_module.output.result
-                    ds.on_after_run(self.make_guess_types_toc2(sel, frozen=frozen))
-                    sink = Sink(scheduler=s)
-                    sink.input.inp = ds.output.result
-            else:
-                add_new_stage(self, sel.value, frozen=frozen, number=number)  # type: ignore
+            add_new_stage(self, sel.value, frozen=frozen, number=number)  # type: ignore
 
         return _cbk
 
@@ -1075,7 +1029,6 @@ def add_new_loader(
     code, rw, run = get_loader_cell(
         key=alias or title, ftype=ftype, num=n, end=end, frozen=frozen
     )
-    print("RUN IS:", run)
     labcommand(
         "progressivis:create_stage_cells", frozen=frozen, tag=tag, md=md, code=code, rw=rw, run=run
     )
@@ -1238,7 +1191,10 @@ class GuestWidget:
                 k: "datetime64" if str(v)[0] == "6" else v
                 for (k, v) in m.result.items()
             }
-            self_ = args[0]  # type: ignore
+            if hasattr(fun, "__self__"):  # i.e. fun is a bound method
+                self_ = fun.__self__
+            else:
+                self_ = args[0]  # type: ignore
             self_.carrier._dtypes = self.output_dtypes
             fun(*args, **kw)
             with m.scheduler() as dataflow:
@@ -1298,19 +1254,16 @@ class GuestWidget:
             # chaining_boxes_to_make.append(self)
         else:
             self.carrier.make_progress_bar()
-        print("replay_next_if() from post_run", self)
         replay_next_if(self.carrier)
         return self.carrier
 
     def post_delete(self) -> "NodeCarrier":
         self.carrier.children = (ipw.Label("deleted"),)
-        print("replay_next_if() from post_delete")
         replay_next_if()
         return self.carrier
 
     def manage_replay(self) -> None:
         if self._do_replay_next:
-            print("replay_next_if() from manage_replay")
             replay_next_if()
 
 

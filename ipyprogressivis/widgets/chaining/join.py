@@ -1,7 +1,7 @@
 from .utils import (
     make_button,
     stage_register,
-    append_child, VBox, amend_last_record, get_recording_state, disable_all, runner
+    append_child, VBox, amend_last_record, get_recording_state, disable_all, runner, needs_dtypes
 )
 import ipywidgets as ipw
 from progressivis.table.group_by import UTIME_SHORT_D
@@ -61,6 +61,7 @@ class JoinW(VBox):
     def __init__(self) -> None:
         super().__init__()
 
+    @needs_dtypes
     def initialize(self) -> None:
         self.output_dtypes = None
         dd_list = [(f"{k}[{n}]" if n
@@ -158,15 +159,9 @@ class JoinW(VBox):
         content = self.frozen_kw
         if (key := content["primary_inp"]) != "parent":
             primary_wg = self.get_widget_by_key(key)
-            if primary_wg.output_dtypes is None:
-                primary_wg.compute_dtypes_then_call(self.run)
-                return
             self.dag.add_parent(self.title,  primary_wg.title)
         if (key := content["related_inp"]) != "parent":
             related_wg = self.get_widget_by_key(key)
-            if related_wg.output_dtypes is None:
-                related_wg.compute_dtypes_then_call(self.run)
-                return
             self.dag.add_parent(self.title,  related_wg.title)
         self.output_module = self.init_join(**content)
         self.output_slot = "result"
@@ -177,16 +172,6 @@ class JoinW(VBox):
                   inv_mask: str,
                   how: Literal['inner', 'outer']
                   ) -> Join:
-        """kw = dict(
-            primary_cols=primary_cols,
-            related_cols=related_cols,
-            primary_on=primary_on,
-            related_on=related_on,
-            primary_inp=primary_inp,
-            related_inp=related_inp,
-            inv_mask=inv_mask,
-            how=how
-            )"""
         if primary_inp == "parent":
             primary_wg = self.parent
             related_wg = self.get_widget_by_key(related_inp)
@@ -195,15 +180,10 @@ class JoinW(VBox):
             assert isinstance(primary_inp, tuple)
             primary_wg = self.get_widget_by_key(primary_inp)
             related_wg = self.parent
-            """second_wg = primary_wg
-            if second_wg.output_dtypes is None:
-            second_wg."""
         s = self.input_module.scheduler()
         with s:
             assert primary_wg is not None
             assert related_wg is not None
-            assert primary_wg.output_dtypes is not None
-            assert related_wg.output_dtypes is not None
             join = Join(how=how, inv_mask=inv_mask, scheduler=s)
             join.create_dependent_modules(
                 related_module=cast(Module, related_wg.output_module),
