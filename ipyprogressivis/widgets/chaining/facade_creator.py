@@ -8,7 +8,7 @@ from progressivis.table.api import RangeQuery, TableFacade
 from progressivis.stats.api import Histogram1D, KLLSketch
 from ..df_grid import DataFrameGrid
 from .utils import (TreeTab, make_button, stage_register, VBox, TypedBase, IpyVBoxTyped,
-                    amend_last_record, get_recording_state, disable_all)
+                    amend_last_record, get_recording_state, disable_all, runner, needs_dtypes)
 from progressivis.io.api import Variable
 from ..vega import VegaWidget
 from .._stacked_hist_schema import stacked_hist_spec_no_data
@@ -663,6 +663,7 @@ class FacadeCreatorW(VBox):
     def __init__(self) -> None:
         super().__init__()
 
+    @needs_dtypes
     def initialize(self) -> None:
         self._dyn_viewer = DynViewer(
             self.dtypes, cast(Module, self.input_module), self.input_slot
@@ -684,9 +685,9 @@ class FacadeCreatorW(VBox):
         self.dag_running()
         disable_all(self)
 
+    @runner
     def run(self) -> None:
         self._dyn_viewer.run_batch(self)
-        self.post_run()
 
 
 stage_register["Facade"] = FacadeCreatorW

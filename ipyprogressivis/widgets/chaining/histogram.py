@@ -1,4 +1,4 @@
-from .utils import make_button, stage_register, VBoxTyped, TypedBase
+from .utils import make_button, stage_register, VBoxTyped, TypedBase, needs_dtypes
 from ..utils import historized_widget
 from ._multi_series import histogram1d_no_data
 import ipywidgets as ipw
@@ -26,6 +26,7 @@ class HistogramW(VBoxTyped):
         btn_apply: ipw.Button
         vega: HVegaWidget
 
+    @needs_dtypes
     def initialize(self) -> None:
         self.output_dtypes = None
         self._axis = {}

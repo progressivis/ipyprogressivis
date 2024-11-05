@@ -7,7 +7,8 @@ from .utils import (
     TypedBase,
     get_recording_state,
     amend_last_record,
-    runner
+    runner,
+    needs_dtypes
 )
 import ipywidgets as ipw
 import numpy as np
@@ -233,6 +234,7 @@ class PColumnsW(VBoxTyped):
         freeze_ck: ipw.Checkbox
         btn_apply: ipw.Button
 
+    @needs_dtypes
     def initialize(self) -> None:
         self._col_widgets: Dict[Tuple[str, str], FuncW] = {}
         self._computed: List[Optional[FuncW]] = []
@@ -338,9 +340,9 @@ class PColumnsW(VBoxTyped):
     @runner
     def run(self) -> None:
         content = self.frozen_kw
+        print("BEGIN OF columns/view")
         self.output_module = self.init_module(**content)
         self.output_slot = "result"
-        self.post_run()
 
     def init_module(self, comp_list: list[dict[str, str]],
                     columns: List[str]) -> Repeater:

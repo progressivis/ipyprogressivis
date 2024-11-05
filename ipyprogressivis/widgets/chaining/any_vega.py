@@ -1,5 +1,5 @@
 from .utils import (make_button, stage_register, VBoxTyped, TypedBase, ModuleOrFacade,
-                    amend_last_record, get_recording_state, disable_all)
+                    amend_last_record, get_recording_state, disable_all, runner)
 from ..utils import historized_widget
 import ipywidgets as ipw
 from ..vega import VegaWidget
@@ -240,10 +240,10 @@ class AnyVegaW(VBoxTyped):
         self.child.vega = HVegaWidget(spec=vega_schema)
         self.dag_running()
 
+    @runner
     def run(self) -> AnyType:
         content = self.frozen_kw
         self.init_modules(**content)
-        self.post_run()
         return self.child.vega
 
 

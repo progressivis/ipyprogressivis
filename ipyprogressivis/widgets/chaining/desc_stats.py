@@ -27,7 +27,7 @@ from .._hist1d_schema import hist1d_spec_no_data, kll_spec_no_data
 from .._hist2d_schema import hist2d_spec_no_data
 from .._corr_schema import corr_spec_no_data
 from .._bar_schema import bar_spec_no_data
-from .utils import TreeTab, make_button, stage_register, VBox
+from .utils import TreeTab, make_button, stage_register, VBox, needs_dtypes
 from ..utils import historized_widget, HistorizedBox
 
 from typing import (
@@ -868,6 +868,7 @@ class DescStatsW(VBox):
     def __init__(self) -> None:
         super().__init__()
 
+    @needs_dtypes
     def initialize(self) -> None:
         assert isinstance(self.input_module, Module)
         self._dyn_viewer = DynViewer(self.dtypes, self.input_module, self.input_slot)

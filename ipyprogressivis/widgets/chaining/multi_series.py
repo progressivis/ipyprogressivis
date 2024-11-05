@@ -1,4 +1,5 @@
-from .utils import make_button, stage_register, dongle_widget, VBoxTyped, TypedBase, replay_next
+from .utils import (make_button, stage_register, dongle_widget, VBoxTyped,
+                    TypedBase, replay_next, needs_dtypes)
 from ..utils import historized_widget
 from ._multi_series import multi_series_no_data
 import ipywidgets as ipw
@@ -24,6 +25,7 @@ class MultiSeriesW(VBoxTyped):
         btn_apply: ipw.Button
         vega: HVegaWidget
 
+    @needs_dtypes
     def initialize(self) -> None:
         self.output_dtypes = None
         self._axis = []

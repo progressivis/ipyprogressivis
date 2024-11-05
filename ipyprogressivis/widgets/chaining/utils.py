@@ -56,7 +56,7 @@ replay_list: List[Dict[str, AnyType]] = []
 # chaining_boxes_to_make = []
 md_list: list[str] = []
 widget_list: AnyType = []
-REPLAY_BATCH = False
+REPLAY_BATCH: bool = False
 
 
 def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
@@ -194,6 +194,7 @@ class Proxy:
         else:
             self.__carrier.make_progress_bar()
         parent_widget = self.__carrier
+        print("replay_next_if() from resume")
         replay_next_if(self.__carrier)
         return self.__carrier
 
@@ -258,6 +259,8 @@ def unmagic(code: str) -> str:
 def labcommand(cmd: str, **kw: AnyType) -> None:
     if is_replay_batch() and cmd == "progressivis:create_stage_cells":
         code = kw["code"]
+        cell_content = code
+        _ = cell_content
         line = code.split("\n")[0]
         wg = fetch_widget(line)
         widget_list.append((kw["md"], wg))
@@ -355,9 +358,11 @@ def replay_next(obj: Optional[Union["Constructor", "NodeVBox"]] = None) -> None:
     if (
         parent is not None and tuple(parent) in PARAMS["deleted_stages"]
     ):  # skipping deleted
+        print("replay_next_if() from replay_next 1")
         return replay_next_if()
     if "deleted" in stage:
         PARAMS["deleted_stages"].add((stage["title"], stage["number"]))
+        print("replay_next_if() from replay_next 2")
         return replay_next_if()
     if obj is None and stage and "ftype" not in stage:  # not a loader => has a parent
         assert parent is not None
@@ -992,6 +997,10 @@ def is_replay_only() -> bool:
     return is_replay() and not PARAMS["step_by_step"]
 
 
+def is_step() -> bool:
+    return cast(bool, PARAMS["step_by_step"])
+
+
 def is_replay_batch() -> bool:
     return REPLAY_BATCH and not PARAMS["step_by_step"]
 
@@ -1000,6 +1009,9 @@ def get_stage_cell(
     key: str, num: int, end: str, frozen: AnyType = None
 ) -> tuple[str, bool, bool]:
     if key == "Python":
+        if is_step() and frozen:
+            assert "cell" in frozen
+            return frozen["cell"], True, False  # editable, not running
         if is_replay() and frozen:
             assert "cell" in frozen
             return frozen["cell"], False, True
@@ -1011,6 +1023,9 @@ def get_loader_cell(
     key: str, ftype: str, num: int, end: str, frozen: AnyType = None
 ) -> tuple[str, bool, bool]:
     if ftype == "custom":
+        if is_step() and frozen:
+            assert "cell" in frozen
+            return frozen["cell"], True, False  # editable, not running
         if is_replay() and frozen:
             assert "cell" in frozen
             return frozen["cell"], False, True
@@ -1060,6 +1075,7 @@ def add_new_loader(
     code, rw, run = get_loader_cell(
         key=alias or title, ftype=ftype, num=n, end=end, frozen=frozen
     )
+    print("RUN IS:", run)
     labcommand(
         "progressivis:create_stage_cells", frozen=frozen, tag=tag, md=md, code=code, rw=rw, run=run
     )
@@ -1282,16 +1298,19 @@ class GuestWidget:
             # chaining_boxes_to_make.append(self)
         else:
             self.carrier.make_progress_bar()
+        print("replay_next_if() from post_run", self)
         replay_next_if(self.carrier)
         return self.carrier
 
     def post_delete(self) -> "NodeCarrier":
         self.carrier.children = (ipw.Label("deleted"),)
+        print("replay_next_if() from post_delete")
         replay_next_if()
         return self.carrier
 
     def manage_replay(self) -> None:
         if self._do_replay_next:
+            print("replay_next_if() from manage_replay")
             replay_next_if()
 
 

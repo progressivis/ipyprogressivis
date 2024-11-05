@@ -1,4 +1,4 @@
-from .utils import make_button, stage_register, VBoxTyped, TypedBase
+from .utils import make_button, stage_register, VBoxTyped, TypedBase, needs_dtypes
 from ..utils import historized_widget
 from .._hist2d_schema import hist2d_spec_no_data
 import ipywidgets as ipw
@@ -29,6 +29,7 @@ class HeatmapW(VBoxTyped):
         vega: HVegaWidget
     _histogram2d: Histogram2D | None
 
+    @needs_dtypes
     def initialize(self) -> None:
         self.output_dtypes = None
         self.c_.x_col = ipw.Dropdown(
