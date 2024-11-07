@@ -1,3 +1,4 @@
+# type: ignore
 # flake8: noqa
 from .constructor import Constructor
 from .desc_stats import DescStatsW
@@ -14,7 +15,7 @@ from .histogram import HistogramW
 from .iscaler import ScalerW
 from .any_vega import AnyVegaW
 from .code_cell import CodeCellW
-
+from .range_query_2d import RangeQuery2DW
 __all__ = [
     "Constructor",
     "DescStatsW",
@@ -30,5 +31,6 @@ __all__ = [
     "FacadeCreatorW",
     "HeatmapW",
     "AnyVegaW",
-    "CodeCellW"
+    "CodeCellW",
+    "RangeQuery2DW"
     ]

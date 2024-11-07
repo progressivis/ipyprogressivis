@@ -15,6 +15,7 @@ from ..csv_sniffer import CSVSniffer
 from collections import defaultdict
 from .. import DagWidgetController  # type: ignore
 from .. import PsBoard
+from pathlib import Path
 import copy
 from typing import (
     Any,
@@ -57,6 +58,19 @@ replay_list: List[Dict[str, AnyType]] = []
 md_list: list[str] = []
 widget_list: AnyType = []
 REPLAY_BATCH: bool = False
+
+
+def dot_progressivis() -> str:
+    home = HOME
+    pv_dir: Path | str = f"{home}/.progressivis/"
+    if os.path.isdir(pv_dir):
+        return str(pv_dir)
+    dn = os.path.dirname
+    repo_dir = dn(dn(dn(dn(__file__))))
+    pv_dir = Path(repo_dir) / ".progressivis"
+    if os.path.isdir(pv_dir):
+        return str(pv_dir)
+    return ""
 
 
 def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
@@ -1224,6 +1238,11 @@ class GuestWidget:
     def dot_progressivis(self) -> str:
         home = HOME
         pv_dir = f"{home}/.progressivis/"
+        if os.path.isdir(pv_dir):
+            return pv_dir
+        dn = os.path.dirname
+        repo_dir = dn(dn(dn(dn(__file__))))
+        pv_dir = str(Path(repo_dir) / ".progressivis")
         if os.path.isdir(pv_dir):
             return pv_dir
         return ""

@@ -1,129 +1,130 @@
-from .utils import make_button, stage_register, VBoxTyped, TypedBase, needs_dtypes
-from ..utils import historized_widget
-from .._hist2d_schema import hist2d_spec_no_data
+# type: ignore
+from .utils import (
+    make_button,
+    stage_register,
+    VBoxTyped,
+    TypedBase,
+    needs_dtypes,
+    amend_last_record,
+    get_recording_state,
+    replay_next,
+    runner,
+)
 import ipywidgets as ipw
-from ..vega import VegaWidget
-import numpy as np
-from progressivis.core.api import Scheduler, Sink
-from progressivis.stats.api import Histogram2D
-from typing import Any as AnyType, Dict, cast, Type, TypeAlias
+from progressivis.core.api import Module
+from progressivis.vis.heatmap import Heatmap
+from progressivis.stats.api import Histogram2D, Min, Max
+from typing import Any as AnyType
 
 WidgetType = AnyType
 _l = ipw.Label
 
-N = 4  # 1X + 3Y
-
-
-HVegaWidget: TypeAlias = cast(Type[AnyType],
-                              historized_widget(VegaWidget, "update"))  # noqa: F821
+DIM = 512
 
 
 class HeatmapW(VBoxTyped):
     class Typed(TypedBase):
-        x_col: ipw.Dropdown
-        y_col: ipw.Dropdown
-        input_: ipw.Dropdown
-        min_: ipw.Dropdown
-        max_: ipw.Dropdown
-        btn_apply: ipw.Button
-        vega: HVegaWidget
-    _histogram2d: Histogram2D | None
+        choice_x: ipw.Dropdown
+        choice_y: ipw.Dropdown
+        freeze_ck: ipw.Checkbox
+        start_btn: ipw.Button
+        image: ipw.Image | ipw.Label
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.column_x: str = ""
+        self.column_y: str = ""
+
+    def obs_columns(self, change: dict[str, AnyType]) -> None:
+        if self.child.choice_x.value and self.child.choice_y.value:
+            self.child.start_btn.disabled = False
+            self.column_x: str = self.child.choice_x.value.split(":")[0]
+            self.column_y: str = self.child.choice_y.value.split(":")[0]
+        else:
+            self.child.start_btn.disabled = True
 
     @needs_dtypes
     def initialize(self) -> None:
-        self.output_dtypes = None
-        self.c_.x_col = ipw.Dropdown(
-            options=list(self.dtypes.keys()) + [""],
+        self.output_dtypes = self.dtypes
+        self.col_types = {k: str(t) for (k, t) in self.dtypes.items()}
+        self.col_typed_names = {f"{n}:{t}": (n, t) for (n, t) in self.col_types.items()}
+        num_cols = [
+            col
+            for (col, (c, t)) in self.col_typed_names.items()
+            if (t.startswith("float") or t.startswith("int"))
+        ]
+        self.child.choice_x = ipw.Dropdown(
+            options=num_cols + [""],
             value="",
-            description="X:",
+            description="X",
             disabled=False,
+            # layout={"width": "initial"},
         )
-        self.c_.x_col.observe(self._dropdown_cb, "value")
-        self.c_.y_col = ipw.Dropdown(
-            options=list(self.dtypes.keys()) + [""],
+        self.child.choice_x.observe(self.obs_columns, "value")
+        self.child.choice_y = ipw.Dropdown(
+            options=num_cols + [""],
             value="",
-            description="Y:",
+            description="Y",
             disabled=False,
+            # layout={"width": "initial"},
         )
-        self.c_.y_col.observe(self._dropdown_cb, "value")
-        self.c_.input_ = ipw.Dropdown(
-            options=self.input_module.members + [""],  # type: ignore
-            value="",
-            description="Input:",
-            disabled=False,
+        self.child.choice_y.observe(self.obs_columns, "value")
+        self.child.image = ipw.Label()
+        is_rec = get_recording_state()
+        self.child.freeze_ck = ipw.Checkbox(
+            description="Freeze", value=is_rec, disabled=(not is_rec)
         )
-        self.c_.input_.observe(self._dropdown_cb, "value")
-        self.c_.min_ = ipw.Dropdown(
-            options=self.input_module.members + [""],  # type: ignore
-            value="",
-            description="Min:",
-            disabled=False,
+        self.child.start_btn = make_button(
+            "Start", cb=self._start_btn_cb, disabled=True
         )
-        self.c_.min_.observe(self._dropdown_cb, "value")
-        self.c_.max_ = ipw.Dropdown(
-            options=self.input_module.members + [""],  # type: ignore
-            value="",
-            description="Max:",
-            disabled=False,
-        )
-        self.c_.max_.observe(self._dropdown_cb, "value")
-        self.c_.btn_apply = self._btn_ok = make_button(
-            "Apply", disabled=True, cb=self._btn_apply_cb
-        )
+        replay_next()
 
-    def _dropdown_cb(self,  change: Dict[str, AnyType]) -> None:
-        for widget in self.children:
-            if not isinstance(widget, ipw.Dropdown):
-                continue
-            if not widget.value:
-                self.c_.btn_apply.disabled = True
-                return
-        self.c_.btn_apply.disabled = False
+    def _start_btn_cb(self, btn: ipw.Button) -> None:
+        assert self.column_x and self.column_y
+        xy = dict(X=self.column_x, Y=self.column_y)
+        if self.child.freeze_ck.value:
+            amend_last_record({"frozen": xy})
+        self.init_heatmap(xy)
+        btn.disabled = True
 
-    def _update_vw(self, s: Scheduler, run_number: int) -> None:
-        """
-        """
-        if self._histogram2d is None:
-            return
-        if not self._histogram2d.result:
-            return
-        last = self._histogram2d.result.last()
-        assert last
-        res = last.to_dict()
-        arr = res["array"]
-        maxa = arr.max()
-        if maxa != 0:
-            hist = np.cbrt(arr/maxa)
-        else:
-            hist = arr
-        self.c_.vega.update("data", insert=hist, remove="true")
+    def init_heatmap(self, ctx) -> None:
+        col_x = ctx["X"]
+        col_y = ctx["Y"]
+        print("XY", ctx)
+        self.child.image = ipw.Image(value=b"\x00", width=DIM, height=DIM)
+        s = self.input_module.scheduler()
+        query = self.input_module
+        with s:
+            histogram2d = Histogram2D(col_x, col_y, xbins=DIM, ybins=DIM, scheduler=s)
+            # Connect the module to the csv results and the min,max bounds to rescale
+            histogram2d.input.table = query.output.result
+            min_ = Min(scheduler=s)
+            min_.input.table = query.output.result[col_x, col_y]
+            max_ = Max(scheduler=s)
+            max_.input.table = query.output.result[col_x, col_y]
+            histogram2d.input.min = min_.output.result
+            histogram2d.input.max = max_.output.result
+            # Create a module to create an heatmap image from the histogram2d
+            heatmap = Heatmap(scheduler=s)
+            # Connect it to the histogram2d
+            heatmap.input.array = histogram2d.output.result
 
-    def _btn_apply_cb(self, btn: AnyType) -> None:
-        """
-        """
-        facade = self.input_module
-        scheduler = facade.scheduler()
-        with scheduler:
-            histogram2d = Histogram2D(
-                x_column=self.c_.x_col.value,
-                y_column=self.c_.y_col.value, scheduler=scheduler
-            )
-            histogram2d.input.table = facade.output[self.c_.input_.value]
-            histogram2d.input.min = facade.output[self.c_.min_.value]
-            histogram2d.input.max = facade.output[self.c_.max_.value]
-            histogram2d.params.xbins = 64
-            histogram2d.params.ybins = 64
-            sink = Sink(scheduler=scheduler)
-            sink.input.inp = histogram2d.output.result
-            self._histogram2d = histogram2d
-        self.c_.vega = HVegaWidget(spec=hist2d_spec_no_data)
-        self.input_module.scheduler().on_tick(self._update_vw)
-        self.dag_running()
-        self.c_.btn_apply.disabled = True
-        for widget in self.children:
-            if not isinstance(widget, ipw.Dropdown):
-                continue
-            widget.disabled = True
+            async def _after_run(m: Module, run_number: int) -> None:
+                assert isinstance(m, Heatmap)
+                image = m.get_image_bin()  # get the image from the heatmap
+                if image is not None:
+                    self.child.image.value = (
+                        image  # Replace the displayed image with the new one
+                    )
+
+            heatmap.on_after_run(_after_run)  # Install the callback
+            return heatmap
+
+    @runner
+    def run(self) -> AnyType:
+        content = self.frozen_kw
+        self.output_module = self.init_heatmap(content)
+        self.output_slot = "result"
 
 
 stage_register["Heatmap"] = HeatmapW

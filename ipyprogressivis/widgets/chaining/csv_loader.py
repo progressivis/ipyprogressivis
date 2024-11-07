@@ -7,7 +7,7 @@ from progressivis.io.api import SimpleCSVLoader
 from progressivis.core.api import Module
 from progressivis.table.api import PTable, Constant
 from .utils import (make_button, get_schema, VBoxTyped, IpyVBoxTyped, TypedBase,
-                    amend_last_record, get_recording_state, disable_all, runner)
+                    amend_last_record, get_recording_state, disable_all, runner, dot_progressivis)
 import os
 import time
 import json as js
@@ -137,7 +137,7 @@ class CsvLoaderW(VBoxTyped):
             f"no '{home}/.progressivis/' directory found",
             f"no '{home}/.progressivis/bookmarks' file found",
         ]
-        pv_dir = f"{home}/.progressivis/"
+        pv_dir = dot_progressivis()
         if os.path.isdir(pv_dir):
             bookmarks_file = f"{pv_dir}/bookmarks"
             if os.path.exists(bookmarks_file):

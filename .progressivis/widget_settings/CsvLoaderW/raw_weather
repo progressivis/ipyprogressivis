@@ -1,0 +1,72 @@
+{
+    "urls": [
+        "https://www.aviz.fr/nyc-taxi/nyc_weather_2015.csv"
+    ],
+    "throttle": 0,
+    "sniffed_params": {
+        "delimiter": ",",
+        "header": 0,
+        "index_col": false,
+        "usecols": [
+            "Date",
+            "Max.TemperatureF",
+            "Mean.TemperatureF",
+            "Min.TemperatureF",
+            "PrecipitationIn"
+        ],
+        "dtype": {
+            "Date": "str",
+            "PrecipitationIn": "float64"
+        },
+        "engine": null,
+        "converters": null,
+        "true_values": null,
+        "false_values": null,
+        "skipinitialspace": false,
+        "skiprows": null,
+        "skipfooter": 0,
+        "nrows": null,
+        "na_values": {
+            "PrecipitationIn": "T"
+        },
+        "keep_default_na": true,
+        "na_filter": true,
+        "verbose": false,
+        "skip_blank_lines": true,
+        "parse_dates": [
+            "Date"
+        ],
+        "keep_date_col": false,
+        "date_format": null,
+        "dayfirst": false,
+        "cache_dates": true,
+        "iterator": false,
+        "chunksize": null,
+        "compression": "infer",
+        "thousands": null,
+        "decimal": ".",
+        "lineterminator": null,
+        "quotechar": "\"",
+        "quoting": 0,
+        "doublequote": false,
+        "escapechar": null,
+        "comment": null,
+        "encoding": null,
+        "encoding_errors": "strict",
+        "dialect": null,
+        "on_bad_lines": "error",
+        "delim_whitespace": false,
+        "low_memory": true,
+        "memory_map": false,
+        "float_precision": null,
+        "storage_options": null
+    },
+    "schema": {
+        "Date": "datetime64",
+        "Max_TemperatureF": "int64",
+        "Mean_TemperatureF": "int64",
+        "Min_TemperatureF": "int64",
+        "PrecipitationIn": "string"
+    },
+    "filter_": {}
+}
