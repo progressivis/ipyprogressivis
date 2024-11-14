@@ -321,13 +321,19 @@ class Recorder:
         )
         labcommand("progressivis:set_backup", backup=self.tape)
 
-    def amend_last_record(self, content: Dict[str, AnyType]) -> None:
+    def amend_nth_record(self, nth: int, content: Dict[str, AnyType]) -> None:
         unpacked = bunpack(self.tape)
-        current = b642json(unpacked[-1])
+        current = b642json(unpacked[nth])
         current.update(content)
-        unpacked[-1] = json2b64(current)
+        unpacked[nth] = json2b64(current)
         self.tape = ";".join(unpacked)
         labcommand("progressivis:set_backup", backup=self.tape)
+
+    def amend_last_record(self, content: Dict[str, AnyType]) -> None:
+        self.amend_nth_record(-1, content)
+
+    def get_last_record_index(self) -> int:
+        return len(bunpack(self.tape)) - 1
 
 
 def get_recorder() -> Recorder:
@@ -346,6 +352,20 @@ def amend_last_record(content: Dict[str, AnyType]) -> None:
     if rec is None:
         return
     rec.amend_last_record(content)
+
+
+def amend_nth_record(i: int, content: Dict[str, AnyType]) -> None:
+    rec = get_recorder()
+    if rec is None:
+        return
+    rec.amend_nth_record(i, content)
+
+
+def get_last_record_index() -> int | None:
+    rec = get_recorder()
+    if rec is None:
+        return None
+    return rec.get_last_record_index()
 
 
 def reset_recorder(previous: str = "", init_val: str = "") -> None:
@@ -683,6 +703,10 @@ def get_recording_state() -> bool:
     return recording_state
 
 
+def is_recording() -> bool:
+    return recording_state
+
+
 def set_recording_state(val: bool) -> None:
     global recording_state
     recording_state = val
@@ -808,7 +832,7 @@ class ChainingMixin:
 
     def _make_chaining_box(self: ChainingProtocol) -> ipw.Box:
         sel = ipw.Dropdown(
-            options=[""] + list(stage_register.keys()),
+            options=[""] + list(sorted(stage_register.keys())),
             value="",
             description="Next stage",
             disabled=False,

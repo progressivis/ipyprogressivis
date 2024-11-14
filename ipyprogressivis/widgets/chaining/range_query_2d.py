@@ -4,8 +4,9 @@ from .utils import (
     stage_register,
     VBoxTyped,
     TypedBase,
-    amend_last_record,
-    get_recording_state,
+    amend_nth_record,
+    get_last_record_index,
+    is_recording,
     runner,
     needs_dtypes,
 )
@@ -27,15 +28,27 @@ WidgetType = AnyType
 class RangeQuery2DW(VBoxTyped):
     class Typed(TypedBase):
         grid: DataFrameGrid
-        freeze_ck: ipw.Checkbox
-        start_btn: ipw.Button
-        unfilter_btn: ipw.Button
+        buttons: ipw.HBox
 
     def __init__(self) -> None:
         super().__init__()
         self.column_x: str = ""
         self.column_y: str = ""
         self.index: BinningIndexND | None = None
+        self._saved_settings: dict[str, float] = {}
+        self._record_index: int | None = None
+        self._freeze_btn = make_button(
+            "Freeze", cb=self._freeze_btn_cb, disabled=True
+        )
+        self._unfreeze_btn = make_button(
+            "Unfreeze", cb=self._unfreeze_btn_cb, disabled=True
+        )
+        self._start_btn = make_button(
+            "Start", cb=self._start_btn_cb, disabled=True
+        )
+        self._unfilter_btn = make_button(
+            "Unfilter", cb=self._unfilter_btn_cb, disabled=True
+        )
 
     @needs_dtypes
     def initialize(self) -> None:
@@ -88,28 +101,28 @@ class RangeQuery2DW(VBoxTyped):
             repeat="100px",
             sizes={"Column": "200px", "Filter": "200px"},
         )
-        is_rec = get_recording_state()
-        self.child.freeze_ck = ipw.Checkbox(
-            description="Freeze", value=is_rec, disabled=(not is_rec)
-        )
-        self.child.start_btn = make_button(
-            "Start", cb=self._start_btn_cb, disabled=True
-        )
-        self.child.unfilter_btn = make_button(
-            "Unfilter", cb=self._unfilter_btn_cb, disabled=True
-        )
-        # self.input_module.on_after_run(self.refresh)
-        # self.init_min_max()
+        self._freeze_btn.disabled = not is_recording()
         self.child.grid.observe_col("Column", self.obs_columns)
+        self.child.buttons = ipw.HBox([self._freeze_btn, self._unfreeze_btn,
+                                       self._start_btn, self._unfilter_btn])
+        self.reset_buttons()
+        if is_recording():
+            self._record_index = get_last_record_index() + 1
+
+    def reset_buttons(self) -> None:
+        self._freeze_btn.disabled = True
+        self._unfreeze_btn.disabled = True
+        self._saved_settings = {}
 
     def obs_columns(self, change: dict[str, AnyType]) -> None:
         df = self.child.grid.df
         if df.loc["X", "Column"].value and df.loc["Y", "Column"].value:
-            self.child.start_btn.disabled = False
+            self._start_btn.disabled = False
+            self._freeze_btn.disabled = not is_recording()
             self.column_x: str = df.loc["X", "Column"].value.split(":")[0]
             self.column_y: str = df.loc["Y", "Column"].value.split(":")[0]
         else:
-            self.child.start_btn.disabled = True
+            self._start_btn.disabled = True
 
     def grid_update(self, m: Module, run_number: int) -> None:
         df = self.child.grid.df
@@ -140,12 +153,12 @@ class RangeQuery2DW(VBoxTyped):
         else:
             slider_y.min = min_y
             slider_y.max = max_y
-        if self.child.unfilter_btn.disabled:
+        if self._unfilter_btn.disabled:
             slider_x.value = [min_x, max_x]
             slider_x.step = (max_x - min_x) / 10
             slider_y.value = [min_y, max_y]
             slider_y.step = (max_y - min_y) / 10
-            self.child.unfilter_btn.disabled = False
+            self._unfilter_btn.disabled = False
 
         def observer(_):
             async def _coro():
@@ -173,8 +186,12 @@ class RangeQuery2DW(VBoxTyped):
             # Create a querying module
             query = RangeQuery2d(column_x=col_x, column_y=col_y, scheduler=s)
             # Variable modules allow to dynamically modify their values; here, the query ranges
-            var_min = Variable(name="var_min", scheduler=s)
-            var_max = Variable(name="var_max", scheduler=s)
+            init_val_min = ({col_x: ctx.get("x_min"), col_y: ctx.get("y_min")}
+                            if "x_min" in ctx else None)
+            var_min = Variable(init_val_min, name="var_min", scheduler=s)
+            init_val_max = ({col_x: ctx.get("x_max"), col_y: ctx.get("y_max")}
+                            if "x_max" in ctx else None)
+            var_max = Variable(init_val_max, name="var_max", scheduler=s)
             self.var_min = var_min
             self.var_max = var_max
             query.input.lower = var_min.output.result
@@ -185,9 +202,9 @@ class RangeQuery2DW(VBoxTyped):
             self.index = index
             sink = Sink(scheduler=s)
             sink.input.inp = query.output.result
-            # self.output_module = query
-            # self.output_slot = "result"
-            # self.output_dtypes = self.dtypes
+            self.output_module = query
+            self.output_slot = "result"
+            self.output_dtypes = self.dtypes
             if self.column_x:
                 self.index.on_after_run(self.grid_update)
             return query
@@ -198,12 +215,42 @@ class RangeQuery2DW(VBoxTyped):
         self.output_module = self.init_min_max(content)
         self.output_slot = "result"
 
+    def _save_settings(self) -> None:
+        df = self.child.grid.df
+        assert self.column_x and self.column_y
+        slider_x = df.loc["X", "Filter"]
+        slider_y = df.loc["Y", "Filter"]
+        x_min, x_max = slider_x.value
+        y_min, y_max = slider_y.value
+        self._saved_settings = dict(
+            x_min=x_min, x_max=x_max,
+            y_min=y_min, y_max=y_max
+        )
+
+    def _freeze_btn_cb(self, btn: ipw.Button) -> None:
+        self.child.buttons.children[1].disabled = False
+        assert self.column_x and self.column_y
+        self._save_settings()
+        content = dict(X=self.column_x, Y=self.column_y)
+        if self._saved_settings:
+            content = dict(**content, **self._saved_settings)
+            i = self._record_index
+            assert i is not None
+            amend_nth_record(i, {"frozen": content})
+
+    def _unfreeze_btn_cb(self, btn: ipw.Button) -> None:
+        self._saved_settings = {}
+        self.child.buttons.children[1].disabled = True
+
     def _start_btn_cb(self, btn: ipw.Button) -> None:
         assert self.column_x and self.column_y
-        xy = dict(X=self.column_x, Y=self.column_y)
-        if self.child.freeze_ck.value:
-            amend_last_record({"frozen": xy})
-        self.init_min_max(xy)
+        content = dict(X=self.column_x, Y=self.column_y)
+        if self._saved_settings:
+            content = dict(**content, **self._saved_settings)
+            i = get_last_record_index()
+            assert i is not None
+            amend_nth_record(i, {"frozen": content})
+        self.init_min_max(content)
         btn.disabled = True
         self.dag_running()
         self.make_chaining_box()

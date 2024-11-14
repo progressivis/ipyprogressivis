@@ -16,6 +16,7 @@ from .iscaler import ScalerW
 from .any_vega import AnyVegaW
 from .code_cell import CodeCellW
 from .range_query_2d import RangeQuery2DW
+from .quantiles import QuantilesW
 __all__ = [
     "Constructor",
     "DescStatsW",
@@ -32,5 +33,6 @@ __all__ = [
     "HeatmapW",
     "AnyVegaW",
     "CodeCellW",
-    "RangeQuery2DW"
+    "RangeQuery2DW",
+    "QuantilesW"
     ]
