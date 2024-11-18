@@ -2,12 +2,14 @@ import ipywidgets as ipw
 import pandas as pd
 import panel as pn
 from jupyter_bokeh.widgets import BokehModel  # type: ignore
+from glob import glob
 from ..csv_sniffer import CSVSniffer
 from progressivis.io.api import SimpleCSVLoader
 from progressivis.core.api import Module
 from progressivis.table.api import PTable, Constant
 from .utils import (make_button, get_schema, VBoxTyped, IpyVBoxTyped, TypedBase,
-                    amend_last_record, get_recording_state, disable_all, runner, dot_progressivis)
+                    amend_last_record, get_recording_state, disable_all, runner,
+                    glob_url, dot_progressivis)
 import os
 import time
 import json as js
@@ -19,14 +21,15 @@ HOME = os.getenv("HOME")
 assert HOME is not None
 
 
-def _expand_url(url: str) -> str:
-    if url[0] == "~":
-        return f"{HOME}/{url[1:]}"
-    return url
-
-
 def expand_urls(urls: list[str]) -> list[str]:
-    return [_expand_url(url) for url in urls if url]
+    exp_urls = [os.path.expanduser(url) for url in urls if url]
+    res = []
+    for url in exp_urls:
+        if url.startswith("http://") or url.startswith("https://"):
+            res.extend(glob_url(url))
+        else:
+            res.extend(glob(url))
+    return res
 
 
 def _relative_url(url: str) -> str:
@@ -271,7 +274,7 @@ class CsvLoaderW(VBoxTyped):
             to_sniff = self.c_.to_sniff.value.strip()
             if not to_sniff:
                 to_sniff = urls[0]
-            to_sniff = _expand_url(to_sniff)
+            to_sniff = expand_urls([to_sniff])[0]
             n_lines = self.c_.n_lines.value
             self._sniffer = CSVSniffer(path=to_sniff, lines=n_lines)
             self.c_.sniffer = self._sniffer.box

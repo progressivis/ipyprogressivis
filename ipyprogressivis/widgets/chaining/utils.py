@@ -5,6 +5,7 @@ import json
 import base64
 import logging
 import ipywidgets as ipw
+import fsspec  # type: ignore
 from progressivis.table.dshape import dataframe_dshape
 from progressivis.vis import DataShape
 from progressivis.core.api import Sink, Scheduler, Module
@@ -58,6 +59,13 @@ replay_list: List[Dict[str, AnyType]] = []
 md_list: list[str] = []
 widget_list: AnyType = []
 REPLAY_BATCH: bool = False
+
+
+FSSPEC_HTTPS = fsspec.filesystem('https')
+
+
+def glob_url(url: str) -> list[str]:
+    return cast(list[str], FSSPEC_HTTPS.glob(url))
 
 
 def dot_progressivis() -> str:
