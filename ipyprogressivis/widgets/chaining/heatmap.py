@@ -18,7 +18,7 @@ from typing import Any as AnyType
 WidgetType = AnyType
 _l = ipw.Label
 
-DIM = 512
+MAX_DIM = 512
 
 
 def make_float(
@@ -37,6 +37,7 @@ def make_float(
 
 class HeatmapW(VBoxTyped):
     class Typed(TypedBase):
+        choice_dim: ipw.Dropdown
         choice_x: ipw.Dropdown
         choice_y: ipw.Dropdown
         # freeze_ck: ipw.Checkbox
@@ -69,6 +70,13 @@ class HeatmapW(VBoxTyped):
             for (col, (c, t)) in self.col_typed_names.items()
             if (t.startswith("float") or t.startswith("int"))
         ]
+        self.child.choice_dim = ipw.Dropdown(
+            options=[("512*512", "512"), ("256*256", "256"), ("128*128", "128")],
+            value="512",
+            description="Definition",
+            disabled=False,
+            # layout={"width": "initial"},
+        )
         self.child.choice_x = ipw.Dropdown(
             options=num_cols + [""],
             value="",
@@ -110,7 +118,8 @@ class HeatmapW(VBoxTyped):
         col_x = ctx["X"]
         col_y = ctx["Y"]
         print("XY", ctx)
-        self.child.image = ipw.Image(value=b"\x00", width=DIM, height=DIM)
+        DIM = int(self.child.choice_dim.value)
+        self.child.image = ipw.Image(value=b"\x00", width=MAX_DIM, height=MAX_DIM)
         s = self.input_module.scheduler()
         query = quantiles = self.input_module
         with s:
