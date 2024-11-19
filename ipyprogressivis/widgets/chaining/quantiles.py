@@ -61,7 +61,7 @@ class QuantilesW(VBoxTyped):
         s = self.input_module.scheduler()
         with s:
             quantiles = Quantiles(scheduler=s)
-            quantiles.input.table = self.input_module.output.result[*content]
+            quantiles.input.table = self.input_module.output.result[tuple(content)]
             sink = Sink(scheduler=s)
             sink.input.inp = quantiles.output.result
             sink2 = Sink(scheduler=s)
