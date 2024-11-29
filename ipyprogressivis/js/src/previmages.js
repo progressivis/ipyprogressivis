@@ -38,8 +38,10 @@ export class PrevImagesView extends widgets.DOMWidgetView {
     const previmgs = PrevImages(this);
     this.previmgs = previmgs;
     this.previmgs.template(this.el);
-    this.moduloCnt = 1;
+    this.moduloCnt = 0;
     this.counter = 0;
+    this.datePrev = Date.now();
+    this.initial = true;
     let that = this;
     elementReady("#" + previmgs.with_id("prevImages")).then(() =>
       previmgs.ready(that.model.get("target")),
@@ -49,10 +51,17 @@ export class PrevImagesView extends widgets.DOMWidgetView {
   }
   data_changed() {
     const target = this.model.get("target");
-    if (this.counter % this.moduloCnt === 0) {
+    if (this.counter % Math.max(this.moduloCnt, 1) === 0) {
       this.previmgs.update_vis(target);
     }
     this.counter++;
+    let now = Date.now();
+    let delay = now - this.datePrev;
+    this.datePrev = now;
+    if (this.moduloCnt == 0 && this.counter > 5) {
+      //initial
+      this.moduloCnt = Math.max(parseInt(2000 / delay), 1);
+    }
   }
 }
 
@@ -151,6 +160,11 @@ function PrevImages(ipyView) {
         _createSvg(w, h);
         firstTime = false;
       }
+      const freqSlider = $(swith_id("freqSlider"));
+      if (ipyView.initial === true && ipyView.moduloCnt > 1) {
+        freqSlider.get(0).value = freqSlider.get(0).max - ipyView.moduloCnt;
+        ipyView.initial = false;
+      }
       dataURL = $(that)[0].toDataURL();
       $(targetCanvas).hide();
       imageHistory.enqueueUnique(dataURL);
@@ -237,8 +251,12 @@ function PrevImages(ipyView) {
     );
     const freqSlider = $(swith_id("freqSlider"));
     freqSlider.change(function () {
-	ipyView.moduloCnt = Math.max(this.max-this.value, 1);
+      ipyView.moduloCnt = Math.max(this.max - this.value, 1);
+      ipyView.initial = false;
     });
+    if (ipyView.initial === true && ipyView.moduloCnt > 1) {
+      freqSlider.get(0).value = freqSlider.get(0).max - ipyView.moduloCnt;
+    }
     const filterSlider = $(swith_id("filterSlider"));
     filterSlider.change(function () {
       const value = this.value;
