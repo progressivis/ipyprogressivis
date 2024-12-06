@@ -1,5 +1,15 @@
-from .utils import (make_button, stage_register, VBoxTyped, TypedBase, ModuleOrFacade,
-                    amend_last_record, get_recording_state, disable_all, runner)
+from .utils import (
+    make_button,
+    stage_register,
+    VBoxTyped,
+    TypedBase,
+    ModuleOrFacade,
+    amend_last_record,
+    get_recording_state,
+    disable_all,
+    runner,
+    needs_dtypes,
+)
 from ..utils import historized_widget
 import ipywidgets as ipw
 from ..vega import VegaWidget
@@ -34,12 +44,15 @@ class AnyVegaW(VBoxTyped):
         grid: DataFrameGrid | None
         freeze_ck: ipw.Checkbox | None
         btn_apply: ipw.Button | None
+        refresh_ratio: ipw.IntSlider | None
         vega: HVegaWidget | None
 
     def __init__(self, *args: AnyType, **kw: AnyType) -> None:
         super().__init__(*args, **kw)
         self.cols_mapping: dict[str, Tuple[ModuleOrFacade, str, str, str]] = {}
+        self._updates_count: int = 0
 
+    @needs_dtypes
     def initialize(self) -> None:
         self.c_.mode = ipw.Dropdown(
             options=["tree", "view", "form", "text", "preview"],
@@ -47,25 +60,21 @@ class AnyVegaW(VBoxTyped):
             disabled=False,
         )
         self.c_.mode.observe(self._mode_cb, names="value")
-        self.json_editor = pn.widgets.JSONEditor(
-            value={}, mode="form", width=600
-        )
+        self.json_editor = pn.widgets.JSONEditor(value={}, mode="form", width=600)
         self.json_editor.param.trigger("value")
         self.c_.editor = pn.ipywidget(self.json_editor)
         self.c_.schemas = ipw.Dropdown(
-                options=[""] + os.listdir(self.widget_dir),
-                value="",
-                rows=5,
-                description="Schemas",
-                disabled=False,
-                layout=ipw.Layout(width="60%"),
-            )
+            options=[""] + os.listdir(self.widget_dir),
+            value="",
+            rows=5,
+            description="Schemas",
+            disabled=False,
+            layout=ipw.Layout(width="60%"),
+        )
         self.c_.schemas.observe(self._schemas_cb, names="value")
         self.c_.save_schema = ipw.HBox(
             [
-                make_button(
-                    "Fetch info", disabled=False, cb=self._btn_fetch_cols_cb
-                ),
+                make_button("Fetch info", disabled=False, cb=self._btn_fetch_cols_cb),
                 make_button(
                     "Save schema ...",
                     cb=self._save_schema_cb,
@@ -77,13 +86,14 @@ class AnyVegaW(VBoxTyped):
                     description="File:",
                     disabled=False,
                     layout=ipw.Layout(width="100%"),
-                )]
+                ),
+            ]
         )
         self.output_dtypes = None
         is_rec = get_recording_state()
-        self.c_.freeze_ck = ipw.Checkbox(description="Freeze",
-                                         value=is_rec,
-                                         disabled=(not is_rec))
+        self.c_.freeze_ck = ipw.Checkbox(
+            description="Freeze", value=is_rec, disabled=(not is_rec)
+        )
         self.c_.btn_apply = self._btn_ok = make_button(
             "Apply", disabled=False, cb=self._btn_apply_cb
         )
@@ -134,29 +144,30 @@ class AnyVegaW(VBoxTyped):
             options=members + [""],
             value="",
             disabled=False,
-            layout={'width': 'max-content'}
+            layout={"width": "max-content"},
         )
         df.loc[:, "Key"] = lambda: ipw.Dropdown(  # type: ignore
             options=[""],
             value="",
             disabled=True,
-
         )
         df.loc[:, "Processing"] = lambda: ipw.Dropdown(  # type: ignore
             options=["", "enumerate", "cbrt"],
             value="",
             disabled=False,
         )
-        self.c_.grid = DataFrameGrid(df, index_title="Vega columns",
-                                     grid_template_columns="100px 200px 100px 100px"
-                                     )
+        self.c_.grid = DataFrameGrid(
+            df,
+            index_title="Vega columns",
+            grid_template_columns="100px 200px 100px 100px",
+        )
         self.c_.grid.observe_col("Mapping", self._observe_keys)
 
     def _mode_cb(self, change: Dict[str, AnyType]) -> None:
         self.json_editor.mode = change["new"]
 
     def _schemas_cb(self, change: Dict[str, AnyType]) -> None:
-        base_name = change['new']
+        base_name = change["new"]
         if not base_name:
             self.json_editor.value = {}
             return
@@ -165,6 +176,12 @@ class AnyVegaW(VBoxTyped):
             self.json_editor.value = json.load(f)
 
     def _update_vw(self, _: Module, run_number: int) -> None:
+        slider = self.c_.refresh_ratio
+        ratio = max(slider.max - slider.value, 1)
+        self._updates_count += 1
+        if self._updates_count % ratio:
+            return
+
         def _processing(fnc: str, arr: NdArray) -> NdArray:
             if fnc == "enumerate":
                 return range(len(arr))  # type: ignore
@@ -211,13 +228,28 @@ class AnyVegaW(VBoxTyped):
                 row[k] = wg.value
         js_val = self.json_editor.value.copy()
         if self.child.freeze_ck.value:
-            amend_last_record({'frozen': dict(mapping_dict=df_dict, vega_schema=js_val)})
+            amend_last_record(
+                {"frozen": dict(mapping_dict=df_dict, vega_schema=js_val)}
+            )
         self.init_modules(mapping_dict=df_dict, vega_schema=js_val)
         disable_all(self)
+        self.c_.refresh_ratio = ipw.IntSlider(
+            value=100,
+            min=1,
+            max=100,
+            step=5,
+            description="Refresh ratio:",
+            style={"description_width": "initial"},
+            disabled=False,
+            continuous_update=False,
+            orientation="horizontal",
+            readout=True,
+            readout_format="d",
+        )
 
-    def init_modules(self,
-                     mapping_dict: dict[str, dict[str, str]],
-                     vega_schema: AnyType) -> None:
+    def init_modules(
+        self, mapping_dict: dict[str, dict[str, str]], vega_schema: AnyType
+    ) -> None:
         facade = self.input_module
         assert isinstance(facade, TableFacade)
         scheduler = facade.scheduler()

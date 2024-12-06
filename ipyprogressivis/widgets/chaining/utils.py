@@ -819,17 +819,19 @@ class ChainingMixin:
 
         return _cbk
 
-    def _progress_bar(self) -> ipw.FloatProgress:
-        prog_wg = ipw.FloatProgress(
-            description="Progress", min=0.0, max=1.0, layout={"width": "100%"}
+    def _progress_bar(self) -> ipw.IntProgress:
+        prog_wg = ipw.IntProgress(
+            description="Progress", min=0, max=1000, layout={"width": "100%"}
         )
         mod_ = self._output_module
         if not isinstance(mod_, Module):
             mod_ = mod_.module  # i.e. mod_ is a Facade
 
         def _proc(m: Module, r: int) -> None:
-            n, d = m.get_progress()
-            prog_wg.value = n / d if d else 0.
+            val_, max_ = m.get_progress()
+            prog_wg.value = val_
+            if prog_wg.max != max_:
+                prog_wg.max = max_
 
         mod_.on_after_run(_proc)
         return prog_wg
