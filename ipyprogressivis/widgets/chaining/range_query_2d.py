@@ -106,8 +106,6 @@ class RangeQuery2DW(VBoxTyped):
         self.child.buttons = ipw.HBox([self._freeze_btn, self._unfreeze_btn,
                                        self._start_btn, self._unfilter_btn])
         self.reset_buttons()
-        if is_recording():
-            self._record_index = get_last_record_index() + 1
 
     def reset_buttons(self) -> None:
         self._freeze_btn.disabled = True

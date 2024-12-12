@@ -85,6 +85,20 @@ export function removeTaggedCells(nbtracker, tag) {
   }
 }
 
+export function unlockMarkdownCells(nbtracker) {
+  // only cells having progressivis_tag became read-write
+  var crtWidget = nbtracker.currentWidget;
+  var notebook = crtWidget.content;
+  notebook.widgets.forEach(function (cell) {
+    if (
+      cell.model.metadata.progressivis_tag !== undefined &&
+      cell.model.sharedModel.cell_type === "markdown"
+    ) {
+      cell.model.sharedModel.setMetadata("editable", true);
+    }
+  });
+}
+
 export function setBackup(nbtracker, backupstring) {
   var crtWidget = nbtracker.currentWidget;
   var notebook = crtWidget.content;
@@ -128,8 +142,8 @@ export function createStageCells(nbtracker, tag, md, code, rw, run) {
   });
   notebook.activeCellIndex = i + 1;
   var cell = notebook.widgets[i + 1];
-  if(run){
-      NotebookActions.run(notebook, crtWidget.sessionContext);
+  if (run) {
+    NotebookActions.run(notebook, crtWidget.sessionContext);
   }
   cell.model.sharedModel.setMetadata("trusted", true);
   cell.model.sharedModel.setMetadata("editable", rw);

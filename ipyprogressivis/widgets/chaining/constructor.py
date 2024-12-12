@@ -155,7 +155,7 @@ class Constructor(RootVBox, TypedBox):
         )
         self.child.sbs = make_button(
             "Step by step", cb=self._step_by_step_cb, disabled=not (
-                self._backup.value and self.child.allow_overwrite.value
+                self._backup.value
             )
         )
         self.dag.register_widget(self, "root", "root", self.dom_id, [])
@@ -220,9 +220,10 @@ class Constructor(RootVBox, TypedBox):
     def _step_by_step_cb(self, btn: ipw.Button) -> None:
         PARAMS["step_by_step"] = True
         self.disable_all_btn()
-        PARAMS["replay_before_resume"] = True
-        reset_recorder()
-        set_recording_state(True)
+        if self.c_.allow_overwrite.value:
+            PARAMS["replay_before_resume"] = True
+            reset_recorder()
+            set_recording_state(True)
         self.do_replay(batch=False)
 
     @staticmethod

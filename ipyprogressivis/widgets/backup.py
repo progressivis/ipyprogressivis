@@ -29,6 +29,7 @@ class BackupWidget(widgets.DOMWidget):
     # is automatically synced to the frontend *any* time it changes in Python.
     # It is synced back to Python from the frontend *any* time the model is touched.
     value = Unicode("").tag(sync=True)
+    markdown = Unicode("").tag(sync=True)  # TODO: implement in a separate widget
 
     def load(self) -> None:
         self.send({})

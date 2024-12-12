@@ -83,11 +83,25 @@ export const progressivisPlugin = {
         cmds.removeTaggedCells(nbtracker, args.tag);
       },
     });
+    app.commands.addCommand("progressivis:unlock_markdown_cells", {
+      label: "Unlock markdown cells",
+      caption: "Unlock markdown cells",
+      execute: () => {
+        cmds.unlockMarkdownCells(nbtracker);
+      },
+    });
     app.commands.addCommand("progressivis:create_stage_cells", {
       label: "Create stage cells",
       caption: "Create stage cells",
       execute: (args) => {
-          cmds.createStageCells(nbtracker, args.tag, args.md, args.code, args.rw, args.run);
+        cmds.createStageCells(
+          nbtracker,
+          args.tag,
+          args.md,
+          args.code,
+          args.rw,
+          args.run,
+        );
       },
     });
     const TalkerView = class extends DOMWidgetView {
@@ -118,6 +132,14 @@ export const progressivisPlugin = {
         var backupCell = notebook.widgets[0];
         console.log("backup cell", backupCell.model.metadata);
         this.model.set("value", backupCell.model.metadata.progressivis_backup);
+        let markdown = [];
+        notebook.widgets.forEach(function (cell) {
+          if (cell.model.sharedModel.cell_type === "markdown") {
+            markdown.push(cell.model.sharedModel.source);
+          }
+        });
+        this.model.set("markdown", JSON.stringify(markdown));
+
         this.touch();
       }
     };

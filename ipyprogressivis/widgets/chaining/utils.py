@@ -117,8 +117,8 @@ def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
                 return self_.post_delete()
 
             btn_c = make_button("Next", cb=_continue_cb)
-            btn_e = make_button("Edit", cb=_edit_cb)
-            btn_d = make_button("Delete", cb=_delete_cb)
+            btn_e = make_button("Edit", cb=_edit_cb, disabled=not is_recording())
+            btn_d = make_button("Delete", cb=_delete_cb, disabled=not is_recording())
             box = ipw.HBox([btn_c, btn_e, btn_d])
             self_.carrier.children = (box,)
             return self_.carrier
@@ -284,7 +284,8 @@ def labcommand(cmd: str, **kw: AnyType) -> None:
         _ = cell_content
         line = code.split("\n")[0]
         wg = fetch_widget(line)
-        widget_list.append((kw["md"], wg))
+        md = kw["md"]
+        widget_list.append((md, wg))
         code = "from ipyprogressivis.widgets import get_header, Constructor\n"+unmagic(code)
         exec(code)
         return
@@ -384,8 +385,9 @@ def reset_recorder(previous: str = "", init_val: str = "") -> None:
 
 
 def restore_recorder() -> None:
-    PARAMS["recorder"] = PARAMS["previous_recorder"]
-    labcommand("progressivis:set_backup", backup=PARAMS["recorder"].tape)
+    if "previous_recorder" in PARAMS:
+        PARAMS["recorder"] = PARAMS["previous_recorder"]
+        labcommand("progressivis:set_backup", backup=PARAMS["recorder"].tape)
 
 
 def replay_next(obj: Optional[Union["Constructor", "NodeVBox"]] = None) -> None:
@@ -436,10 +438,11 @@ def replay_sequence(obj: "Constructor") -> None:
         if not replay_list:
             break
     REPLAY_BATCH = False
+    print("widget list:", widget_list)
     for md, code in widget_list:
         labcommand(
             "progressivis:create_stage_cells", tag=id(md),
-            md=md, code=code, rw=True, run=True
+            md=md, code=code, rw=False, run=True
         )
 
 
@@ -650,6 +653,8 @@ def create_stage_widget(
         guest.frozen_kw = frozen
     stage = NodeCarrier(ctx, guest)
     guest.initialize()
+    if is_recording():
+        guest._record_index = cast(int, get_last_record_index()) + 1
     widget_numbers[key] += 1
     assert obj not in obj.subwidgets
     obj.subwidgets.append(stage)
@@ -749,7 +754,7 @@ def replay_start_loader(
     global parent_widget
     parent_widget = obj
     assert parent_widget
-    add_new_loader(obj, ftype, alias, frozen=frozen, number=number)
+    add_new_loader(obj, ftype, alias, frozen=frozen, number=number, markdown=kw.get("markdown", ""))
 
 
 def replay_new_stage(
@@ -765,7 +770,7 @@ def replay_new_stage(
     sel.value = title
     global parent_widget
     parent_widget = obj
-    add_new_stage(obj, title, frozen=frozen, number=number)
+    add_new_stage(obj, title, frozen=frozen, number=number, markdown=kw.get("markdown", ""))
 
 
 def remove_tagged_cells(tag: int) -> None:
@@ -1040,6 +1045,7 @@ def add_new_stage(
     title: str,
     frozen: AnyType = None,
     number: int | None = None,
+    markdown: str = ""
 ) -> None:
     stage = create_stage_widget(title, frozen, number=number)
     parent_key = key_by_id[id(parent)]
@@ -1049,10 +1055,12 @@ def add_new_stage(
     if frozen is not None and is_replay():
         end = ".run()"
     md = "## " + title + (f"[{n}]" if n else "")
+    if markdown:
+        md = md + "\n" + markdown
     code, rw, run = get_stage_cell(key=title, num=n, end=end, frozen=frozen)
     labcommand(
-        "progressivis:create_stage_cells", frozen=frozen, tag=tag, md=md, code=code, rw=rw, run=run
-    )
+        "progressivis:create_stage_cells", frozen=frozen, tag=tag, md=md, code=code, rw=rw, run=run,
+        markdown=markdown)
     add_to_record(dict(title=title, parent=parent_key, number=stage.number, frozen=frozen))
 
 
@@ -1062,6 +1070,7 @@ def add_new_loader(
     alias: str,
     frozen: AnyType = None,
     number: int | None = None,
+    markdown: str = ""
 ) -> None:
     title = f"{ftype.upper()} loader"
     stage = create_loader_widget(title, ftype, alias, frozen=frozen, number=number)
@@ -1074,13 +1083,16 @@ def add_new_loader(
         md = f"## {alias}"
     else:
         md = "## " + title + (f"[{n}]" if n else "")
+    if markdown:
+        md = md + "\n" + markdown
     code, rw, run = get_loader_cell(
         key=alias or title, ftype=ftype, num=n, end=end, frozen=frozen
     )
     labcommand(
-        "progressivis:create_stage_cells", frozen=frozen, tag=tag, md=md, code=code, rw=rw, run=run
+        "progressivis:create_stage_cells", frozen=frozen, tag=tag, md=md, code=code, rw=rw, run=run,
+        markdown=markdown
     )
-    add_to_record(dict(ftype=ftype, alias=alias, frozen=frozen))
+    add_to_record(dict(title=title, number=stage.number, ftype=ftype, alias=alias, frozen=frozen))
 
 
 class ChainingWidget:
@@ -1150,6 +1162,7 @@ class GuestWidget:
         self.__carrier: Union[int, ReferenceType["NodeCarrier"]] = 0
         self.frozen_kw: Dict[str, Any]
         self._do_replay_next: bool = False
+        self._record_index: int = 0
 
     def initialize(self) -> None:
         pass
@@ -1381,6 +1394,10 @@ class NodeCarrier(NodeVBox):
     def make_progress_bar(self) -> None:
         box = self._make_progress_bar()
         self.children = (self.children[0], box)
+
+    @property
+    def guest(self) -> GuestWidget:
+        return cast(GuestWidget, self.children[0])
 
 
 def _none_wg(wg: Optional[ipw.DOMWidget]) -> ipw.DOMWidget:
