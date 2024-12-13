@@ -107,6 +107,14 @@ export function setBackup(nbtracker, backupstring) {
   backupCell.model.sharedModel.setMetadata("progressivis_backup", backupstring);
 }
 
+export function setRootBackup(nbtracker, backupstring) {
+  var crtWidget = nbtracker.currentWidget;
+  var notebook = crtWidget.content;
+  var backupCell = notebook.widgets[0];
+  console.log("backup root markdown", backupCell.model.metadata, backupstring);
+  backupCell.model.sharedModel.setMetadata("progressivis_root_backup", backupstring);
+}
+
 export function createStageCells(nbtracker, tag, md, code, rw, run) {
   var crtWidget = nbtracker.currentWidget;
   var notebook = crtWidget.content;

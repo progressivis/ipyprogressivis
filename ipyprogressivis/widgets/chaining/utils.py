@@ -11,6 +11,8 @@ from progressivis.vis import DataShape
 from progressivis.core.api import Sink, Scheduler, Module
 from progressivis.table.api import TableFacade
 from progressivis.core.utils import normalize_columns
+from progressivis.core import aio
+import asyncio
 from ._js import jslab_func_remove, jslab_func_cleanup, jslab_func_cell_index
 from ..csv_sniffer import CSVSniffer
 from collections import defaultdict
@@ -444,6 +446,24 @@ def replay_sequence(obj: "Constructor") -> None:
             "progressivis:create_stage_cells", tag=id(md),
             md=md, code=code, rw=False, run=True
         )
+
+
+def create_root(backup: BackupWidget) -> None:
+    code = ("# do not run this cell\n"
+            "display(header.constructor)\n"
+            "header.constructor.start_scheduler()\n"
+            "header.talker.labcommand('notebook:hide-cell-code')")
+
+    async def _func() -> None:
+        await aio.sleep(2)
+        extra = backup.root_markdown
+        md = f"## root\n {extra}" if extra else "## root"
+        labcommand(
+            "progressivis:create_stage_cells", tag=id(md),
+            md=md, code=code, rw=False, run=True
+        )
+    loop = asyncio.get_event_loop()
+    loop.create_task(_func())
 
 
 def get_dag() -> DAGWidget:

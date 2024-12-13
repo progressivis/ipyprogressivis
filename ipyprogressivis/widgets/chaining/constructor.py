@@ -2,6 +2,7 @@ import ipywidgets as ipw
 from progressivis.io.api import Variable
 from progressivis.core.api import Sink, Scheduler
 import progressivis.core.aio as aio
+import asyncio
 from .utils import (
     make_button,
     set_dag,
@@ -23,7 +24,8 @@ from .utils import (
     reset_recorder,
     restore_recorder,
     set_recording_state,
-    disable_all
+    disable_all,
+    IpyHBoxTyped
 )
 
 from typing import (
@@ -51,19 +53,26 @@ def init_dataflow(s: Scheduler) -> AnyType:
     return sink
 
 
+class BtnBar(IpyHBoxTyped):
+    class Typed(TypedBase):
+        replay: ipw.Button
+        resume: ipw.Button
+        sbs: ipw.Button
+
+
+START_DELAY: int = 2
+
+
 class Constructor(RootVBox, TypedBox):
     class Typed(TypedBase):
-        h2: ipw.HTML
-        start_btn: ipw.Button
+        start_msg: ipw.IntProgress
         allow_overwrite: ipw.Checkbox
         play_mode_radio: ipw.RadioButtons
         record_ck: ipw.Checkbox
         csv: Optional[ipw.HBox]
         parquet: Optional[ipw.HBox]
         custom: Optional[ipw.HBox]
-        replay: ipw.Button
-        resume: ipw.Button
-        sbs: ipw.Button
+        btnbar: BtnBar
 
     last_created = None
 
@@ -86,10 +95,14 @@ class Constructor(RootVBox, TypedBox):
         )
         RootVBox.__init__(self, ctx)
         TypedBox.__init__(self)
-        self.child.start_btn = make_button(
-            "Start scheduler ...", cb=self._start_scheduler_cb
+        self.child.start_msg = ipw.IntProgress(
+            description="Starting ProgressiVis ...",
+            min=0,
+            max=START_DELAY,
+            value=0,
+            style={"description_width": "initial"}
         )
-        self.child.h2 = ipw.HTML(f"<h2 id='{self.dom_id}'>{name}</h2>")
+        self.child.btnbar = BtnBar()
         s = Scheduler.default = Scheduler()
         self.scheduler = s
         self._backup = backup
@@ -108,10 +121,10 @@ class Constructor(RootVBox, TypedBox):
     def _allow_overwrite_cb(self, change: dict[str, AnyType]) -> None:
         self.child.play_mode_radio.disabled = not change["new"]
         self.child.record_ck.disabled = not change["new"]
-        self.child.resume.disabled = not (change["new"] and self._backup.value)
-        self.child.sbs.disabled = not (change["new"] and self._backup.value)
+        self.child.btnbar.child.resume.disabled = not (change["new"] and self._backup.value)
+        self.child.btnbar.child.sbs.disabled = not (change["new"] and self._backup.value)
 
-    def _start_scheduler_cb(self, btn: ipw.Button) -> None:
+    def _start_scheduler_cb(self, btn: ipw.Button | None = None) -> None:
         init_module = init_dataflow(self.scheduler)
         self._output_module = init_module
         self._output_slot = "result"
@@ -144,26 +157,37 @@ class Constructor(RootVBox, TypedBox):
         self._arch_list = [b642json(elt)
                            for elt in bunpack(self._backup.value)
                            ] if self._backup.value else []
-        self.child.replay = make_button(
+        self.child.btnbar.child.replay = make_button(
             "Replay ...", cb=self._replay_cb, disabled=(not self._backup.value)
         )
-        btn.disabled = True
-        self.child.resume = make_button(
+        self.child.btnbar.child.resume = make_button(
             "Resume ...", cb=self._resume_cb, disabled=not (
                 self._backup.value and self.child.allow_overwrite.value
             )
         )
-        self.child.sbs = make_button(
+        self.child.btnbar.child.sbs = make_button(
             "Step by step", cb=self._step_by_step_cb, disabled=not (
                 self._backup.value
             )
         )
         self.dag.register_widget(self, "root", "root", self.dom_id, [])
+        if btn is not None:
+            btn.disabled = True
+
+    def start_scheduler(self, n: int = 3) -> None:
+        async def _func() -> None:
+            for i in range(START_DELAY):
+                await aio.sleep(i)
+                self.child.start_msg.value = i + 1
+            self._start_scheduler_cb()
+            self.child.start_msg.description = "ProgressiVis started"
+        loop = asyncio.get_event_loop()
+        loop.create_task(_func())
 
     def _play_mode_cb(self, change: dict[str, AnyType]) -> None:
         PARAMS["play_mode"] = change["new"]
         is_replay = (change["new"] == 'replay')
-        self.child.replay.disabled = not is_replay
+        self.child.btnbar.child.replay.disabled = not is_replay
         for wg in self.child.csv.children:
             wg.disabled = is_replay
         for wg in self.child.parquet.children:
@@ -202,9 +226,9 @@ class Constructor(RootVBox, TypedBox):
             replay_next(self)
 
     def disable_all_btn(self) -> None:
-        self.child.replay.disabled = True
-        self.child.resume.disabled = True
-        self.child.sbs.disabled = True
+        self.child.btnbar.child.replay.disabled = True
+        self.child.btnbar.child.resume.disabled = True
+        self.child.btnbar.child.sbs.disabled = True
 
     def _replay_cb(self, btn: ipw.Button) -> None:
         self.disable_all_btn()

@@ -18,8 +18,8 @@ from IPython.core.magic import (
 from IPython.display import display
 import ipywidgets as ipw
 from IPython.core import magic_arguments as ma
-from .widgets.chaining.utils import amend_nth_record, labcommand, make_button
-from ipyprogressivis.widgets.chaining.utils import get_header
+from .widgets.chaining.utils import (amend_nth_record, labcommand,
+                                     make_button, is_recording, get_header)
 from progressivis.core import aio
 import asyncio
 from typing import Any
@@ -176,7 +176,7 @@ class IpyProgressivisMagic(Magics):
         async def _func() -> None:
             for i in range(3):
                 await aio.sleep(1)
-                self.bar.value = i+1
+                self.bar.value = i + 1
             arch_dict = {}
             for i, stage in enumerate(header.constructor._arch_list):
                 key1 = stage.get("alias", "") or stage["title"]
@@ -192,6 +192,9 @@ class IpyProgressivisMagic(Magics):
                 if not extra:
                     continue
                 wg = head[3:].strip()  # i.e. without "## "
+                if wg == "root":
+                    labcommand("progressivis:set_root_backup", backup=extra)
+                    continue
                 wg, nb = self._parse_header(wg)
                 rec_index = arch_dict[(wg, nb)]
                 amend_nth_record(rec_index, {"markdown": extra})
@@ -199,11 +202,15 @@ class IpyProgressivisMagic(Magics):
         loop = asyncio.get_event_loop()
         loop.create_task(_func())
 
-    def _unlock_markdown(self, btn: Any) -> None:
+    def _unlock_markdown(self, btn: ipw.Button) -> None:
         labcommand("progressivis:unlock_markdown_cells")
+        btn.disabled = True
 
     @line_magic  # type: ignore
     def pv_markdown(self, line: str) -> Any:
+        if not is_recording():
+            print("You must allow overwriting record to edit markdown cells")
+            return
         self.bar = ipw.IntProgress(
             description="", min=0, max=3, value=0
         )

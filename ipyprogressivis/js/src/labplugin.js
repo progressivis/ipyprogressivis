@@ -54,6 +54,13 @@ export const progressivisPlugin = {
         cmds.setBackup(nbtracker, args.backup);
       },
     });
+    app.commands.addCommand("progressivis:set_root_backup", {
+      label: "Progressivis set root backup",
+      caption: "Progressivis set root backup",
+      execute: (args) => {
+        cmds.setRootBackup(nbtracker, args.backup);
+      },
+    });
     app.commands.addCommand("progressivis:cleanup", {
       label: "Cleanup sidecars and tagged cells",
       caption: "Cleanup orphan sidecars and tagged cells",
@@ -123,6 +130,7 @@ export const progressivisPlugin = {
         var notebook = crtWidget.content;
         var backupCell = notebook.widgets[0];
         this.model.set("value", backupCell.model.metadata.progressivis_backup);
+        this.model.set("root_markdown", backupCell.model.metadata.progressivis_root_backup || "");
         this.touch();
       }
 
