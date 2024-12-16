@@ -7,6 +7,8 @@ from .utils import (
     TypedBase,
     needs_dtypes,
     replay_next,
+    is_recording,
+    amend_last_record,
     runner,
 )
 import ipywidgets as ipw
@@ -41,7 +43,6 @@ class HeatmapW(VBoxTyped):
         choice_dim: ipw.Dropdown
         choice_x: ipw.Dropdown
         choice_y: ipw.Dropdown
-        # freeze_ck: ipw.Checkbox
         min_q: ipw.BoundedFloatText | ipw.Label
         max_q: ipw.BoundedFloatText | ipw.Label
         choice_trans: ipw.Dropdown
@@ -145,8 +146,8 @@ class HeatmapW(VBoxTyped):
     def _start_btn_cb(self, btn: ipw.Button) -> None:
         assert self.column_x and self.column_y
         xy = dict(X=self.column_x, Y=self.column_y)
-        # if self.child.freeze_ck.value:
-        #    amend_last_record({"frozen": xy})
+        if is_recording():
+            amend_last_record({"frozen": xy})
         self.init_heatmap(xy)
         btn.disabled = True
         self.child.choice_x.disabled = True

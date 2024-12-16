@@ -1,5 +1,5 @@
 from .utils import (make_button, stage_register, VBoxTyped, TypedBase,
-                    amend_last_record, get_recording_state, disable_all, runner, needs_dtypes)
+                    amend_last_record, is_recording, disable_all, runner, needs_dtypes)
 import ipywidgets as ipw
 import pandas as pd
 from progressivis.table.api import Aggregate
@@ -18,7 +18,6 @@ class AggregateW(VBoxTyped):
     class Typed(TypedBase):
         hidden_sel: ipw.SelectMultiple
         grid: ipw.GridBox
-        freeze_ck: ipw.Checkbox
         start_btn: ipw.Button
 
     @needs_dtypes
@@ -38,10 +37,6 @@ class AggregateW(VBoxTyped):
         self.obs_flag = False
         self.info_cbx: Dict[Tuple[str, str], ipw.Checkbox] = {}
         self.child.grid = self.draw_matrix()
-        is_rec = get_recording_state()
-        self.child.freeze_ck = ipw.Checkbox(description="Freeze",
-                                            value=is_rec,
-                                            disabled=(not is_rec))
         self.child.start_btn = make_button(
             "Activate", cb=self._start_btn_cb, disabled=True
         )
@@ -83,7 +78,7 @@ class AggregateW(VBoxTyped):
             for ((col, fnc), ck) in self.info_cbx.items()
             if fnc != "hide" and ck.value
         ]
-        if self.child.freeze_ck.value:
+        if is_recording():
             amend_last_record({'frozen': dict(compute=compute)})
         self.output_module = self.init_aggregate(compute)
         self.output_slot = "result"

@@ -8,7 +8,7 @@ from progressivis.table.api import RangeQuery, TableFacade
 from progressivis.stats.api import Histogram1D, KLLSketch
 from ..df_grid import DataFrameGrid
 from .utils import (TreeTab, make_button, stage_register, VBox, TypedBase, IpyVBoxTyped,
-                    amend_last_record, get_recording_state, disable_all, runner, needs_dtypes)
+                    amend_last_record, is_recording, disable_all, runner, needs_dtypes)
 from progressivis.io.api import Variable
 from ..vega import VegaWidget
 from .._stacked_hist_schema import stacked_hist_spec_no_data
@@ -565,7 +565,7 @@ class DynViewer(TreeTab):
         min_num_cols = self.get_checked_num("min")
         hist1d_cols = self.get_checked_num(HIST1D_COL)
         hist2d_cols = self.get_seld_num(HIST2D_COL)
-        if carrier.freeze_ck.value:
+        if is_recording():
             amend_last_record({'frozen': dict(
                 num_bounds=num_bounds,
                 max_num_cols=max_num_cols,
@@ -669,12 +669,8 @@ class FacadeCreatorW(VBox):
             self.dtypes, cast(Module, self.input_module), self.input_slot
         )
         self.dag.request_attention(self.title, "widget", "PROGRESS_NOTIFICATION", "0")
-        is_rec = get_recording_state()
-        self.freeze_ck = ipw.Checkbox(description="Freeze",
-                                      value=is_rec,
-                                      disabled=(not is_rec))
         btn = make_button("Start", cb=self._start_cb)
-        self.children = (self._dyn_viewer, self.freeze_ck, btn)
+        self.children = (self._dyn_viewer, btn)
 
     def get_underlying_modules(self) -> list[str]:
         return ["TODO"]

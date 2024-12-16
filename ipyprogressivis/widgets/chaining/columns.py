@@ -5,7 +5,7 @@ from .utils import (
     VBoxTyped,
     IpyHBoxTyped,
     TypedBase,
-    get_recording_state,
+    is_recording,
     amend_last_record,
     runner,
     needs_dtypes
@@ -231,7 +231,6 @@ class PColumnsW(VBoxTyped):
         cols_funcs: ColsFuncs
         func_table: Optional[Union[ipw.Label, ipw.GridBox]]
         keep_stored: KeepStored
-        freeze_ck: ipw.Checkbox
         btn_apply: ipw.Button
 
     @needs_dtypes
@@ -273,10 +272,6 @@ class PColumnsW(VBoxTyped):
         )
         keep_stored.c_.keep_all.observe(self._keep_all_cb, names="value")
         self.c_.keep_stored = keep_stored
-        is_rec = get_recording_state()
-        self.child.freeze_ck = ipw.Checkbox(
-            description="Freeze", value=is_rec, disabled=(not is_rec)
-        )
         self.c_.btn_apply = make_button("Apply", disabled=False, cb=self._btn_apply_cb)
 
     def _keep_all_cb(self, change: AnyType) -> None:
@@ -331,7 +326,7 @@ class PColumnsW(VBoxTyped):
     def _btn_apply_cb(self, btn: AnyType) -> None:
         comp_list = self._make_computed_list()
         cols = list(self.c_.keep_stored.c_.stored_cols.value)
-        if self.child.freeze_ck.value:
+        if is_recording():
             amend_last_record({"frozen": dict(comp_list=comp_list, columns=cols)})
         self.output_module = self.init_module(comp_list, columns=cols)
         self.make_chaining_box()

@@ -5,7 +5,7 @@ from .utils import (
     TypedBase,
     ModuleOrFacade,
     amend_last_record,
-    get_recording_state,
+    is_recording,
     disable_all,
     runner,
     needs_dtypes,
@@ -42,7 +42,6 @@ class AnyVegaW(VBoxTyped):
         editor: BokehModel | None
         save_schema: ipw.HBox | None
         grid: DataFrameGrid | None
-        freeze_ck: ipw.Checkbox | None
         btn_apply: ipw.Button | None
         refresh_ratio: ipw.IntSlider | None
         vega: HVegaWidget | None
@@ -90,10 +89,6 @@ class AnyVegaW(VBoxTyped):
             ]
         )
         self.output_dtypes = None
-        is_rec = get_recording_state()
-        self.c_.freeze_ck = ipw.Checkbox(
-            description="Freeze", value=is_rec, disabled=(not is_rec)
-        )
         self.c_.btn_apply = self._btn_ok = make_button(
             "Apply", disabled=False, cb=self._btn_apply_cb
         )
@@ -227,7 +222,7 @@ class AnyVegaW(VBoxTyped):
             for k, wg in row.items():
                 row[k] = wg.value
         js_val = self.json_editor.value.copy()
-        if self.child.freeze_ck.value:
+        if is_recording():
             amend_last_record(
                 {"frozen": dict(mapping_dict=df_dict, vega_schema=js_val)}
             )

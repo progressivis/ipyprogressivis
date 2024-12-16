@@ -92,10 +92,6 @@ class ParquetLoaderW(VBoxTyped):
             layout=ipw.Layout(width="100%"),
         )
         self.child.sniff_btn = make_button("Sniff ...", cb=self._sniffer_cb)
-        is_rec = False  # TODO: implement
-        self._freeze_ck = ipw.Checkbox(description="Freeze",
-                                       value=is_rec,
-                                       disabled=(not is_rec))
 
     def _sniffer_cb(self, btn: ipw.Button) -> None:
         url = self.child.url.value.strip()

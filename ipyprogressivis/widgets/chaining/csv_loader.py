@@ -13,9 +13,10 @@ from .utils import (
     get_schema,
     VBoxTyped,
     IpyVBoxTyped,
+    IpyHBoxTyped,
     TypedBase,
     amend_last_record,
-    get_recording_state,
+    is_recording,
     disable_all,
     runner,
     glob_url,
@@ -120,6 +121,13 @@ class JsonEditorW(IpyVBoxTyped):
         self.json_editor.mode = change["new"]
 
 
+class BtnBar(IpyHBoxTyped):
+    class Typed(TypedBase):
+        start: ipw.Button
+        save: ipw.Button | ipw.Label
+        text: ipw.Text | ipw.Label
+
+
 class CsvLoaderW(VBoxTyped):
     class Typed(TypedBase):
         reuse_ck: ipw.Checkbox
@@ -131,12 +139,13 @@ class CsvLoaderW(VBoxTyped):
         throttle: ipw.IntText
         sniff_btn: ipw.Button
         sniffer: CSVSniffer | JsonEditorW | None
-        start_save: ipw.HBox | None
+        start_save: BtnBar
 
     def __init__(self) -> None:
         super().__init__()
         self._sniffer: Optional[CSVSniffer] = None
         self._urls: List[str] = []
+        self.child.start_save = BtnBar()
 
     def initialize(
         self, urls: List[str] = [], to_sniff: str = "", lines: int = 100
@@ -195,10 +204,6 @@ class CsvLoaderW(VBoxTyped):
         )
         self.c_.throttle = ipw.IntText(value=0, description="Throttle:", disabled=False)
         self.c_.sniff_btn = make_button("Sniff ...", cb=self._sniffer_cb)
-        is_rec = get_recording_state()
-        self._freeze_ck = ipw.Checkbox(
-            description="Freeze", value=is_rec, disabled=(not is_rec)
-        )
 
     def _reuse_cb(self, change: Dict[str, Any]) -> None:
         if change["new"]:
@@ -219,15 +224,10 @@ class CsvLoaderW(VBoxTyped):
             self.c_.sniff_btn = make_button(
                 "Edit settings", cb=self._edit_settings_cb, disabled=True
             )
-            self.c_.start_save = ipw.HBox(
-                [
-                    self._freeze_ck,
-                    make_button(
-                        "Start loading csv ...",
-                        cb=self._start_loader_reuse_cb,
-                        disabled=True,
-                    ),
-                ]
+            self.c_.start_save.c_.start = make_button(
+                "Start loading csv ...",
+                cb=self._start_loader_reuse_cb,
+                disabled=True,
             )
         else:
             self.initialize()
@@ -235,28 +235,25 @@ class CsvLoaderW(VBoxTyped):
     def _edit_settings_cb(self, btn: ipw.Button) -> None:
         self.c_.sniffer = JsonEditorW(self)
         self.c_.sniffer.initialize()
-        self.c_.start_save = ipw.HBox(
-            [
-                self._freeze_ck,
-                make_button("Start loading csv ...", cb=self._start_loader_reuse_cb),
-                make_button(
-                    "Save settings ...",
-                    cb=self._save_settings_cb,
-                    disabled=False,
-                ),
-                ipw.Text(
-                    value=self.c_.bookmarks.value,
-                    placeholder="",
-                    description="File:",
-                    disabled=False,
-                    layout=ipw.Layout(width="100%"),
-                ),
-            ]
+        self.c_.start_save.c_.start = make_button(
+            "Start loading csv ...",
+            cb=self._start_loader_reuse_cb)
+        self.c_.start_save.c_.save = make_button(
+            "Save settings ...",
+            cb=self._save_settings_cb,
+            disabled=False,
+        )
+        self.c_.start_save.c_.text = ipw.Text(
+            value=self.c_.bookmarks.value,
+            placeholder="",
+            description="File:",
+            disabled=False,
+            layout=ipw.Layout(width="100%"),
         )
 
     def _enable_reuse_cb(self, change: Dict[str, Any]) -> None:
         self.c_.sniff_btn.disabled = not change["new"]
-        self.c_.start_save.children[1].disabled = not change["new"]
+        self.c_.start_save.c_.start.disabled = not change["new"]
 
     def _start_loader_reuse_cb(self, btn: ipw.Button) -> None:
         if isinstance(self.c_.sniffer, JsonEditorW):
@@ -280,7 +277,7 @@ class CsvLoaderW(VBoxTyped):
         )
         csv_module = self.init_modules(**kw)
         kw["schema"] = schema
-        if self._freeze_ck.value:
+        if is_recording():
             amend_last_record({"frozen": kw})
         self.output_module = csv_module
         self.output_slot = "result"
@@ -316,23 +313,21 @@ class CsvLoaderW(VBoxTyped):
                 else ""
             )
             disabled = not pv_dir
-            self.c_.start_save = ipw.HBox(
-                [
-                    self._freeze_ck,
-                    make_button("Start loading csv ...", cb=self._start_loader_cb),
-                    make_button(
-                        "Save settings ...",
-                        cb=self._save_settings_cb,
-                        disabled=disabled,
-                    ),
-                    ipw.Text(
-                        value=time.strftime("w%Y%m%d_%H%M%S"),
-                        placeholder=placeholder,
-                        description="File:",
-                        disabled=disabled,
-                        layout=ipw.Layout(width="100%"),
-                    ),
-                ]
+            self.c_.start_save.c_.start = make_button(
+                "Start loading csv ...",
+                cb=self._start_loader_cb
+            )
+            self.c_.start_save.c_.save = make_button(
+                "Save settings ...",
+                cb=self._save_settings_cb,
+                disabled=disabled,
+            )
+            self.c_.start_save.c_.text = ipw.Text(
+                value=time.strftime("w%Y%m%d_%H%M%S"),
+                placeholder=placeholder,
+                description="File:",
+                disabled=disabled,
+                layout=ipw.Layout(width="100%"),
             )
             self.c_.urls_wg.disabled = True
             self.c_.to_sniff.disabled = True
@@ -362,7 +357,7 @@ class CsvLoaderW(VBoxTyped):
             sniffed_params=sniffed_params,
             filter_=filter_,
         )
-        if self._freeze_ck.value:
+        if is_recording():
             amend_last_record({"frozen": kw})
         csv_module = self.init_modules(**kw)
         self.output_module = csv_module
@@ -377,7 +372,7 @@ class CsvLoaderW(VBoxTyped):
     def _save_settings_cb(self, btn: ipw.Button) -> None:
         pv_dir = self.dot_progressivis
         assert pv_dir
-        base_name = self.c_.start_save.children[3].value
+        base_name = self.c_.start_save.c_.text.value
         file_name = f"{self.widget_dir}/{base_name}"
         assert self._sniffer is not None
         pv_params = self._sniffer.progressivis

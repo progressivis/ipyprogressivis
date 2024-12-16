@@ -22,7 +22,6 @@ WidgetType = AnyType
 class QuantilesW(VBoxTyped):
     class Typed(TypedBase):
         selection: ipw.SelectMultiple
-        freeze_ck: ipw.Checkbox
         start_btn: ipw.Button
 
     @needs_dtypes
@@ -43,10 +42,6 @@ class QuantilesW(VBoxTyped):
             disabled=False,
         )
         self.child.selection.observe(self._selection_cb, "value")
-        is_rec = is_recording()
-        self.child.freeze_ck = ipw.Checkbox(description="Freeze",
-                                            value=is_rec,
-                                            disabled=(not is_rec))
         self.child.start_btn = make_button(
             "Start", cb=self._start_btn_cb, disabled=True
         )
@@ -76,7 +71,8 @@ class QuantilesW(VBoxTyped):
 
     def _start_btn_cb(self, btn: ipw.Button) -> None:
         content = self.child.selection.value
-        amend_last_record({"frozen": content})
+        if is_recording():
+            amend_last_record({"frozen": content})
         self.output_module = self.init_quantiles(content)
         btn.disabled = True
         self.child.selection.disabled = True

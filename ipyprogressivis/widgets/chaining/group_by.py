@@ -1,6 +1,6 @@
 from .utils import (make_button, stage_register, dongle_widget, VBoxTyped,
                     TypedBase, amend_last_record,
-                    get_recording_state, disable_all, runner, needs_dtypes)
+                    is_recording, disable_all, runner, needs_dtypes)
 import ipywidgets as ipw
 from progressivis.core.api import Module, Sink
 from progressivis.table.group_by import (
@@ -28,17 +28,12 @@ class GroupByW(VBoxTyped):
     class Typed(TypedBase):
         grouping_mode: Union[ipw.Label, ipw.RadioButtons]
         by_box: Union[ipw.SelectMultiple, ipw.HBox]
-        freeze_ck: ipw.Checkbox
         start_btn: ipw.Button
 
     @needs_dtypes
     def initialize(self) -> None:
         self.child.grouping_mode = self.make_gr_mode()
         self.child.by_box = self.make_sel_multiple()
-        is_rec = get_recording_state()
-        self.child.freeze_ck = ipw.Checkbox(description="Freeze",
-                                            value=is_rec,
-                                            disabled=(not is_rec))
         self.child.start_btn = make_button(
             "Activate", cb=self._add_group_by_cb, disabled=True
         )
@@ -75,7 +70,7 @@ class GroupByW(VBoxTyped):
             by = dict(col=col, subcols="".join(sel.value))
             by_box.children[0].disabled = True
             by_box.children[1].disabled = True
-        if self.child.freeze_ck.value:
+        if is_recording():
             amend_last_record({'frozen': dict(by=by)})
         self.output_module = self.init_group_by(by)
         self.output_slot = "result"
