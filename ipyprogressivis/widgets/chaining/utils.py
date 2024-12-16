@@ -455,7 +455,7 @@ def create_root(backup: BackupWidget) -> None:
             "header.talker.labcommand('notebook:hide-cell-code')")
 
     async def _func() -> None:
-        await aio.sleep(2)
+        await aio.sleep(0.2)
         extra = backup.root_markdown
         md = f"## root\n {extra}" if extra else "## root"
         labcommand(
@@ -1079,9 +1079,19 @@ def add_new_stage(
         md = md + "\n" + markdown
     code, rw, run = get_stage_cell(key=title, num=n, end=end, frozen=frozen)
     labcommand(
-        "progressivis:create_stage_cells", frozen=frozen, tag=tag, md=md, code=code, rw=rw, run=run,
+        "progressivis:create_stage_cells",
+        frozen=frozen,
+        tag=tag,
+        md=md,
+        code=code,
+        rw=rw,
+        run=run,
         markdown=markdown)
-    add_to_record(dict(title=title, parent=parent_key, number=stage.number, frozen=frozen))
+    add_to_record(dict(title=title,
+                       parent=parent_key,
+                       number=stage.number,
+                       frozen=frozen,
+                       markdown=markdown))
 
 
 def add_new_loader(
@@ -1109,10 +1119,21 @@ def add_new_loader(
         key=alias or title, ftype=ftype, num=n, end=end, frozen=frozen
     )
     labcommand(
-        "progressivis:create_stage_cells", frozen=frozen, tag=tag, md=md, code=code, rw=rw, run=run,
+        "progressivis:create_stage_cells",
+        frozen=frozen,
+        tag=tag,
+        md=md,
+        code=code,
+        rw=rw,
+        run=run,
         markdown=markdown
     )
-    add_to_record(dict(title=title, number=stage.number, ftype=ftype, alias=alias, frozen=frozen))
+    add_to_record(dict(title=title,
+                       number=stage.number,
+                       ftype=ftype,
+                       alias=alias,
+                       frozen=frozen,
+                       markdown=markdown))
 
 
 class ChainingWidget:

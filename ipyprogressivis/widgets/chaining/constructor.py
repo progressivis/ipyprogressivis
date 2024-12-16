@@ -177,7 +177,7 @@ class Constructor(RootVBox, TypedBox):
     def start_scheduler(self, n: int = 3) -> None:
         async def _func() -> None:
             for i in range(START_DELAY):
-                await aio.sleep(i)
+                await aio.sleep(0.1)
                 self.child.start_msg.value = i + 1
             self._start_scheduler_cb()
             self.child.start_msg.description = "ProgressiVis started"
