@@ -746,17 +746,22 @@ def set_recording_state(val: bool) -> None:
 
 
 def _make_btn_start_loader(
-    obj: "NodeCarrier", ftype: str, alias: WidgetType, frozen: AnyType = None
+    obj: "Constructor", ftype: str, alias: WidgetType, frozen: AnyType = None
 ) -> Callable[..., None]:
     def _cbk(btn: ipw.Button) -> None:
         global parent_widget
-        parent_widget = obj
+        parent_widget = obj  # type: ignore
         assert parent_widget
+        if obj._do_record:
+            reset_recorder()
+            set_recording_state(True)
         add_new_loader(obj, ftype, alias.value, frozen)
         alias.value = ""
         disable_all(
             obj, exceptions=frozenset([
-                obj.child.csv, obj.child.parquet  # type: ignore
+                obj.c_.loader.c_.csv,
+                obj.c_.loader.c_.parquet,
+                obj.c_.loader.c_.custom
             ])
         )
 
@@ -774,7 +779,10 @@ def replay_start_loader(
     global parent_widget
     parent_widget = obj
     assert parent_widget
-    add_new_loader(obj, ftype, alias, frozen=frozen, number=number, markdown=kw.get("markdown", ""))
+    add_new_loader(obj, ftype, alias,
+                   frozen=frozen,
+                   number=number,
+                   markdown=kw.get("markdown", ""))
 
 
 def replay_new_stage(
