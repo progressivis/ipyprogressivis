@@ -125,6 +125,7 @@ class BtnBar(IpyHBoxTyped):
     class Typed(TypedBase):
         start: ipw.Button
         save: ipw.Button | ipw.Label
+        sniff_btn: ipw.Button | ipw.Label
         text: ipw.Text | ipw.Label
 
 
@@ -137,7 +138,6 @@ class CsvLoaderW(VBoxTyped):
         n_lines: ipw.IntText
         shuffle_ck: ipw.Checkbox
         throttle: ipw.IntText
-        sniff_btn: ipw.Button
         sniffer: CSVSniffer | JsonEditorW | None
         start_save: BtnBar
 
@@ -203,7 +203,7 @@ class CsvLoaderW(VBoxTyped):
             description="Shuffle URLs", value=True, disabled=False
         )
         self.c_.throttle = ipw.IntText(value=0, description="Throttle:", disabled=False)
-        self.c_.sniff_btn = make_button("Sniff ...", cb=self._sniffer_cb)
+        self.c_.start_save.c_.sniff_btn = make_button("Sniff ...", cb=self._sniffer_cb)
 
     def _reuse_cb(self, change: Dict[str, Any]) -> None:
         if change["new"]:
@@ -221,7 +221,7 @@ class CsvLoaderW(VBoxTyped):
             )
             self.c_.bookmarks.observe(self._enable_reuse_cb, names="value")
             self.c_.throttle = None
-            self.c_.sniff_btn = make_button(
+            self.c_.start_save.c_.sniff_btn = make_button(
                 "Edit settings", cb=self._edit_settings_cb, disabled=True
             )
             self.c_.start_save.c_.start = make_button(
@@ -252,7 +252,7 @@ class CsvLoaderW(VBoxTyped):
         )
 
     def _enable_reuse_cb(self, change: Dict[str, Any]) -> None:
-        self.c_.sniff_btn.disabled = not change["new"]
+        self.c_.start_save.c_.sniff_btn.disabled = not change["new"]
         self.c_.start_save.c_.start.disabled = not change["new"]
 
     def _start_loader_reuse_cb(self, btn: ipw.Button) -> None:

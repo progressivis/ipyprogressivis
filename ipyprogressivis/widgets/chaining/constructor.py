@@ -117,7 +117,7 @@ class Constructor(RootVBox, TypedBox):
         PARAMS["deleted_stages"] = set()
         PARAMS["command_list"] = []
         set_recording_state(False)
-        self._do_record = False
+        self._do_record = not self._backup.value
 
     def _allow_overwrite_cb(self, change: dict[str, AnyType]) -> None:
         if change["new"]:
@@ -191,17 +191,18 @@ class Constructor(RootVBox, TypedBox):
         else:
             replay_next(self)
 
-    def disable_all_btn(self) -> None:
+    def disable_all_changes(self) -> None:
         self.child.btnbar.child.replay.disabled = True
         self.child.btnbar.child.resume.disabled = True
         self.child.btnbar.child.sbs.disabled = True
+        self.child.allow_overwrite.disabled = True
 
     def _replay_cb(self, btn: ipw.Button) -> None:
-        self.disable_all_btn()
+        self.disable_all_changes()
         self.do_replay(batch=True)
 
     def _resume_cb(self, btn: ipw.Button) -> None:
-        self.disable_all_btn()
+        self.disable_all_changes()
         PARAMS["replay_before_resume"] = True
         reset_recorder()
         set_recording_state(True)
@@ -209,7 +210,7 @@ class Constructor(RootVBox, TypedBox):
 
     def _step_by_step_cb(self, btn: ipw.Button) -> None:
         PARAMS["step_by_step"] = True
-        self.disable_all_btn()
+        self.disable_all_changes()
         if self.c_.allow_overwrite.value:
             PARAMS["replay_before_resume"] = True
             reset_recorder()
