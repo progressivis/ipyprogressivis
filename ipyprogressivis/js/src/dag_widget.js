@@ -58,7 +58,7 @@ export class DagWidgetView extends DOMWidgetView {
 	    console.log("dag widget", this.id);
 	var mainDiv = d3.select('#' + this.id);
             installInterface(mainDiv, '_'+this.id);
-	    d3.select('#' + this.id).show();
+	    try{d3.select('#' + this.id).show();} catch(err){};
 
     });
         this.value_changed();

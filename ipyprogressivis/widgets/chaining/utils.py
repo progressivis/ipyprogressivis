@@ -13,7 +13,7 @@ from progressivis.table.api import TableFacade
 from progressivis.core.utils import normalize_columns
 from progressivis.core import aio
 import asyncio
-from ._js import jslab_func_remove, jslab_func_cleanup, jslab_func_cell_index
+from ._js import jslab_func_remove
 from ..csv_sniffer import CSVSniffer
 from collections import defaultdict
 from .. import DagWidgetController  # type: ignore
@@ -81,6 +81,15 @@ def dot_progressivis() -> str:
     if os.path.isdir(pv_dir):
         return str(pv_dir)
     return ""
+
+
+def shot_cell(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
+    def wrapper(*args: Any, **kwargs: Any) -> None:
+        self_ = args[0]
+        assert isinstance(self_, GuestWidget)
+        func(*args, **kwargs)
+        labcommand("progressivis:shot_cell", tag=self_.carrier.title, delay=3000)
+    return wrapper
 
 
 def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
@@ -443,7 +452,7 @@ def replay_sequence(obj: "Constructor") -> None:
     print("widget list:", widget_list)
     for md, code in widget_list:
         labcommand(
-            "progressivis:create_stage_cells", tag=id(md),
+            "progressivis:create_stage_cells", tag=id(md),  # TODO: fix tag
             md=md, code=code, rw=False, run=True
         )
 
@@ -459,7 +468,7 @@ def create_root(backup: BackupWidget) -> None:
         extra = backup.root_markdown
         md = f"## root\n {extra}" if extra else "## root"
         labcommand(
-            "progressivis:create_stage_cells", tag=id(md),
+            "progressivis:create_stage_cells", tag="root",
             md=md, code=code, rw=False, run=True
         )
     loop = asyncio.get_event_loop()
@@ -958,17 +967,6 @@ class LoaderMixin:
         return ipw.HBox([alias_inp, btn])
 
 
-def cleanup_cells() -> None:
-    manager = PARAMS["header"].manager
-    manager.exec_js(jslab_func_cleanup)
-
-
-def insert_cell_at_index(kind: str, text: str, index: int, tag: str) -> None:
-    get_dag().exec_js(
-        jslab_func_cell_index.format(kind=kind, text=text, index=index, tag=tag)
-    )
-
-
 def get_previous(obj: "ChainingWidget") -> "ChainingWidget":
     if not obj.subwidgets:
         return obj
@@ -1077,12 +1075,12 @@ def add_new_stage(
 ) -> None:
     stage = create_stage_widget(title, frozen, number=number)
     parent_key = key_by_id[id(parent)]
-    tag = id(stage)
     n = stage.number
     end = ""
     if frozen is not None and is_replay():
         end = ".run()"
-    md = "## " + title + (f"[{n}]" if n else "")
+    tag = title + (f"[{n}]" if n else "")
+    md = "## " + tag
     if markdown:
         md = md + "\n" + markdown
     code, rw, run = get_stage_cell(key=title, num=n, end=end, frozen=frozen)
@@ -1112,15 +1110,16 @@ def add_new_loader(
 ) -> None:
     title = f"{ftype.upper()} loader"
     stage = create_loader_widget(title, ftype, alias, frozen=frozen, number=number)
-    tag = id(stage)
     n = stage.number
     end = ""
     if frozen is not None and is_replay():
         end = ".run()"
     if alias:
         md = f"## {alias}"
+        tag = alias
     else:
-        md = "## " + title + (f"[{n}]" if n else "")
+        tag = title + (f"[{n}]" if n else "")
+        md = "## " + tag
     if markdown:
         md = md + "\n" + markdown
     code, rw, run = get_loader_cell(
@@ -1287,6 +1286,7 @@ class GuestWidget:
     def dag_running(self) -> None:
         self.carrier.dag_running()
 
+    @shot_cell
     def make_chaining_box(self) -> None:
         self.carrier.make_chaining_box()
 

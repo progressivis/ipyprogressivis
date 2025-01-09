@@ -13,6 +13,6 @@ from .plotting_progressbar import *
 from .dag_widget import *
 from .chaining.desc_stats import *
 from .chaining.constructor import *
-from .chaining.utils import create_stage_widget, cleanup_cells, get_header
+from .chaining.utils import create_stage_widget, get_header
 from .chaining.group_by import *
 from .vega import VegaWidget

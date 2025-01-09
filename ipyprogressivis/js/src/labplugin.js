@@ -5,6 +5,9 @@ import { IJupyterWidgetRegistry, DOMWidgetView } from "@jupyter-widgets/base";
 import { INotebookTracker, NotebookActions } from "@jupyterlab/notebook";
 import { IFileBrowserFactory } from "@jupyterlab/filebrowser";
 import { request } from "requests-helper";
+import * as html2canvas from "html2canvas";
+import $ from "jquery";
+
 export const progressivisPlugin = {
   id: "jupyter-progressivis:plugin",
   requires: [IJupyterWidgetRegistry, INotebookTracker, IFileBrowserFactory],
@@ -111,10 +114,23 @@ export const progressivisPlugin = {
         );
       },
     });
+    app.commands.addCommand("progressivis:shot_cell", {
+      label: "Shot cell",
+      caption: "Shot cell",
+      execute: (args) => {
+        cmds.shotCell(nbtracker, args.tag, args.delay);
+      },
+    });
+    NotebookActions.executed.connect((_, args) => {
+      let { cell, notebook, success } = args;
+      let i = notebook.widgets.findIndex((x) => x == cell);
+      if (cell.model.metadata.progressivis_tag === undefined) return;
+      cmds.shotCellAtIndex(notebook, cell, i, 3000);
+    });
     const TalkerView = class extends DOMWidgetView {
       render() {
         this.model.on("msg:custom", (ev) => {
-          console.log("messs", ev);
+          console.log("messg:", ev);
           let args = { ...ev };
           let cmd = args.cmd;
           delete args.cmd;
@@ -130,7 +146,10 @@ export const progressivisPlugin = {
         var notebook = crtWidget.content;
         var backupCell = notebook.widgets[0];
         this.model.set("value", backupCell.model.metadata.progressivis_backup);
-        this.model.set("root_markdown", backupCell.model.metadata.progressivis_root_backup || "");
+        this.model.set(
+          "root_markdown",
+          backupCell.model.metadata.progressivis_root_backup || "",
+        );
         this.touch();
       }
 

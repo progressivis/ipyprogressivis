@@ -1,4 +1,6 @@
 import { INotebookTracker, NotebookActions } from "@jupyterlab/notebook";
+import * as html2canvas from "html2canvas";
+import $ from "jquery";
 
 export function progressivisTemplate(app, res, data, browser) {
   const content = res.json();
@@ -27,6 +29,9 @@ export function progressivisTemplate(app, res, data, browser) {
       });
   });
 }
+
+// https://discourse.jupyter.org/t/how-to-listen-to-cell-execution/14714
+// https://jupyterlab.readthedocs.io/en/latest/api/classes/notebook.NotebookActions-1.html
 
 export function progressivisCleanup(app, nbtracker) {
   // cleanup sidecars
@@ -112,7 +117,10 @@ export function setRootBackup(nbtracker, backupstring) {
   var notebook = crtWidget.content;
   var backupCell = notebook.widgets[0];
   console.log("backup root markdown", backupCell.model.metadata, backupstring);
-  backupCell.model.sharedModel.setMetadata("progressivis_root_backup", backupstring);
+  backupCell.model.sharedModel.setMetadata(
+    "progressivis_root_backup",
+    backupstring,
+  );
 }
 
 export function createStageCells(nbtracker, tag, md, code, rw, run) {
@@ -164,4 +172,35 @@ export function runCellAt(nbtracker, ix) {
   var notebook = crtWidget.content;
   notebook.activeCellIndex = ix;
   NotebookActions.run(notebook, crtWidget.sessionContext);
+}
+
+export function shotCellAtIndex(notebook, cell, i, delay) {
+  let prevOuts = notebook.model.metadata.progressivis_outs || [];
+  function fun() {
+    html2canvas(cell.outputArea.node.children[0].children[1]).then((canvas) => {
+      let png = canvas.toDataURL("image/png");
+      prevOuts[i] = png;
+      notebook.model.sharedModel.setMetadata("progressivis_outs", prevOuts);
+    });
+  }
+  function fun2() {
+    html2canvas($("[id^='dag_widget_']")[0]).then((canvas) => {
+      let png = canvas.toDataURL("image/png");
+      notebook.model.sharedModel.setMetadata("progressivis_dag_png", png);
+    });
+  }
+  setTimeout(fun, delay);
+  setTimeout(fun2, delay);
+}
+
+export function shotCell(nbtracker, tag, delay) {
+  var crtWidget = nbtracker.currentWidget;
+  var notebook = crtWidget.content;
+  let i = notebook.widgets.findIndex(
+    (x) =>
+      x.model.metadata.progressivis_tag === tag &&
+      x.model.sharedModel.cell_type === "code",
+  );
+  var cell = notebook.widgets[i];
+  shotCellAtIndex(notebook, cell, i, delay);
 }
