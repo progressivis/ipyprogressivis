@@ -1,7 +1,14 @@
-from .utils import stage_register, VBox, make_replay_next_btn, is_step
+from .utils import stage_register, VBox, make_replay_next_btn, is_step, Coro
 from ..slot_wg import SlotWg
 from typing import List, cast
-from progressivis.core.api import Scheduler, Module
+from progressivis.core.api import Module
+from progressivis.core import aio
+
+
+class AfterRun(Coro):
+    async def action(self, m: Module, run_number: int) -> None:
+        assert self.leaf is not None
+        await cast(SlotWg, self.leaf.children[0]).refresh()  # type: ignore
 
 
 class DumpPTableW(VBox):
@@ -22,10 +29,11 @@ class DumpPTableW(VBox):
             self.children = (sl_wg, next_btn)
         else:
             self.children = (sl_wg,)
-        input_.scheduler().on_tick(self._refresh_proc)
-
-    async def _refresh_proc(self, scheduler: Scheduler, run_number: int) -> None:
-        await cast(SlotWg, self.children[0]).refresh()
+        after_run = AfterRun()
+        input_.on_after_run(after_run)
+        self.make_leaf_bar(after_run)
+        if input_.state == input_.state_terminated:  # useful for little tables
+            aio.create_task(after_run.action(input_, 42))
 
     def get_underlying_modules(self) -> List[str]:
         return []

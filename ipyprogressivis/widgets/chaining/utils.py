@@ -3,6 +3,7 @@ import numpy as np
 import os
 import json
 import base64
+import time
 import logging
 import ipywidgets as ipw
 import fsspec  # type: ignore
@@ -65,6 +66,7 @@ REPLAY_BATCH: bool = False
 
 FSSPEC_HTTPS = fsspec.filesystem('https')
 
+LOADERS = {"CSV loader": "csv", "PARQUET loader": "parquet", "CUSTOM loader": "custom"}
 
 def glob_url(url: str) -> list[str]:
     return cast(list[str], FSSPEC_HTTPS.glob(url))
@@ -773,7 +775,8 @@ def _make_btn_start_loader(
                 obj.c_.loader.c_.custom
             ])
         )
-
+        obj.remove_loaders()
+    labcommand("progressivis:shot_cell", tag="root", delay=3000)
     return _cbk
 
 
@@ -838,9 +841,10 @@ def make_remove(obj: "NodeVBox") -> Callable[..., None]:
 class ChainingProtocol(Protocol):
     _output_dtypes: Optional[Dict[str, str]]
     _output_module: ModuleOrFacade
+    title: str
 
     def _make_btn_chain_it_cb(
-        self, sel: AnyType, frozen: AnyType | None = None, number: int | None = None
+        self, sel: AnyType, alias: AnyType, frozen: AnyType | None = None, number: int | None = None
     ) -> Callable[..., None]:
         ...
 
@@ -851,14 +855,21 @@ class ChainingMixin:
     def _make_btn_chain_it_cb(
         self: ChainingProtocol,
         sel: AnyType,
+        alias: AnyType,
         frozen: AnyType = None,
         number: int | None = None,
     ) -> Callable[..., None]:
         def _cbk(btn: ipw.Button) -> None:
+            # HERE
             global parent_widget
-            parent_widget = self  # type: ignore
-            add_new_stage(self, sel.value, frozen=frozen, number=number)  # type: ignore
-
+            if sel.value in LOADERS:
+                cons = PARAMS["constructor"]
+                parent_widget = cons
+                add_new_loader(cons, LOADERS[sel.value], alias.value, frozen)
+            else:
+                parent_widget = self  # type: ignore
+                add_new_stage(self, sel.value, frozen=frozen, number=number)  # type: ignore
+            labcommand("progressivis:shot_cell", tag=self.title, delay=3000)  # later shot ...
         return _cbk
 
     def _progress_bar(self) -> ipw.IntProgress:
@@ -884,12 +895,20 @@ class ChainingMixin:
 
     def _make_chaining_box(self: ChainingProtocol) -> ipw.Box:
         sel = ipw.Dropdown(
-            options=[""] + list(sorted(stage_register.keys())),
+            options=[""] + list(sorted(stage_register.keys())) + list(LOADERS.keys()),
             value="",
             description="Next stage",
             disabled=False,
         )
-        btn = make_button("Chain it", disabled=True, cb=self._make_btn_chain_it_cb(sel))
+        alias = ipw.Text(
+            value="",
+            placeholder="optional alias",
+            description="",
+            disabled=False,
+            style={"description_width": "initial"},
+        )
+
+        btn = make_button("Chain it", disabled=True, cb=self._make_btn_chain_it_cb(sel, alias))
         del_btn = make_button(
             "Remove subtree", disabled=False, cb=make_remove(self)  # type: ignore
         )
@@ -902,7 +921,7 @@ class ChainingMixin:
 
         prog_wg = self._progress_bar()  # type: ignore
         sel.observe(_on_sel_change, names="value")
-        chaining = ipw.HBox([sel, btn, del_btn])
+        chaining = ipw.HBox([sel, alias, btn, del_btn])
         return ipw.VBox([prog_wg, chaining])
 
     def _make_replay_chaining_box(self: ChainingProtocol) -> ipw.Box:
@@ -1290,6 +1309,10 @@ class GuestWidget:
     def make_chaining_box(self) -> None:
         self.carrier.make_chaining_box()
 
+    def make_leaf_bar(self, coro: "Coro") -> None:
+        coro.leaf = self
+        self.carrier.make_leaf_bar(coro)
+
     def _make_guess_types(
         self, fun: Callable[..., None], args: Iterable[Any], kw: Dict[str, Any]
     ) -> Callable[[Module, int], None]:
@@ -1433,12 +1456,15 @@ class NodeCarrier(NodeVBox):
         if len(self.children) > 1:
             raise ValueError("The chaining box already exists")
         if replay_list and not PARAMS["replay_before_resume"]:
-            box = self._make_replay_chaining_box()
+            box = self._make_replay_chaining_box()  # type: ignore
         else:
-            box = self._make_chaining_box()
+            box = self._make_chaining_box()  # type: ignore
         if not box:
             return
         self.children = (self.children[0], box)
+
+    def make_leaf_bar(self, coro_obj: "Coro") -> None:
+        self.children = (self.children[0], coro_obj.bar)
 
     def make_progress_bar(self) -> None:
         box = self._make_progress_bar()
@@ -1515,3 +1541,49 @@ class IpyHBoxTyped(ipw.HBox, TypedBox):
     def __init__(self, *args: Any, **kw: Any) -> None:
         ipw.HBox.__init__(self, *args, **kw)
         TypedBox.__init__(self)
+
+
+class CoroBar(IpyHBoxTyped):
+    class Typed(TypedBase):
+        display_t: ipw.IntSlider
+        is_active: ipw.Checkbox
+
+
+class Coro:
+    __name__ = "action"  # raise clean exceptions in Module
+    def __init__(self, shot_offset: int = 3, shot_rate: int = 100) -> None:
+        self.leaf: GuestWidget | None = None  # TODO: use a weakref here
+        self._shot_offset = shot_offset
+        self._shot_rate = shot_rate
+        self._last_display: int = 0
+        self.calls_counter: int = 0
+        self.bar = CoroBar()
+        self.bar.c_.display_t =  ipw.IntSlider(
+            value=1,
+            min=1,
+            max=10,
+            step=1,
+            description="Display T:",
+            style={'description_width': 'initial'},
+            disabled=False,
+            continuous_update=False,
+            orientation="horizontal",
+            readout=True,
+            readout_format="d",
+        )
+        self.bar.c_.is_active = ipw.Checkbox(
+            description="Active", value=True, disabled=False
+        )
+    async def action(self, m: Module, run_n: int) -> None:
+        raise ValueError("'action' method must be defined in a 'Coro' subclass")
+    async def __call__(self, m: Module, run_n: int) -> None:
+        if not self.bar.c_.is_active.value:
+            return
+        now = int(time.time())
+        if now - self._last_display < self.bar.child.display_t.value:
+            return
+        await self.action(m, run_n)
+        self._last_display = int(time.time())
+        self.calls_counter += 1
+        if self.calls_counter % self._shot_rate == self._shot_offset and self.leaf is not None:
+            labcommand("progressivis:shot_cell", tag=self.leaf.carrier.title, delay=3000)

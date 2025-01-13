@@ -119,11 +119,14 @@ class Constructor(RootVBox, TypedBox):
         set_recording_state(False)
         self._do_record = not self._backup.value
 
+    def remove_loaders(self) -> None:
+        self.c_.loader = LoadBlock()
+
     def _allow_overwrite_cb(self, change: dict[str, AnyType]) -> None:
-        if change["new"]:
-            self.make_loaders()
-        else:
-            self.c_.loader = LoadBlock()
+        #if change["new"]:
+        #    self.make_loaders()
+        #else:
+        #    self.c_.loader = LoadBlock()
         self._do_record = change["new"]
         self.child.btnbar.child.resume.disabled = not change["new"]
 

@@ -1,5 +1,3 @@
-# type: ignore
-import time
 from .utils import (
     make_button,
     stage_register,
@@ -10,6 +8,7 @@ from .utils import (
     is_recording,
     amend_last_record,
     runner,
+    Coro
 )
 import ipywidgets as ipw
 from progressivis.core.api import Module
@@ -23,9 +22,25 @@ _l = ipw.Label
 
 MAX_DIM = 512
 
+class AfterRun(Coro):
+    """async def _action(self, m: Module, run_number: int) -> None:
+        assert isinstance(m, Heatmap)
+        image = m.get_image_bin()  # get the image from the heatmap
+        if image is not None:
+            self.leaf.child.image.value = (
+                image  # Replace the displayed image with the new one
+            )
+    """
+    async def action(self, m: Module, run_number: int) -> None:
+        assert isinstance(m, Heatmap)
+        image = m.get_image()
+        assert self.leaf is not None
+        if image is not None:
+            self.leaf.child.image.value = f"<img src='{image}'/>"  # type: ignore
+
 
 def make_float(
-    description: str = "", disabled: bool = False, value=0.0
+    description: str = "", disabled: bool = False, value: float = 0.0
 ) -> ipw.BoundedFloatText:
     return ipw.BoundedFloatText(
         value=value,
@@ -48,8 +63,9 @@ class HeatmapW(VBoxTyped):
         choice_trans: ipw.Dropdown
         gaussian_blur: ipw.IntSlider
         start_btn: ipw.Button
-        image: ipw.Image | ipw.Label
-        display_period: ipw.IntSlider | ipw.Label
+        #image: ipw.Image | ipw.Label
+        image: ipw.HTML
+        #display_period: ipw.IntSlider | ipw.Label
 
     def __init__(self) -> None:
         super().__init__()
@@ -62,8 +78,8 @@ class HeatmapW(VBoxTyped):
     def obs_columns(self, change: dict[str, AnyType]) -> None:
         if self.child.choice_x.value and self.child.choice_y.value:
             self.child.start_btn.disabled = False
-            self.column_x: str = self.child.choice_x.value.split(":")[0]
-            self.column_y: str = self.child.choice_y.value.split(":")[0]
+            self.column_x = self.child.choice_x.value.split(":")[0]
+            self.column_y = self.child.choice_y.value.split(":")[0]
         else:
             self.child.start_btn.disabled = True
 
@@ -154,30 +170,20 @@ class HeatmapW(VBoxTyped):
         self.child.choice_y.disabled = True
         self.child.choice_dim.disabled = True
 
-    async def _after_run(self, m: Module, run_number: int) -> None:
-        now = int(time.time())
-        if now - self._last_display < self.child.display_period.value:
-            return
-        assert isinstance(m, Heatmap)
-        image = m.get_image_bin()  # get the image from the heatmap
-        if image is not None:
-            self.child.image.value = (
-                image  # Replace the displayed image with the new one
-            )
-        self._last_display = int(time.time())
-
-    def init_heatmap(self, ctx) -> None:
+    def init_heatmap(self, ctx: dict[str, AnyType]) -> Heatmap:
         col_x = ctx["X"]
         col_y = ctx["Y"]
         print("XY", ctx)
         DIM = int(self.child.choice_dim.value)
-        self.child.image = ipw.Image(value=b"\x00", width=MAX_DIM, height=MAX_DIM)
+        #self.child.image = ipw.Image(value=b"\x00", width=MAX_DIM, height=MAX_DIM)
+        self.child.image = ipw.HTML(value="Hello <b>World</b>")
+
         self.child.display_period = ipw.IntSlider(
             value=1,
             min=1,
             max=10,
             step=1,
-            description="Display periodicity:",
+            description="Display rate:",
             style={'description_width': 'initial'},
             disabled=False,
             continuous_update=False,
@@ -211,7 +217,9 @@ class HeatmapW(VBoxTyped):
             self._heatmap = heatmap
             self._heatmap.params.transform = int(self.child.choice_trans.value)
             self._heatmap.params.gaussian_blur = self.child.gaussian_blur.value
-            heatmap.on_after_run(self._after_run)  # Install the callback
+            after_run = AfterRun()
+            heatmap.on_after_run(after_run)  # Install the callback
+            self.make_leaf_bar(after_run)
             return heatmap
 
     @runner
