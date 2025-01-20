@@ -16,3 +16,4 @@ from .chaining.constructor import *
 from .chaining.utils import create_stage_widget, get_header
 from .chaining.group_by import *
 from .vega import VegaWidget
+from .cell_out import CellOut

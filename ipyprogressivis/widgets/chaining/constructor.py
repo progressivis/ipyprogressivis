@@ -3,6 +3,8 @@ from progressivis.io.api import Variable
 from progressivis.core.api import Sink, Scheduler
 import progressivis.core.aio as aio
 import asyncio
+
+
 from .utils import (
     make_button,
     set_dag,
@@ -24,7 +26,11 @@ from .utils import (
     reset_recorder,
     set_recording_state,
     IpyHBoxTyped,
-    IpyVBoxTyped
+    LOADERS,
+    add_new_loader,
+    disable_all,
+    shot_cell_cmd,
+    set_parent_widget
 )
 
 from typing import (
@@ -59,11 +65,11 @@ class BtnBar(IpyHBoxTyped):
         sbs: ipw.Button
 
 
-class LoadBlock(IpyVBoxTyped):
+class LoadBlock(IpyHBoxTyped):
     class Typed(TypedBase):
-        csv: ipw.HBox
-        parquet: ipw.HBox
-        custom: ipw.HBox
+        choice: ipw.Dropdown
+        alias_inp: ipw.Text
+        create_btn: ipw.Button
 
 
 START_DELAY: int = 2
@@ -118,7 +124,7 @@ class Constructor(RootVBox, TypedBox):
         PARAMS["command_list"] = []
         set_recording_state(False)
         self._do_record = not self._backup.value
-
+        self.add_class("progressivis_guest_widget")
     def remove_loaders(self) -> None:
         self.c_.loader = LoadBlock()
 
@@ -167,11 +173,43 @@ class Constructor(RootVBox, TypedBox):
         self._do_record = change["new"]
 
     def make_loaders(self) -> None:
-        self.c_.loader.c_.csv = self.make_loader_box(ftype="csv", disabled=False)
-        self.c_.loader.c_.parquet = self.make_loader_box(ftype="parquet",
-                                                         disabled=False)
-        self.c_.loader.c_.custom = self.make_loader_box(ftype="custom",
-                                                        disabled=False)
+        choice = self.c_.loader.c_.choice = ipw.Dropdown(
+                options=[("", "")] + list(LOADERS.items()),
+                value="",
+                description="Loader",
+                disabled=False,
+                style={"description_width": "initial"},
+            )
+        choice.observe(self._loader_choice_cb, names="value")
+        self.c_.loader.c_.alias_inp = ipw.Text(
+            value="",
+            placeholder="optional alias",
+            description="",
+            disabled=False,
+            style={"description_width": "initial"},
+        )
+        self.c_.loader.c_.create_btn = make_button(
+            "Create",
+            disabled=True,
+            cb=self._btn_start_loader_cb
+        )
+    def _loader_choice_cb(self,  val: AnyType) -> None:
+        self.c_.loader.c_.create_btn.disabled = not val["new"]
+
+    def _btn_start_loader_cb(self, btn: ipw.Button) -> None:
+        #global parent_widget
+        #parent_widget = self  # type: ignore
+        set_parent_widget(self)
+        #assert parent_widget
+        if self._do_record:
+            reset_recorder()
+            set_recording_state(True)
+        add_new_loader(self, self.c_.loader.c_.choice.value, self.c_.loader.c_.alias_inp.value)
+        #alias.value = ""
+        disable_all(self)
+        self.remove_loaders()
+        #labcommand("progressivis:shot_cell", tag="root", delay=3000)
+        shot_cell_cmd(tag="root", delay=3000)
 
     def start_scheduler(self, n: int = 3) -> None:
         async def _func() -> None:

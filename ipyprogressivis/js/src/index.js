@@ -16,6 +16,7 @@ import {
 import { DagWidgetModel, DagWidgetView } from "./dag_widget";
 import { BackupModel } from "./backup";
 import { TalkerModel } from "./talker";
+import { CellOutModel } from "./cell_out";
 import { VegaWidgetModel, VegaWidget } from "jupyter-vega/dist/index";
 
 export {
@@ -42,4 +43,5 @@ export {
   VegaWidget,
   BackupModel,
   TalkerModel,
+  CellOutModel,
 };

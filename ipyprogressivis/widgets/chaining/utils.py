@@ -19,6 +19,7 @@ from ..csv_sniffer import CSVSniffer
 from collections import defaultdict
 from .. import DagWidgetController  # type: ignore
 from .. import PsBoard
+from ..cell_out import CellOut
 from pathlib import Path
 import copy
 from typing import (
@@ -85,12 +86,20 @@ def dot_progressivis() -> str:
     return ""
 
 
+def shot_cell_cmd(tag: str, delay: int) -> None:
+    if REPLAY_BATCH:
+        return
+    labcommand("progressivis:shot_cell", tag=tag, delay=delay)
+
+
 def shot_cell(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
     def wrapper(*args: Any, **kwargs: Any) -> None:
         self_ = args[0]
         assert isinstance(self_, GuestWidget)
         func(*args, **kwargs)
-        labcommand("progressivis:shot_cell", tag=self_.carrier.title, delay=3000)
+        #labcommand("progressivis:shot_cell", tag=self_.carrier.title, delay=3000)
+        print("shot_cell", self_.carrier.title)
+        shot_cell_cmd(tag=self_.carrier.title, delay=3000)
     return wrapper
 
 
@@ -107,7 +116,7 @@ def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
                 func(*args, **kwargs)
                 content = copy.copy(self_.frozen_kw)
                 amend_last_record({"frozen": content})
-                return self_.post_run()
+                return self_.post_run(self_.carrier.title)
 
             def _edit_cb(b: Any) -> "NodeCarrier":
                 assert isinstance(self_, GuestWidget)
@@ -140,7 +149,7 @@ def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
             content = copy.copy(self_.frozen_kw)
             if not is_replay_batch():
                 amend_last_record({"frozen": content})
-            return self_.post_run()
+            return self_.post_run(self_.carrier.title)
 
     return wrapper
 
@@ -298,7 +307,8 @@ def labcommand(cmd: str, **kw: AnyType) -> None:
         line = code.split("\n")[0]
         wg = fetch_widget(line)
         md = kw["md"]
-        widget_list.append((md, wg))
+        tag = kw["tag"]
+        widget_list.append((md, wg, tag))
         code = "from ipyprogressivis.widgets import get_header, Constructor\n"+unmagic(code)
         exec(code)
         return
@@ -452,9 +462,9 @@ def replay_sequence(obj: "Constructor") -> None:
             break
     REPLAY_BATCH = False
     print("widget list:", widget_list)
-    for md, code in widget_list:
+    for md, code, tag in widget_list:
         labcommand(
-            "progressivis:create_stage_cells", tag=id(md),  # TODO: fix tag
+            "progressivis:create_stage_cells", tag=tag,
             md=md, code=code, rw=False, run=True
         )
 
@@ -644,7 +654,7 @@ def make_replay_next_btn() -> ipw.Button:
 
 
 stage_register: Dict[str, AnyType] = {}
-parent_widget: Optional["NodeCarrier"] = None
+parent_widget: Union["NodeCarrier", Constructor] | None = None
 parent_dtypes: Optional[Dict[str, str]] = None
 key_by_id: Dict[int, Tuple[str, int]] = {}
 widget_by_id: Dict[int, "NodeCarrier"] = {}
@@ -652,6 +662,10 @@ widget_by_key: Dict[Tuple[str, int], "NodeCarrier"] = {}
 widget_numbers: Dict[str, int] = defaultdict(int)
 recording_state: bool = False
 
+
+def set_parent_widget(obj: Union["NodeCarrier", Constructor]) -> None:
+    global parent_widget
+    parent_widget = obj
 
 class _Dag:
     def __init__(
@@ -667,7 +681,7 @@ class _Dag:
 
 
 def create_stage_widget(
-    key: str, frozen: AnyType = None, number: int | None = None
+        key: str, alias: str, frozen: AnyType = None, number: int | None = None
 ) -> "NodeCarrier":
     obj = parent_widget
     assert obj is not None
@@ -677,9 +691,10 @@ def create_stage_widget(
     if number is not None and number > widget_numbers[key]:
         widget_numbers[key] = number
     number_ = widget_numbers[key] if number is None else number
-    dag = _Dag(label=key, number=number_, dag=get_dag())
+    dag = _Dag(label=key, number=number_, dag=get_dag(), alias=alias)
     ctx = dict(parent=obj, dtypes=dtypes, input_module=obj._output_module, dag=dag)
     guest = stage_register[key]()
+    guest.add_class("progressivis_guest_widget")
     if frozen is not None:
         guest.frozen_kw = frozen
     stage = NodeCarrier(ctx, guest)
@@ -689,9 +704,13 @@ def create_stage_widget(
     widget_numbers[key] += 1
     assert obj not in obj.subwidgets
     obj.subwidgets.append(stage)
-    widget_by_key[(key, stage.number)] = stage
-    widget_by_id[id(stage)] = stage
-    key_by_id[id(stage)] = (key, stage.number)
+    if alias:
+        widget_by_key[(alias, 0)] = stage
+        key_by_id[id(stage)] = (alias, 0)
+    else:
+        widget_by_key[(key, stage.number)] = stage
+        widget_by_id[id(stage)] = stage
+        key_by_id[id(stage)] = (key, stage.number)
     return stage
 
 
@@ -723,6 +742,7 @@ def create_loader_widget(
         loader.frozen_kw = frozen
     stage = NodeCarrier(ctx, loader)
     loader.initialize()
+    loader.add_class("progressivis_guest_widget")
     widget_numbers[key] += 1
     obj.subwidgets.append(stage)
     widget_by_id[id(stage)] = stage
@@ -743,10 +763,6 @@ def get_widget_by_key(key: str, num: int) -> "NodeCarrier":
     return widget_by_key[(key, num)]
 
 
-def get_recording_state() -> bool:
-    return recording_state
-
-
 def is_recording() -> bool:
     return recording_state
 
@@ -761,7 +777,7 @@ def _make_btn_start_loader(
 ) -> Callable[..., None]:
     def _cbk(btn: ipw.Button) -> None:
         global parent_widget
-        parent_widget = obj  # type: ignore
+        parent_widget = obj
         assert parent_widget
         if obj._do_record:
             reset_recorder()
@@ -776,7 +792,8 @@ def _make_btn_start_loader(
             ])
         )
         obj.remove_loaders()
-    labcommand("progressivis:shot_cell", tag="root", delay=3000)
+    #labcommand("progressivis:shot_cell", tag="root", delay=3000)
+    shot_cell_cmd(tag="root", delay=3000)
     return _cbk
 
 
@@ -798,11 +815,12 @@ def replay_start_loader(
 
 
 def replay_new_stage(
-    obj: "NodeCarrier",
-    title: str,
-    frozen: AnyType | None = None,
-    number: int | None = None,
-    **kw: AnyType,
+        obj: "NodeCarrier",
+        title: str,
+        alias:str,
+        frozen: AnyType | None = None,
+        number: int | None = None,
+        **kw: AnyType,
 ) -> None:
     class _FakeSel:
         value: str
@@ -810,7 +828,7 @@ def replay_new_stage(
     sel.value = title
     global parent_widget
     parent_widget = obj
-    add_new_stage(obj, title, frozen=frozen, number=number, markdown=kw.get("markdown", ""))
+    add_new_stage(obj, title, alias=alias, frozen=frozen, number=number, markdown=kw.get("markdown", ""))
 
 
 def remove_tagged_cells(tag: int) -> None:
@@ -868,8 +886,10 @@ class ChainingMixin:
                 add_new_loader(cons, LOADERS[sel.value], alias.value, frozen)
             else:
                 parent_widget = self  # type: ignore
-                add_new_stage(self, sel.value, frozen=frozen, number=number)  # type: ignore
-            labcommand("progressivis:shot_cell", tag=self.title, delay=3000)  # later shot ...
+                add_new_stage(self, sel.value, alias.value, frozen=frozen, number=number)  # type: ignore
+            #labcommand("progressivis:shot_cell", tag=self.title, delay=3000)  # later shot ...
+            print("later shot", self.title)
+            shot_cell_cmd(tag=self.title, delay=3000)
         return _cbk
 
     def _progress_bar(self) -> ipw.IntProgress:
@@ -967,23 +987,6 @@ class ChainingMixin:
         prog_wg = self._progress_bar()  # type: ignore
         chaining = ipw.HBox([sel, btn, del_btn])
         return ipw.VBox([prog_wg, chaining])
-
-
-class LoaderMixin:
-    def make_loader_box(self, ftype: str = "csv", disabled: bool = False) -> ipw.HBox:
-        alias_inp = ipw.Text(
-            value="",
-            placeholder="optional alias",
-            description=f"{ftype.upper()} loader:",
-            disabled=disabled,
-            style={"description_width": "initial"},
-        )
-        btn = make_button(
-            "Create",
-            disabled=disabled,
-            cb=_make_btn_start_loader(self, ftype, alias_inp),  # type:ignore
-        )
-        return ipw.HBox([alias_inp, btn])
 
 
 def get_previous(obj: "ChainingWidget") -> "ChainingWidget":
@@ -1086,23 +1089,28 @@ def get_loader_cell(
 
 
 def add_new_stage(
-    parent: "ChainingWidget",
-    title: str,
-    frozen: AnyType = None,
-    number: int | None = None,
-    markdown: str = ""
+        parent: "ChainingWidget",
+        title: str,
+        alias: str,
+        frozen: AnyType = None,
+        number: int | None = None,
+        markdown: str = ""
 ) -> None:
-    stage = create_stage_widget(title, frozen, number=number)
+    stage = create_stage_widget(title, alias, frozen, number=number)
     parent_key = key_by_id[id(parent)]
     n = stage.number
     end = ""
     if frozen is not None and is_replay():
         end = ".run()"
-    tag = title + (f"[{n}]" if n else "")
-    md = "## " + tag
+    if alias:
+        md = f"## {alias}"
+        tag = alias
+    else:
+        tag = title + (f"[{n}]" if n else "")
+        md = "## " + tag
     if markdown:
         md = md + "\n" + markdown
-    code, rw, run = get_stage_cell(key=title, num=n, end=end, frozen=frozen)
+    code, rw, run = get_stage_cell(key=alias or title, num=n, end=end, frozen=frozen)
     labcommand(
         "progressivis:create_stage_cells",
         frozen=frozen,
@@ -1115,6 +1123,7 @@ def add_new_stage(
     add_to_record(dict(title=title,
                        parent=parent_key,
                        number=stage.number,
+                       alias=alias,
                        frozen=frozen,
                        markdown=markdown))
 
@@ -1307,6 +1316,7 @@ class GuestWidget:
 
     @shot_cell
     def make_chaining_box(self) -> None:
+        print("calling make_chaining_box")
         self.carrier.make_chaining_box()
 
     def make_leaf_bar(self, coro: "Coro") -> None:
@@ -1379,11 +1389,11 @@ class GuestWidget:
             os.mkdir(widget_dir)
         return widget_dir
 
-    def post_run(self) -> "NodeCarrier":
+    def post_run(self, title: str) -> "NodeCarrier":
         self.dag_running()
         # self.carrier.children = (make_replay_next_btn()
         #                         if is_replay_only() else ipw.Label("..."),)
-        subst = Substitute("...")
+        subst = Substitute(title)
         self.carrier.children = (subst,)
         subst._GuestWidget__carrier = ref(self.carrier)  # type: ignore
 
@@ -1411,9 +1421,10 @@ class VBox(ipw.VBox, GuestWidget):
         GuestWidget.__init__(self)
 
 
-class Substitute(ipw.Label, GuestWidget):
+class Substitute(CellOut, GuestWidget):
     def __init__(self, *args: Any, **kw: Any) -> None:
-        ipw.Label.__init__(self, *args, **kw)
+        #ipw.Label.__init__(self, *args, **kw)
+        CellOut.__init__(self, *args, **kw)
         GuestWidget.__init__(self)
 
 
@@ -1434,7 +1445,7 @@ class NodeVBox(LeafVBox, ChainingMixin):
         self.dag_register()
 
 
-class RootVBox(LeafVBox, LoaderMixin):
+class RootVBox(LeafVBox):
     def __init__(
         self, ctx: Dict[str, Any], children: Sequence[GuestWidget] = ()
     ) -> None:
@@ -1473,10 +1484,6 @@ class NodeCarrier(NodeVBox):
     @property
     def guest(self) -> GuestWidget:
         return cast(GuestWidget, self.children[0])
-
-
-def _none_wg(wg: Optional[ipw.DOMWidget]) -> ipw.DOMWidget:
-    return dongle_widget() if wg is None else wg
 
 
 class TypedBase:
@@ -1586,4 +1593,5 @@ class Coro:
         self._last_display = int(time.time())
         self.calls_counter += 1
         if self.calls_counter % self._shot_rate == self._shot_offset and self.leaf is not None:
-            labcommand("progressivis:shot_cell", tag=self.leaf.carrier.title, delay=3000)
+            #labcommand("progressivis:shot_cell", tag=self.leaf.carrier.title, delay=3000)
+            shot_cell_cmd(tag=self.leaf.carrier.title, delay=3000)

@@ -1,6 +1,10 @@
 # type: ignore
 from ._version import __version__
-
+import io
+import os
+import base64
+from PIL import Image, ImageFilter
+from pathlib import Path
 _ = __version__
 
 
@@ -56,6 +60,17 @@ def _jupyter_server_extension_points():
     return [{"module": "ipyprogressivis.app"}]
 
 
+eye_img = Image.open(Path(os.path.dirname(__file__)) / "resources" / "eye.png")
+eye_img = eye_img.resize((32, 32))
+
+def add_snapshot_tag(data):
+    img = Image.open(io.BytesIO(base64.b64decode(data)))
+    img = img.filter(ImageFilter.BLUR)
+    img.paste(eye_img, (0, 0))
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode("utf-8")
+
 def pre_save(model, **kwargs):
     """copy ProgressiVis snapshots to cells outputs before saving notebooks"""
     # only run on notebooks
@@ -79,13 +94,16 @@ def pre_save(model, **kwargs):
             continue
         if i >= len(outs) or not outs[i]:  # an empty dict actually
             continue
-        _, b64_data = outs[i].split(",", 1)
+        prefix, b64_data = outs[i].split(",", 1)
+        b64_data = add_snapshot_tag(b64_data)
+        outs[i] = prefix + "," + b64_data
         for j, out in enumerate(cell['outputs']):
             if out["output_type"] not in ("execute_result", "display_data"):
                 continue
             out["data"] = {
                 "image/png": b64_data
             }
+    metadata["progressivis_prev_outs"] = metadata["progressivis_outs"]
     metadata["progressivis_outs"] = []
     if not (dag_png := metadata.get("progressivis_dag_png")):
         return

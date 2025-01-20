@@ -177,7 +177,10 @@ export function runCellAt(nbtracker, ix) {
 export function shotCellAtIndex(notebook, cell, i, delay) {
   let prevOuts = notebook.model.metadata.progressivis_outs || [];
   function fun() {
-    html2canvas($(cell.outputArea.node).find($("[class~='jupyter-widgets']")).first()[0]).then((canvas) => {
+    //html2canvas($(cell.outputArea.node).find($("[class~='jupyter-widgets']")).first()[0]).then((canvas) => {
+    html2canvas(
+      $(cell.outputArea.node).find($(".progressivis_guest_widget")).first()[0],
+    ).then((canvas) => {
       let png = canvas.toDataURL("image/png");
       prevOuts[i] = png;
       notebook.model.sharedModel.setMetadata("progressivis_outs", prevOuts);
@@ -195,9 +198,7 @@ export function shotCellAtIndex(notebook, cell, i, delay) {
 
 export function shotCell(nbtracker, tag, delay) {
   var crtWidget = nbtracker.currentWidget;
-    var notebook = crtWidget.content;
-    window.my_notebook = notebook;
-    window.my_jq = $;
+  var notebook = crtWidget.content;
   let i = notebook.widgets.findIndex(
     (x) =>
       x.model.metadata.progressivis_tag === tag &&

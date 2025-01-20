@@ -171,9 +171,31 @@ export const progressivisPlugin = {
       }
     };
 
+    const CellOutView = class extends DOMWidgetView {
+      render() {
+        this.el.innerHTML = "<div></div>";
+        this.tag_changed();
+        this.touch();
+      }
+      tag_changed() {
+        console.log("tag changed", this.model.get("tag"));
+        var crtWidget = nbtracker.currentWidget;
+        var notebook = crtWidget.content;
+        let i = notebook.widgets.findIndex(
+          (x) =>
+            x.model.metadata.progressivis_tag === this.model.get("tag") &&
+            x.model.sharedModel.cell_type === "code",
+        );
+        let imgSrc = notebook.model.metadata.progressivis_prev_outs[i];
+        this.el.innerHTML = "<img src='" + imgSrc + "'></img>";
+        this.touch();
+      }
+    };
+
     let pwidgets_ = { ...pwidgets };
     pwidgets_.TalkerView = TalkerView;
     pwidgets_.BackupView = BackupView;
+    pwidgets_.CellOutView = CellOutView;
     widgets.registerWidget({
       name: "jupyter-progressivis",
       version: "0.1.0",
