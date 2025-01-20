@@ -1,12 +1,12 @@
 from .utils import (make_button, stage_register, dongle_widget, VBoxTyped,
-                    TypedBase, replay_next, needs_dtypes)
+                    TypedBase, needs_dtypes)
 from ..utils import historized_widget
 from ._multi_series import multi_series_no_data
 import ipywidgets as ipw
 from ..vega import VegaWidget
 import pandas as pd
 from progressivis.core.api import Module
-from typing import Any as AnyType, Dict, cast, Type, List, Union
+from typing import Any as AnyType, Dict, cast, Type, List
 from typing_extensions import TypeAlias
 
 
@@ -46,7 +46,7 @@ class MultiSeriesW(VBoxTyped):
         self.child.btn_apply = self._btn_ok = make_button(
             "Apply", disabled=True, cb=self._btn_apply_cb
         )
-        replay_next()
+
 
     def _axis_row(self, axis: str) -> Dict[str, ipw.DOMWidget]:
         axis_w = _l(axis)
@@ -61,8 +61,8 @@ class MultiSeriesW(VBoxTyped):
             layout={"width": "initial"},
         )
         col.observe(self._col_xy_cb, "value")
-        factor: Union[ipw.FloatText, ipw.Label]
-        sym: Union[ipw.Text, ipw.Label]
+        factor: ipw.FloatText | ipw.HTML
+        sym: ipw.Text | ipw.HTML
         if axis[0] == "S":
             factor = ipw.FloatText(value=1.0, description="", disabled=False)
             sym = ipw.Text(
