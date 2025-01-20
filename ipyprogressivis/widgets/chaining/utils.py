@@ -526,10 +526,8 @@ def append_child(wg: ipw.Tab, child: ipw.DOMWidget, title: str = "") -> None:
         wg.set_title(last, title)
 
 
-def dongle_widget(v: str = "dongle") -> ipw.Label:
-    wg = ipw.Label(v)
-    wg.layout.visibility = "hidden"
-    return wg
+def dongle_widget(v: str = "") -> ipw.HTML:
+    return ipw.HTML(v)
 
 
 class HandyTab(ipw.Tab):
@@ -654,7 +652,7 @@ def make_replay_next_btn() -> ipw.Button:
 
 
 stage_register: Dict[str, AnyType] = {}
-parent_widget: Union["NodeCarrier", Constructor] | None = None
+parent_widget: Union["NodeCarrier", "Constructor"] | None = None
 parent_dtypes: Optional[Dict[str, str]] = None
 key_by_id: Dict[int, Tuple[str, int]] = {}
 widget_by_id: Dict[int, "NodeCarrier"] = {}
@@ -663,7 +661,7 @@ widget_numbers: Dict[str, int] = defaultdict(int)
 recording_state: bool = False
 
 
-def set_parent_widget(obj: Union["NodeCarrier", Constructor]) -> None:
+def set_parent_widget(obj: Union["NodeCarrier", "Constructor"]) -> None:
     global parent_widget
     parent_widget = obj
 

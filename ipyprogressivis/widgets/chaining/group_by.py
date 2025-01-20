@@ -26,7 +26,7 @@ def make_sel_multiple_dt(disabled: bool = True) -> ipw.SelectMultiple:
 
 class GroupByW(VBoxTyped):
     class Typed(TypedBase):
-        grouping_mode: Union[ipw.Label, ipw.RadioButtons]
+        grouping_mode: Union[ipw.HTML, ipw.RadioButtons]
         by_box: Union[ipw.SelectMultiple, ipw.HBox]
         start_btn: ipw.Button
 
@@ -93,8 +93,8 @@ class GroupByW(VBoxTyped):
         else:
             self.child.by_box = self.make_subcolumn_box()
 
-    def make_gr_mode(self) -> Union[ipw.Label, ipw.RadioButtons]:
-        wg: Union[ipw.Label, ipw.RadioButtons]
+    def make_gr_mode(self) -> ipw.HTML | ipw.RadioButtons:
+        wg: ipw.HTML | ipw.RadioButtons
         if "datetime64" in self.input_dtypes.values():
             wg = ipw.RadioButtons(
                 options=["columns",
