@@ -125,8 +125,6 @@ class Constructor(RootVBox, TypedBox):
         set_recording_state(False)
         self._do_record = not self._backup.value
         self.add_class("progressivis_guest_widget")
-    def remove_loaders(self) -> None:
-        self.c_.loader = LoadBlock()
 
     def _allow_overwrite_cb(self, change: dict[str, AnyType]) -> None:
         #if change["new"]:
@@ -197,19 +195,14 @@ class Constructor(RootVBox, TypedBox):
         self.c_.loader.c_.create_btn.disabled = not val["new"]
 
     def _btn_start_loader_cb(self, btn: ipw.Button) -> None:
-        #global parent_widget
-        #parent_widget = self  # type: ignore
         set_parent_widget(self)
-        #assert parent_widget
         if self._do_record:
             reset_recorder()
             set_recording_state(True)
         add_new_loader(self, self.c_.loader.c_.choice.value, self.c_.loader.c_.alias_inp.value)
         #alias.value = ""
         disable_all(self)
-        self.remove_loaders()
-        #labcommand("progressivis:shot_cell", tag="root", delay=3000)
-        shot_cell_cmd(tag="root", delay=3000)
+        shot_cell_cmd(tag="root")
 
     def start_scheduler(self, n: int = 3) -> None:
         async def _func() -> None:

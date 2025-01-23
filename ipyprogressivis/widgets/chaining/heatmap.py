@@ -1,6 +1,7 @@
 from .utils import (
     make_button,
     stage_register,
+    disable_all,
     VBoxTyped,
     TypedBase,
     needs_dtypes,
@@ -8,6 +9,7 @@ from .utils import (
     is_recording,
     amend_last_record,
     runner,
+    GuestWidget,
     Coro
 )
 import ipywidgets as ipw
@@ -23,14 +25,6 @@ _l = ipw.Label
 MAX_DIM = 512
 
 class AfterRun(Coro):
-    """async def _action(self, m: Module, run_number: int) -> None:
-        assert isinstance(m, Heatmap)
-        image = m.get_image_bin()  # get the image from the heatmap
-        if image is not None:
-            self.leaf.child.image.value = (
-                image  # Replace the displayed image with the new one
-            )
-    """
     async def action(self, m: Module, run_number: int) -> None:
         assert isinstance(m, Heatmap)
         image = m.get_image()
@@ -175,8 +169,7 @@ class HeatmapW(VBoxTyped):
         col_y = ctx["Y"]
         print("XY", ctx)
         DIM = int(self.child.choice_dim.value)
-        #self.child.image = ipw.Image(value=b"\x00", width=MAX_DIM, height=MAX_DIM)
-        self.child.image = ipw.HTML(value="Hello <b>World</b>")
+        self.child.image = ipw.HTML(value="")
 
         self.child.display_period = ipw.IntSlider(
             value=1,
@@ -222,11 +215,16 @@ class HeatmapW(VBoxTyped):
             self.make_leaf_bar(after_run)
             return heatmap
 
+    def provide_surrogate(self, title: str) -> GuestWidget:
+        disable_all(self)
+        return self
+
     @runner
     def run(self) -> AnyType:
         content = self.frozen_kw
         self.output_module = self.init_heatmap(content)
         self.output_slot = "result"
+
 
 
 stage_register["Heatmap"] = HeatmapW

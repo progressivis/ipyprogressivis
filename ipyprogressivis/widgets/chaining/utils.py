@@ -47,6 +47,7 @@ from sidecar import Sidecar  # type: ignore
 if TYPE_CHECKING:
     from ipyprogressivis.widgets import Constructor
 
+
 Sniffer = CSVSniffer
 DAGWidget: TypeAlias = DagWidgetController
 ModuleOrFacade: TypeAlias = Module | TableFacade
@@ -69,6 +70,9 @@ FSSPEC_HTTPS = fsspec.filesystem('https')
 
 LOADERS = {"CSV loader": "csv", "PARQUET loader": "parquet", "CUSTOM loader": "custom"}
 
+SHOT_LATER: list[str] = []
+
+
 def glob_url(url: str) -> list[str]:
     return cast(list[str], FSSPEC_HTTPS.glob(url))
 
@@ -85,10 +89,15 @@ def dot_progressivis() -> str:
         return str(pv_dir)
     return ""
 
+def shot_later(name: str) -> None:
+    SHOT_LATER.append(name)
 
-def shot_cell_cmd(tag: str, delay: int) -> None:
+def shot_cell_cmd(tag: str, delay: int = 3000) -> None:
     if REPLAY_BATCH:
         return
+    for name in SHOT_LATER:
+        labcommand("progressivis:shot_cell", tag=name, delay=delay)
+    SHOT_LATER.clear()
     labcommand("progressivis:shot_cell", tag=tag, delay=delay)
 
 
@@ -789,8 +798,6 @@ def _make_btn_start_loader(
                 obj.c_.loader.c_.custom
             ])
         )
-        obj.remove_loaders()
-    #labcommand("progressivis:shot_cell", tag="root", delay=3000)
     shot_cell_cmd(tag="root", delay=3000)
     return _cbk
 
@@ -1237,7 +1244,6 @@ class GuestWidget:
         self.frozen_kw: Dict[str, Any]
         self._do_replay_next: bool = False
         self._record_index: int = 0
-
     def initialize(self) -> None:
         pass
 
@@ -1387,13 +1393,14 @@ class GuestWidget:
             os.mkdir(widget_dir)
         return widget_dir
 
+    def provide_surrogate(self, title: str) -> "GuestWidget":
+        return Surrogate(title)
+
     def post_run(self, title: str) -> "NodeCarrier":
         self.dag_running()
-        # self.carrier.children = (make_replay_next_btn()
-        #                         if is_replay_only() else ipw.Label("..."),)
-        subst = Substitute(title)
-        self.carrier.children = (subst,)
-        subst._GuestWidget__carrier = ref(self.carrier)  # type: ignore
+        surrogate = self.provide_surrogate(title)
+        self.carrier.children = (surrogate,)  # type: ignore
+        surrogate._GuestWidget__carrier = ref(self.carrier)  # type: ignore
 
         if PARAMS["replay_before_resume"]:
             self.make_chaining_box()
@@ -1419,7 +1426,7 @@ class VBox(ipw.VBox, GuestWidget):
         GuestWidget.__init__(self)
 
 
-class Substitute(CellOut, GuestWidget):
+class Surrogate(CellOut, GuestWidget):
     def __init__(self, *args: Any, **kw: Any) -> None:
         #ipw.Label.__init__(self, *args, **kw)
         CellOut.__init__(self, *args, **kw)
