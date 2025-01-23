@@ -307,7 +307,7 @@ export class DagWidgetView extends DOMWidgetView {
         }
         //
         const dag = d3.dagStratify()(_dag);
-        const nodeRadius = 15;
+        const nodeRadius = 20;
         //
         const layout = d3
             .sugiyama() // base layout
@@ -462,14 +462,17 @@ export class DagWidgetView extends DOMWidgetView {
         // Add text to nodes
         nodes
             .append("text")
-            .text((d) => d.data.label.slice(0, 3)) //shorten label to fit on
-            .attr("font-weight", "bold")
+            .text((d) => d.data.label.slice(0, 5)) //shorten label to fit on
+            .attr("font-weight", "normal")
             .attr("font-family", "sans-serif")
             .attr("text-anchor", "middle")
             .attr("alignment-baseline", "middle")
             .attr("fill", "black");
 
         //
+	nodes.append("svg:title")
+	    .text(function(d) { return d.data.label; })
+
         this.refreshAttentionVisuals();
     }
     colorNodesBasedOnStatus() {
