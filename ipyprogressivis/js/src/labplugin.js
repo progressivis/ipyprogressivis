@@ -5,7 +5,6 @@ import { IJupyterWidgetRegistry, DOMWidgetView } from "@jupyter-widgets/base";
 import { INotebookTracker, NotebookActions } from "@jupyterlab/notebook";
 import { IFileBrowserFactory } from "@jupyterlab/filebrowser";
 import { request } from "requests-helper";
-import * as html2canvas from "html2canvas";
 import $ from "jquery";
 
 export const progressivisPlugin = {

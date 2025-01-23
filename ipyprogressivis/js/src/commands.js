@@ -1,5 +1,5 @@
 import { INotebookTracker, NotebookActions } from "@jupyterlab/notebook";
-import * as html2canvas from "html2canvas";
+import * as htmlToImage from "html-to-image";
 import $ from "jquery";
 
 export function progressivisTemplate(app, res, data, browser) {
@@ -177,18 +177,19 @@ export function runCellAt(nbtracker, ix) {
 export function shotCellAtIndex(notebook, cell, i, delay) {
   let prevOuts = notebook.model.metadata.progressivis_outs || [];
   function fun() {
-    //html2canvas($(cell.outputArea.node).find($("[class~='jupyter-widgets']")).first()[0]).then((canvas) => {
-    html2canvas(
-      $(cell.outputArea.node).find($(".progressivis_guest_widget")).first()[0],
-    ).then((canvas) => {
-      let png = canvas.toDataURL("image/png");
-      prevOuts[i] = png;
-      notebook.model.sharedModel.setMetadata("progressivis_outs", prevOuts);
-    });
+    htmlToImage
+      .toPng(
+        $(cell.outputArea.node)
+          .find($(".progressivis_guest_widget"))
+          .first()[0],
+      )
+      .then((png) => {
+        prevOuts[i] = png;
+        notebook.model.sharedModel.setMetadata("progressivis_outs", prevOuts);
+      });
   }
   function fun2() {
-    html2canvas($("[id^='dag_widget_']")[0]).then((canvas) => {
-      let png = canvas.toDataURL("image/png");
+    htmlToImage.toPng($("[id^='dag_widget_']")[0]).then((png) => {
       notebook.model.sharedModel.setMetadata("progressivis_dag_png", png);
     });
   }
