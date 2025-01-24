@@ -307,31 +307,43 @@ export class DagWidgetView extends DOMWidgetView {
         }
         //
         const dag = d3.dagStratify()(_dag);
-        const nodeRadius = 20;
+        const nodeRadius = 15;
+	const rectW = 70;
+	const rectH = 15;
         //
         const layout = d3
             .sugiyama() // base layout
             .decross(d3.decrossOpt()) // minimize number of crossings
             .nodeSize(function (node) {
-                return [(node ? 3.6 : 0.25) * nodeRadius, 3 * nodeRadius];
+                //Niv return [(node ? 3.6 : 0.25) * nodeRadius, 3 * nodeRadius];
+		return [(node ? 1.5 : 0.25) * rectW, 3 * rectH];
                 //return [(node ? 3.6 : 0.25) * nodeRadius, 5 * nodeRadius];
             });
 
         //ZherebkoOperator
         var edgeRadius = 12;
         const layout2 = d3.zherebko()
-            .nodeSize([
+            /*Niv .nodeSize([
                 nodeRadius * 2,
                 (nodeRadius + edgeRadius) * 2,
+                edgeRadius * 2
+            ]);*/
+            .nodeSize([
+                rectW * 2,
+                (rectH + edgeRadius) * 2,
                 edgeRadius * 2
             ]);
         //Grid
         var gridCompact = (layout) => (dag) => {
             // Tweak to render compact grid, first shrink x width by edge radius, then expand the width to account for the loss
             // This could alos be accomplished by just changing the coordinates of the svg viewbox.
-            const baseLayout = layout.nodeSize([
+            /*Niv const baseLayout = layout.nodeSize([
                 nodeRadius + edgeRadius * 2,
                 (nodeRadius + edgeRadius) * 2
+            ]);*/
+            const baseLayout = layout.nodeSize([
+                rectW + edgeRadius * 2,
+                (rectH + edgeRadius) * 2
             ]);
             const { width, height } = baseLayout(dag);
             for (const node of dag) {
@@ -344,9 +356,13 @@ export class DagWidgetView extends DOMWidgetView {
             }
             return { width: width + 2 * nodeRadius, height: height };
         };
-        const layout3 = d3.grid().nodeSize([
+        /*Niv const layout3 = d3.grid().nodeSize([
             nodeRadius + edgeRadius * 2,
             (nodeRadius + edgeRadius) * 2
+        ]);//gridCompact(d3.grid());*/
+        const layout3 = d3.grid().nodeSize([
+            rectW + edgeRadius * 2,
+            (rectH + edgeRadius) * 2
         ]);//gridCompact(d3.grid());
 
         //(node) => [(node ? 3.6 : 0.25) * nodeRadius, 3 * nodeRadius]); // set node size instead of constraining to fit
@@ -380,7 +396,7 @@ export class DagWidgetView extends DOMWidgetView {
             .attr('id', d => 'gnD' + d.data.id)
             .attr("transform", ({ x, y }) => `translate(${x}, ${y})`)
             .on('mouseover', function (e) {
-                d3.select(this).select('circle').attr('stroke-width', 5);
+                d3.select(this).select('rect').attr('stroke-width', 5);
                 console.log('hover');
                 //
                 // d3.select('#dagHoverText').text('Nivan');
@@ -393,11 +409,11 @@ export class DagWidgetView extends DOMWidgetView {
                 // d3.select('#dagHoverGroup').attr('transform', `translate(${e.screenX},${e.screenY})`);
             })
             .on('mouseout', function () {
-                d3.select(this).select('circle').attr('stroke-width', 1);
+                d3.select(this).select('rect').attr('stroke-width', 1);
                 //d3.select('#dagCanvas').attr('transform', `translate(-1000,-1000)`);
             })
             .on('click', function () {
-                var _id = d3.select(this).select('circle').attr('id').slice(2);
+                var _id = d3.select(this).select('rect').attr('id').slice(2);
                 that.selectedWidget = _id;
                 var elt = info.dag.find(d => d.id == _id);
                 //
@@ -437,7 +453,7 @@ export class DagWidgetView extends DOMWidgetView {
                 }
 
             });
-
+/*
         // Plot node circles
         nodes
             .append('circle')
@@ -456,13 +472,25 @@ export class DagWidgetView extends DOMWidgetView {
             .attr("stroke", 'black')
             .attr("stroke-width", 0.5)
             .style('visibility', 'hidden');
+*/
+        nodes
+            .append('svg:rect')
+            .attr('id', d => 'nD' + d.data.id)
+            .attr('rx', 5)
+            .attr('ry', 5)
+            .attr("x", -rectW/2)
+            .attr("y", -rectH/2)
+            .attr('class', 'dagNodes')
+            .attr("width", rectW)
+            .attr("height", rectH)
+            .attr("stroke", 'black');
 
         this.colorNodesBasedOnStatus();
 
         // Add text to nodes
         nodes
             .append("text")
-            .text((d) => d.data.label.slice(0, 5)) //shorten label to fit on
+            .text((d) => d.data.label.slice(0, 10)) //shorten label to fit on
             .attr("font-weight", "normal")
             .attr("font-family", "sans-serif")
             .attr("text-anchor", "middle")
