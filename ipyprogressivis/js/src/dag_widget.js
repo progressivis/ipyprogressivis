@@ -316,54 +316,9 @@ export class DagWidgetView extends DOMWidgetView {
             .decross(d3.decrossOpt()) // minimize number of crossings
             .nodeSize(function (node) {
                 //Niv return [(node ? 3.6 : 0.25) * nodeRadius, 3 * nodeRadius];
-		return [(node ? 1.5 : 0.25) * rectW, 3 * rectH];
+		return [(node ? 1.05 : 0.1) * rectW, 3 * rectH];
                 //return [(node ? 3.6 : 0.25) * nodeRadius, 5 * nodeRadius];
             });
-
-        //ZherebkoOperator
-        var edgeRadius = 12;
-        const layout2 = d3.zherebko()
-            /*Niv .nodeSize([
-                nodeRadius * 2,
-                (nodeRadius + edgeRadius) * 2,
-                edgeRadius * 2
-            ]);*/
-            .nodeSize([
-                rectW * 2,
-                (rectH + edgeRadius) * 2,
-                edgeRadius * 2
-            ]);
-        //Grid
-        var gridCompact = (layout) => (dag) => {
-            // Tweak to render compact grid, first shrink x width by edge radius, then expand the width to account for the loss
-            // This could alos be accomplished by just changing the coordinates of the svg viewbox.
-            /*Niv const baseLayout = layout.nodeSize([
-                nodeRadius + edgeRadius * 2,
-                (nodeRadius + edgeRadius) * 2
-            ]);*/
-            const baseLayout = layout.nodeSize([
-                rectW + edgeRadius * 2,
-                (rectH + edgeRadius) * 2
-            ]);
-            const { width, height } = baseLayout(dag);
-            for (const node of dag) {
-                node.x += nodeRadius;
-            }
-            for (const { points } of dag.ilinks()) {
-                for (const point of points) {
-                    point.x += nodeRadius;
-                }
-            }
-            return { width: width + 2 * nodeRadius, height: height };
-        };
-        /*Niv const layout3 = d3.grid().nodeSize([
-            nodeRadius + edgeRadius * 2,
-            (nodeRadius + edgeRadius) * 2
-        ]);//gridCompact(d3.grid());*/
-        const layout3 = d3.grid().nodeSize([
-            rectW + edgeRadius * 2,
-            (rectH + edgeRadius) * 2
-        ]);//gridCompact(d3.grid());
 
         //(node) => [(node ? 3.6 : 0.25) * nodeRadius, 3 * nodeRadius]); // set node size instead of constraining to fit
         const { width, height } = layout(dag);
@@ -453,6 +408,12 @@ export class DagWidgetView extends DOMWidgetView {
                 }
 
             });
+	function shorten_label(raw_label){
+	    let len = raw_label.length;
+	    if(len <= 10) return raw_label;
+	    return raw_label.slice(0, 5)+"\u2026"+raw_label.slice(len-3, len); // u2026 is "..."
+
+	}
 /*
         // Plot node circles
         nodes
@@ -490,7 +451,7 @@ export class DagWidgetView extends DOMWidgetView {
         // Add text to nodes
         nodes
             .append("text")
-            .text((d) => d.data.label.slice(0, 10)) //shorten label to fit on
+            .text((d) => shorten_label(d.data.label)) //shorten label to fit on
             .attr("font-weight", "normal")
             .attr("font-family", "sans-serif")
             .attr("text-anchor", "middle")
