@@ -61,7 +61,6 @@ def init_dataflow(s: Scheduler) -> AnyType:
 class BtnBar(IpyHBoxTyped):
     class Typed(TypedBase):
         replay: ipw.Button
-        resume: ipw.Button
         sbs: ipw.Button
 
 
@@ -127,12 +126,7 @@ class Constructor(RootVBox, TypedBox):
         self.add_class("progressivis_guest_widget")
 
     def _allow_overwrite_cb(self, change: dict[str, AnyType]) -> None:
-        #if change["new"]:
-        #    self.make_loaders()
-        #else:
-        #    self.c_.loader = LoadBlock()
         self._do_record = change["new"]
-        self.child.btnbar.child.resume.disabled = not change["new"]
 
     def _start_scheduler_cb(self, btn: ipw.Button | None = None) -> None:
         init_module = init_dataflow(self.scheduler)
@@ -144,12 +138,7 @@ class Constructor(RootVBox, TypedBox):
                                                       " record")
             self.child.allow_overwrite.observe(self._allow_overwrite_cb, names="value")
             self.child.btnbar.child.replay = make_button(
-                "Replay ...", cb=self._replay_cb, disabled=False
-            )
-            self.child.btnbar.child.resume = make_button(
-                "Resume ...", cb=self._resume_cb, disabled=not (
-                    self.child.allow_overwrite.value
-                )
+                "Replay all", cb=self._replay_cb, disabled=False
             )
             self.child.btnbar.child.sbs = make_button(
                 "Step by step", cb=self._step_by_step_cb, disabled=False
@@ -203,6 +192,7 @@ class Constructor(RootVBox, TypedBox):
         #alias.value = ""
         disable_all(self)
         shot_cell_cmd(tag="root")
+        self.dag_running()
 
     def start_scheduler(self, n: int = 3) -> None:
         async def _func() -> None:
@@ -227,13 +217,15 @@ class Constructor(RootVBox, TypedBox):
 
     def disable_all_changes(self) -> None:
         self.child.btnbar.child.replay.disabled = True
-        self.child.btnbar.child.resume.disabled = True
         self.child.btnbar.child.sbs.disabled = True
         self.child.allow_overwrite.disabled = True
 
     def _replay_cb(self, btn: ipw.Button) -> None:
-        self.disable_all_changes()
-        self.do_replay(batch=True)
+        if self.c_.allow_overwrite.value:
+            self._resume_cb(btn)
+        else:
+            self.disable_all_changes()
+            self.do_replay(batch=True)
 
     def _resume_cb(self, btn: ipw.Button) -> None:
         self.disable_all_changes()

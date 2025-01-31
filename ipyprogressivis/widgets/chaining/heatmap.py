@@ -212,6 +212,7 @@ class HeatmapW(VBoxTyped):
             self._heatmap.params.gaussian_blur = self.child.gaussian_blur.value
             after_run = AfterRun()
             heatmap.on_after_run(after_run)  # Install the callback
+            self.dag_running()
             self.make_leaf_bar(after_run)
             return heatmap
 
