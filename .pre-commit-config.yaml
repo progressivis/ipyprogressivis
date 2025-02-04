@@ -38,3 +38,4 @@ repos:
           - 'jupyter_server'
           - 'ipykernel'
           - 'panel'
+          - 'click-types'
