@@ -154,5 +154,6 @@ tag_template = "v{new_version}"
 
 [tool.ruff]
 exclude = [
-    "ipyprogressivis/notebook_templates/"
+    "ipyprogressivis/notebook_templates/",
+    "notebooks/"
 ]
