@@ -62,7 +62,7 @@
         "Max_TemperatureF": "int64",
         "Mean_TemperatureF": "int64",
         "Min_TemperatureF": "int64",
-        "PrecipitationIn": "string"
+        "PrecipitationIn": "float64"
     },
     "filter_": {
         "PrecipitationIn": [

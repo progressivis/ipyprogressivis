@@ -35,6 +35,7 @@ from .utils import (
 
 from typing import (
     Any as AnyType,
+    Callable,
     Optional,
     List,
 )
@@ -266,3 +267,8 @@ class Constructor(RootVBox, TypedBox):
 
     def dag_register(self) -> None:
         pass
+
+    @staticmethod
+    def custom_function(fnc: Callable[..., AnyType]) -> Callable[..., AnyType]:
+        PARAMS["customer_functions"][fnc.__name__] = fnc
+        return fnc

@@ -170,11 +170,10 @@ class JoinW(VBox):
                   ) -> Join:
         if primary_inp == "parent":
             primary_wg = self.parent
-            related_wg = self.get_widget_by_key(related_inp)
+            related_wg = self.get_widget_by_key(tuple(related_inp))  # type: ignore
             # second_wg = related_wg
         else:
-            assert isinstance(primary_inp, tuple)
-            primary_wg = self.get_widget_by_key(primary_inp)
+            primary_wg = self.get_widget_by_key(tuple(primary_inp))  # type: ignore
             related_wg = self.parent
         s = self.input_module.scheduler()
         with s:

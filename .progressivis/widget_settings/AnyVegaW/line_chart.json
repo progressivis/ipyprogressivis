@@ -1,0 +1,16 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "width": 500,
+  "height": 400,
+  "description": "Line chart",
+  "data": {"name": "data"},
+  "mark": {
+    "type": "line",
+    "point": true
+  },
+  "encoding": {
+    "x": {"field": "x", "type": "quantitative", "scale": {"domain": [0, 24]}},
+    "y": {"field": "y", "type": "quantitative"},
+    "color": {"field": "color", "type": "nominal"}
+  }
+}

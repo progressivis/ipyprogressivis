@@ -64,7 +64,9 @@ docs = [
     "recommonmark",
     "sphinx>=1.5",
     "sphinx_rtd_theme",
-    "more-itertools"
+    "more-itertools",
+    "click",
+    "click-types"
 ]
 examples = []
 test = [
@@ -149,3 +151,8 @@ regex = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)((?P<channel>a|b|rc|
 [tool.tbump.git]
 message_template = "Bump to {new_version}"
 tag_template = "v{new_version}"
+
+[tool.ruff]
+exclude = [
+    "ipyprogressivis/notebook_templates/"
+]

@@ -60,7 +60,6 @@ HOME = os.getenv("HOME")
 assert HOME is not None
 
 replay_list: List[Dict[str, AnyType]] = []
-# chaining_boxes_to_make = []
 md_list: list[str] = []
 widget_list: AnyType = []
 REPLAY_BATCH: bool = False
@@ -106,8 +105,6 @@ def shot_cell(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
         self_ = args[0]
         assert isinstance(self_, GuestWidget)
         func(*args, **kwargs)
-        #labcommand("progressivis:shot_cell", tag=self_.carrier.title, delay=3000)
-        print("shot_cell", self_.carrier.title)
         shot_cell_cmd(tag=self_.carrier.title, delay=3000)
     return wrapper
 
@@ -236,14 +233,9 @@ class Proxy:
         self.__carrier._output_module = self.output_module  # type: ignore
         self.__carrier._output_slot = self.output_slot
         self.__carrier._output_dtypes = self.output_dtypes
-        """if self.freeze:
-            frozen = {"frozen": dict(cell=self.cell_content)}
-            self.guest.frozen_kw = frozen
-            amend_last_record(frozen)"""
         self.__carrier.dag_running()
         if PARAMS["replay_before_resume"] or not is_replay():
             self.__carrier.make_chaining_box()
-            # chaining_boxes_to_make.append(self)
         else:
             self.__carrier.make_progress_bar()
         parent_widget = self.__carrier
@@ -470,7 +462,6 @@ def replay_sequence(obj: "Constructor") -> None:
         if not replay_list:
             break
     REPLAY_BATCH = False
-    print("widget list:", widget_list)
     for md, code, tag in widget_list:
         labcommand(
             "progressivis:create_stage_cells", tag=tag,
@@ -606,7 +597,7 @@ def get_schema(sniffer: Sniffer) -> AnyType:
     params = sniffer.params
     usecols = params.get("usecols")
     parse_dates = get_param(params, "parse_dates", [])
-
+    retype = params.get("dtype", {})
     def _ds(col: str, dt: str) -> str:
         if col in parse_dates:
             return "datetime64"
@@ -616,6 +607,8 @@ def get_schema(sniffer: Sniffer) -> AnyType:
     assert sniffer._df is not None
     norm_cols = dict(zip(sniffer._df.columns, normalize_columns(sniffer._df.columns)))
     dtypes = {col: _ds(col, dt) for (col, dt) in sniffer._df.dtypes.to_dict().items()}
+    for col, dt in retype.items():
+        dtypes[col] = dt
     if usecols is not None:
         dtypes = {norm_cols[col]: dtypes[col] for col in usecols}
     else:
@@ -883,7 +876,6 @@ class ChainingMixin:
         number: int | None = None,
     ) -> Callable[..., None]:
         def _cbk(btn: ipw.Button) -> None:
-            # HERE
             global parent_widget
             if sel.value in LOADERS:
                 cons = PARAMS["constructor"]
@@ -892,8 +884,6 @@ class ChainingMixin:
             else:
                 parent_widget = self  # type: ignore
                 add_new_stage(self, sel.value, alias.value, frozen=frozen, number=number)  # type: ignore
-            #labcommand("progressivis:shot_cell", tag=self.title, delay=3000)  # later shot ...
-            print("later shot", self.title)
             shot_cell_cmd(tag=self.title, delay=3000)
         return _cbk
 
@@ -1320,7 +1310,6 @@ class GuestWidget:
 
     @shot_cell
     def make_chaining_box(self) -> None:
-        print("calling make_chaining_box")
         self.carrier.make_chaining_box()
 
     def make_leaf_bar(self, coro: "Coro") -> None:
@@ -1404,7 +1393,6 @@ class GuestWidget:
 
         if PARAMS["replay_before_resume"]:
             self.make_chaining_box()
-            # chaining_boxes_to_make.append(self)
         else:
             self.carrier.make_progress_bar()
         replay_next_if(self.carrier)
@@ -1428,7 +1416,6 @@ class VBox(ipw.VBox, GuestWidget):
 
 class Surrogate(CellOut, GuestWidget):
     def __init__(self, *args: Any, **kw: Any) -> None:
-        #ipw.Label.__init__(self, *args, **kw)
         CellOut.__init__(self, *args, **kw)
         GuestWidget.__init__(self)
 
@@ -1586,8 +1573,10 @@ class Coro:
         self.bar.c_.is_active = ipw.Checkbox(
             description="Active", value=True, disabled=False
         )
+
     async def action(self, m: Module, run_n: int) -> None:
         raise ValueError("'action' method must be defined in a 'Coro' subclass")
+
     async def __call__(self, m: Module, run_n: int) -> None:
         if not self.bar.c_.is_active.value:
             return
@@ -1598,5 +1587,4 @@ class Coro:
         self._last_display = int(time.time())
         self.calls_counter += 1
         if self.calls_counter % self._shot_rate == self._shot_offset and self.leaf is not None:
-            #labcommand("progressivis:shot_cell", tag=self.leaf.carrier.title, delay=3000)
             shot_cell_cmd(tag=self.leaf.carrier.title, delay=3000)

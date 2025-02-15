@@ -22,6 +22,11 @@ from progressivis.table.compute import (
     make_if_else,
     ymd_string,
     is_weekend,
+    year,
+    month,
+    day,
+    hour,
+    year_day_int
 )
 
 from typing import Any as AnyType, Optional, Tuple, List, Dict, Callable, Union, cast
@@ -46,10 +51,12 @@ UFUNCS: Dict[str, Callable[..., AnyType]] = {
 }
 
 ALL_FUNCS = UFUNCS.copy()
-ALL_FUNCS.update(
-    {"week_day": week_day, "is_weekend": is_weekend, "ymd_string": ymd_string}
-)
 
+ALL_FUNCS.update(
+    {"week_day": week_day, "is_weekend": is_weekend,
+     "ymd_string": ymd_string, "year": year,
+     "month": month, "day": day, "hour": hour, "year_day": year_day_int}
+)
 
 class FuncW(ipw.VBox):
     def __init__(self, main: "PColumnsW", colname: str, fname: str) -> None:
@@ -61,7 +68,19 @@ class FuncW(ipw.VBox):
             description="Name:",
             disabled=False,
         )
-        type_ = main.dtypes[colname]
+        fnc = ALL_FUNCS[fname]
+        if isinstance(fnc, np.ufunc):
+            type_ = main.dtypes[colname]  # TODO: improve it using ufunc.types information
+        elif isinstance(fnc, np.vectorize):
+            type_ = fnc.pyfunc.__annotations__.get("return", object).__name__
+        else:
+            type_ = fnc.__annotations__.get("return", object).__name__
+        if type_ == "int":
+            type_ = "int64"
+        elif type_ == "float":
+            type_ = "float64"
+        elif type_ == "str":
+            type_ = "object"
         if type_ not in DTYPES:
             type_ = "object"
         self._dtype = ipw.Dropdown(
@@ -227,6 +246,7 @@ class KeepStored(IpyHBoxTyped):
 
 class PColumnsW(VBoxTyped):
     class Typed(TypedBase):
+        numpy_ufuncs: ipw.Checkbox
         custom_funcs: ipw.Accordion
         cols_funcs: ColsFuncs
         func_table: Optional[Union[ipw.Label, ipw.GridBox]]
@@ -237,16 +257,15 @@ class PColumnsW(VBoxTyped):
     def initialize(self) -> None:
         self._col_widgets: Dict[Tuple[str, str], FuncW] = {}
         self._computed: List[Optional[FuncW]] = []
-        self._numpy_ufuncs = ipw.Checkbox(
-            value=True, description="Activate", disabled=False
+        self.c_.numpy_ufuncs = ipw.Checkbox(
+            value=True, description="Show Numpy universal functions", disabled=False, indent=False
         )
-        self._numpy_ufuncs.observe(self._numpy_ufuncs_cb, names="value")
+        self.c_.numpy_ufuncs.observe(self._numpy_ufuncs_cb, names="value")
         self._if_else = IfElseW(self)
         self.c_.custom_funcs = ipw.Accordion(
-            children=[self._numpy_ufuncs, self._if_else], selected_index=None
+            children=[self._if_else], selected_index=None
         )
-        self.c_.custom_funcs.set_title(0, "Numpy universal functions")
-        self.c_.custom_funcs.set_title(1, "Add If-Else expressions")
+        self.c_.custom_funcs.set_title(0, "Add If-Else expressions")
         cols_t = [f"{c}:{t}" for (c, t) in self.dtypes.items()]
         col_list = list(zip(cols_t, self.dtypes.keys()))
         cols_funcs = ColsFuncs()
@@ -254,6 +273,8 @@ class PColumnsW(VBoxTyped):
             disabled=False, options=[("", "")] + col_list, rows=7
         )
         cols_funcs.c_.cols.observe(self._columns_cb, names="value")
+        from .custom import CUSTOMER_FNC
+        ALL_FUNCS.update(CUSTOMER_FNC)
         cols_funcs.c_.funcs = ipw.Select(
             disabled=True, options=[""] + list(ALL_FUNCS.keys()), rows=7
         )
@@ -273,6 +294,7 @@ class PColumnsW(VBoxTyped):
         keep_stored.c_.keep_all.observe(self._keep_all_cb, names="value")
         self.c_.keep_stored = keep_stored
         self.c_.btn_apply = make_button("Apply", disabled=False, cb=self._btn_apply_cb)
+
 
     def _keep_all_cb(self, change: AnyType) -> None:
         val = change["new"]
@@ -335,13 +357,14 @@ class PColumnsW(VBoxTyped):
     @runner
     def run(self) -> None:
         content = self.frozen_kw
-        print("BEGIN OF columns/view")
         self.output_module = self.init_module(**content)
         self.output_slot = "result"
 
     def init_module(self, comp_list: list[dict[str, str]],
                     columns: List[str]) -> Repeater:
         comp = Computed()
+        from .custom import CUSTOMER_FNC
+        ALL_FUNCS.update(CUSTOMER_FNC)
         for d_ in comp_list:
             func = ALL_FUNCS[d_["fname"]]
             comp.add_ufunc_column(

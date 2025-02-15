@@ -75,7 +75,8 @@ export const progressivisPlugin = {
       caption: "Cleanup and run",
       execute: (args) => {
         cmds.progressivisCleanup(app, nbtracker);
-        cmds.runCellAt(nbtracker, args.index);
+	  let indices = Number.isInteger(args.index) ? [args.index] : args.index;
+	  indices.forEach(function (item) {cmds.runCellAt(nbtracker, item);});
       },
     });
     app.commands.addCommand("progressivis:run_cell_at", {

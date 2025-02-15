@@ -5,7 +5,7 @@ from pathlib import Path
 import os
 from more_itertools import split_before  # type: ignore
 
-def split_md(code: str) -> dict[str, str]:
+def split_md(code: str) -> dict[str, list[str]]:
     """
     """
     line_list = [line.rstrip() + "\n" for line in code.split("\n") if line.strip()]

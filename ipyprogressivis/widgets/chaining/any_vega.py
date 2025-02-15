@@ -9,6 +9,8 @@ from .utils import (
     disable_all,
     runner,
     needs_dtypes,
+    GuestWidget,
+    Coro
 )
 from ..utils import historized_widget
 import ipywidgets as ipw
@@ -33,6 +35,11 @@ WidgetType = AnyType
 HVegaWidget: TypeAlias = cast(
     Type[AnyType], historized_widget(VegaWidget, "update")  # noqa: F821
 )
+
+class AfterRun(Coro):
+    async def action(self, m: Module, run_number: int) -> None:
+        data = m.result.to_df()  # type: ignore
+        self.leaf.child.vega.update("data", remove="true", insert=data)  # type: ignore
 
 
 class AnyVegaW(VBoxTyped):
@@ -110,18 +117,21 @@ class AnyVegaW(VBoxTyped):
         m_key = obj.value
         k_widget = grid.df.loc[row, "Key"]
         facade = self.input_module
-        assert isinstance(facade, TableFacade)
-        mod_cls = facade.registry[m_key].module_cls
-        name = facade.registry[m_key].output_name
-        for outp in mod_cls.outputs:
-            if outp.name == name:
-                assert outp.datashape is not None
-                k_widget.options = list(outp.datashape.keys())
-                k_widget.disabled = False
-                break
+        if isinstance(facade, TableFacade):
+            mod_cls = facade.registry[m_key].module_cls
+            name = facade.registry[m_key].output_name
+            for outp in mod_cls.outputs:
+                if outp.name == name:
+                    assert outp.datashape is not None
+                    k_widget.options = list(outp.datashape.keys())
+                    k_widget.disabled = False
+                    break
+            else:
+                print(f"{name} not found")
+                return
         else:
-            print(f"{name} not found")
-            return
+             k_widget.options = [m_key]
+             k_widget.value = m_key
 
     def _btn_fetch_cols_cb(self, btn: ipw.Button) -> None:
         edit_val = self.json_editor.value
@@ -130,8 +140,10 @@ class AnyVegaW(VBoxTyped):
             return
         cols = [v["field"] for (k, v) in en_.items() if "field" in v]
         facade = self.input_module
-        assert isinstance(facade, TableFacade)
-        members = [m for m in facade.members if "/" in m]  # only configured members
+        if isinstance(facade, TableFacade):
+            members = [m for m in facade.members if "/" in m]  # only configured members
+        else:
+            members = getattr(self.input_module, self.input_slot).columns
         df = pd.DataFrame(
             index=cols, columns=["Mapping", "Key", "Processing"], dtype=object
         )
@@ -170,7 +182,7 @@ class AnyVegaW(VBoxTyped):
         with open(file_name) as f:
             self.json_editor.value = json.load(f)
 
-    def _update_vw(self, _: Module, run_number: int) -> None:
+    def _update_vw_facade(self, _: Module, run_number: int) -> None:  # TODO: replace
         slider = self.c_.refresh_ratio
         ratio = max(slider.max - slider.value, 1)
         self._updates_count += 1
@@ -246,26 +258,43 @@ class AnyVegaW(VBoxTyped):
         self, mapping_dict: dict[str, dict[str, str]], vega_schema: AnyType
     ) -> None:
         facade = self.input_module
-        assert isinstance(facade, TableFacade)
         scheduler = facade.scheduler()
         out_m = None
+        if isinstance(self.input_module, Module):
+            out_m = self.input_module
         with scheduler:
             sink = Sink(scheduler=scheduler)
             for i, row in mapping_dict.items():
                 key = row["Mapping"]
                 if not key:
                     continue
-                sink.input.inp = self.input_module.output[key]
-                out_m = cast(Module, notNone(facade.get(key)).output_module)
-                out_n = notNone(facade.get(key)).output_name
+                if isinstance(facade, TableFacade):
+                    sink.input.inp = self.input_module.output[key]
+                    out_m = cast(Module, notNone(facade.get(key)).output_module)
+                    out_n = notNone(facade.get(key)).output_name
+                else:
+                    sink.input.inp = self.input_module.output[self.input_slot]
+                    out_m = self.input_module  # type: ignore
+                    out_n = self.input_slot
                 slot = row["Key"]
                 proc = row["Processing"]
-                self.cols_mapping[i] = out_m, out_n, slot, proc
+                self.cols_mapping[i] = out_m, out_n, slot, proc  # type: ignore
         if out_m is not None:  # i.e. the last out_m in the previous 'for'
-            out_m.on_after_run(self._update_vw)
+            after_run = AfterRun()
+            out_m.on_after_run(after_run)
+            self.make_leaf_bar(after_run)
         vega_schema["data"] = {"name": "data"}
-        self.child.vega = HVegaWidget(spec=vega_schema)
+        if isinstance(self.input_module, Module):
+            for (col, (m, attr, sl, proc)) in self.cols_mapping.items():
+                if col in vega_schema.get("encoding", {}):
+                    vega_schema["encoding"][col]["field"] = sl
+        self.vega_schema = vega_schema
+        self.child.vega = VegaWidget(spec=vega_schema)
         self.dag_running()
+
+    def provide_surrogate(self, title: str) -> GuestWidget:
+        disable_all(self)
+        return self
 
     @runner
     def run(self) -> AnyType:
