@@ -10,6 +10,7 @@ from .utils import (
     runner,
     needs_dtypes,
     GuestWidget,
+    dot_progressivis,
     Coro
 )
 from ..utils import historized_widget
@@ -101,7 +102,7 @@ class AnyVegaW(VBoxTyped):
         )
 
     def _save_schema_cb(self, btn: AnyType) -> None:
-        pv_dir = self.dot_progressivis
+        pv_dir = dot_progressivis()
         assert pv_dir
         base_name = self.c_.save_schema.children[2].value
         file_name = f"{self.widget_dir}/{base_name}"
