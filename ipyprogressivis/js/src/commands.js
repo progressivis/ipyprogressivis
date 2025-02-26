@@ -30,6 +30,8 @@ export function progressivisTemplate(app, res, data, browser) {
   });
 }
 
+window.$ = $;  // for debug purposes
+window.html_to_image = htmlToImage;  // idem
 // https://discourse.jupyter.org/t/how-to-listen-to-cell-execution/14714
 // https://jupyterlab.readthedocs.io/en/latest/api/classes/notebook.NotebookActions-1.html
 
@@ -88,6 +90,17 @@ export function removeTaggedCells(nbtracker, tag) {
       notebook.model.sharedModel.deleteCell(i);
     });
   }
+}
+
+export function runAllSnippetCells(nbtracker) {
+  var crtWidget = nbtracker.currentWidget;
+  var notebook = crtWidget.content;
+  notebook.widgets.forEach(function (cell) {
+      if (cell.model.sharedModel.source.startsWith("# progressivis-snippet")) {
+	  let i = notebook.widgets.findIndex((x) => x == cell);
+	  runCellAt(nbtracker, i);
+    }
+  });
 }
 
 export function unlockMarkdownCells(nbtracker) {

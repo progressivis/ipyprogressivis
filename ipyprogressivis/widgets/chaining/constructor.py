@@ -9,7 +9,6 @@ from .utils import (
     make_button,
     set_dag,
     _Dag,
-    Proxy,
     DAGWidget,
     RootVBox,
     TypedBox,
@@ -251,11 +250,6 @@ class Constructor(RootVBox, TypedBox):
     @staticmethod
     def widget(key: str, num: int = 0) -> NodeCarrier:
         return get_widget_by_key(key, num)
-
-    @staticmethod
-    def proxy(key: str, num: int = 0) -> Proxy:
-        widget = get_widget_by_key(key, num)
-        return Proxy(widget)
 
     @property
     def dom_id(self) -> str:

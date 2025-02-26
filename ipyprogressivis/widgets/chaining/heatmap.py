@@ -10,6 +10,7 @@ from .utils import (
     amend_last_record,
     runner,
     GuestWidget,
+    dongle_widget,
     Coro
 )
 import ipywidgets as ipw
@@ -52,14 +53,12 @@ class HeatmapW(VBoxTyped):
         choice_dim: ipw.Dropdown
         choice_x: ipw.Dropdown
         choice_y: ipw.Dropdown
-        min_q: ipw.BoundedFloatText | ipw.Label
-        max_q: ipw.BoundedFloatText | ipw.Label
+        min_q: ipw.BoundedFloatText
+        max_q: ipw.BoundedFloatText
         choice_trans: ipw.Dropdown
         gaussian_blur: ipw.IntSlider
         start_btn: ipw.Button
-        #image: ipw.Image | ipw.Label
         image: ipw.HTML
-        #display_period: ipw.IntSlider | ipw.Label
 
     def __init__(self) -> None:
         super().__init__()
@@ -142,12 +141,12 @@ class HeatmapW(VBoxTyped):
         self.child.choice_y.observe(self.obs_columns, "value")
         self.has_quantiles = isinstance(self.input_module, Quantiles)
         self.child.min_q = (
-            make_float("Min:", value=0.03) if self.has_quantiles else ipw.Label()
+            make_float("Min:", value=0.03) if self.has_quantiles else dongle_widget()
         )
         self.child.max_q = (
-            make_float("Max:", value=0.97) if self.has_quantiles else ipw.Label()
+            make_float("Max:", value=0.97) if self.has_quantiles else dongle_widget()
         )
-        self.child.image = ipw.Label()
+        self.child.image = dongle_widget()
         self.child.start_btn = make_button(
             "Start", cb=self._start_btn_cb, disabled=True
         )
@@ -155,7 +154,13 @@ class HeatmapW(VBoxTyped):
 
     def _start_btn_cb(self, btn: ipw.Button) -> None:
         assert self.column_x and self.column_y
-        xy = dict(X=self.column_x, Y=self.column_y)
+        xy = dict(X=self.column_x, Y=self.column_y,
+                  dim=self.child.choice_dim.value,
+                  min_q=self.child.min_q.value,
+                  max_q=self.child.max_q.value,
+                  trans=self.child.choice_trans.value,
+                  blur=self.child.gaussian_blur.value
+                  )
         if is_recording():
             amend_last_record({"frozen": xy})
         self.init_heatmap(xy)
@@ -168,22 +173,9 @@ class HeatmapW(VBoxTyped):
         col_x = ctx["X"]
         col_y = ctx["Y"]
         print("XY", ctx)
-        DIM = int(self.child.choice_dim.value)
+        #DIM = int(self.child.choice_dim.value)
+        DIM = ctx["dim"]
         self.child.image = ipw.HTML(value="")
-
-        self.child.display_period = ipw.IntSlider(
-            value=1,
-            min=1,
-            max=10,
-            step=1,
-            description="Display rate:",
-            style={'description_width': 'initial'},
-            disabled=False,
-            continuous_update=False,
-            orientation="horizontal",
-            readout=True,
-            readout_format="d",
-        )
         s = self.input_module.scheduler()
         query = quantiles = self.input_module
         with s:
@@ -191,8 +183,8 @@ class HeatmapW(VBoxTyped):
             # Connect the module to the csv results and the min,max bounds to rescale
             if self.has_quantiles:
                 histogram2d.input.table = quantiles.output.table
-                histogram2d.input.min = quantiles.output.result[self.child.min_q.value]
-                histogram2d.input.max = quantiles.output.result[self.child.max_q.value]
+                histogram2d.input.min = quantiles.output.result[ctx["min_q"]]
+                histogram2d.input.max = quantiles.output.result[ctx["max_q"]]
             else:
                 histogram2d.input.table = query.output.result
                 min_ = Min(scheduler=s)
@@ -208,8 +200,8 @@ class HeatmapW(VBoxTyped):
             # Connect it to the histogram2d
             heatmap.input.array = histogram2d.output.result
             self._heatmap = heatmap
-            self._heatmap.params.transform = int(self.child.choice_trans.value)
-            self._heatmap.params.gaussian_blur = self.child.gaussian_blur.value
+            self._heatmap.params.transform = int(ctx["trans"])
+            self._heatmap.params.gaussian_blur = ctx["blur"]
             after_run = AfterRun()
             heatmap.on_after_run(after_run)  # Install the callback
             self.dag_running()

@@ -14,9 +14,9 @@ from .columns import PColumnsW
 from .histogram import HistogramW
 from .iscaler import ScalerW
 from .any_vega import AnyVegaW
-from .code_cell import CodeCellW
 from .range_query_2d import RangeQuery2DW
 from .quantiles import QuantilesW
+from .snippet import SnippetW
 __all__ = [
     "Constructor",
     "DescStatsW",
@@ -32,7 +32,6 @@ __all__ = [
     "FacadeCreatorW",
     "HeatmapW",
     "AnyVegaW",
-    "CodeCellW",
     "RangeQuery2DW",
     "QuantilesW"
     ]

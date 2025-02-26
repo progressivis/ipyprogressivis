@@ -9,7 +9,7 @@ import ipywidgets as ipw
 import fsspec  # type: ignore
 from progressivis.table.dshape import dataframe_dshape
 from progressivis.vis import DataShape
-from progressivis.core.api import Sink, Scheduler, Module
+from progressivis.core.api import Sink, Module
 from progressivis.table.api import TableFacade
 from progressivis.core.utils import normalize_columns
 from progressivis.core import aio
@@ -164,6 +164,9 @@ def needs_dtypes(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
     def wrapper(*args: Any, **kwargs: Any) -> None:
         self_ = args[0]
         assert isinstance(self_, GuestWidget)
+        if isinstance(self_.input_module, Sink):
+            func(*args, **kwargs)
+            return
         if self_.dtypes is None:
             if self_.parent.output_dtypes:
                 self_.carrier._dtypes = self_.parent.output_dtypes
@@ -190,57 +193,6 @@ class Header:
     board: PsBoard
     widgets_out: Sidecar
     modules_out: Sidecar
-
-
-class Proxy:
-    def __init__(self, carrier: "NodeCarrier") -> None:
-        self.__carrier = carrier
-        self.guest = carrier.children[0]
-        self.output_module: ModuleOrFacade | None = None
-        self.output_slot: str = "result"
-        self.output_dtypes: dict[str, str] | None = None
-        self.freeze = False
-        self.cell_content: str = "no code"
-
-    @property
-    def input_module(self) -> ModuleOrFacade | None:
-        if self.__carrier is PARAMS["constructor"]:
-            return None
-        return self.__carrier._input_module
-
-    @property
-    def input_slot(self) -> str | None:
-        if self.__carrier is PARAMS["constructor"]:
-            return None
-        return self.__carrier._input_slot
-
-    @property
-    def input_dtypes(self) -> dict[str, str] | None:
-        if self.__carrier is PARAMS["constructor"]:
-            return None
-        return self.__carrier._dtypes
-
-    @property
-    def scheduler(self) -> Scheduler:
-        if self.__carrier is PARAMS["constructor"]:
-            assert PARAMS["constructor"] is not None
-            return cast(Scheduler, PARAMS["constructor"].scheduler)
-        assert self.input_module is not None
-        return self.input_module.scheduler()
-
-    def resume(self) -> "NodeCarrier":
-        global parent_widget
-        self.__carrier._output_module = self.output_module  # type: ignore
-        self.__carrier._output_slot = self.output_slot
-        self.__carrier._output_dtypes = self.output_dtypes
-        self.__carrier.dag_running()
-        if PARAMS["replay_before_resume"] or not is_replay():
-            self.__carrier.make_chaining_box()
-        else:
-            self.__carrier.make_progress_bar()
-        parent_widget = self.__carrier
-        replay_next_if(self.__carrier)
-        return self.__carrier
 
 
 def get_header() -> Header:
@@ -280,37 +232,17 @@ def get_backup_widget() -> BackupWidget:
     return cast(BackupWidget, PARAMS["header"].backup)
 
 
-def get_proxy_line(line: str, code: str) -> str:  # TODO: write/use a decent parser!
-    cls, n = line.split(" ")[-1].split(",")
-    return f"proxy = Constructor.proxy('{cls}', {n}); proxy.cell_content = cell_content"
-
-
-def fetch_widget(line: str) -> str:
-    if line.startswith("%%pv_run_cell"):
-        cls, n = line.split(" ")[-1].split(",")
-        return f"Constructor.widget('{cls}', {n})"
-    return line.replace(".run()", "")
-
-
-def unmagic(code: str) -> str:
-    if code.startswith("%%pv_run_cell"):
-        code_list = code.split("\n")
-        code = "\n".join([get_proxy_line(code_list[0], code)]+code_list[1:])
-        return code
-    return code
-
-
 def labcommand(cmd: str, **kw: AnyType) -> None:
     if is_replay_batch() and cmd == "progressivis:create_stage_cells":
         code = kw["code"]
         cell_content = code
         _ = cell_content
         line = code.split("\n")[0]
-        wg = fetch_widget(line)
+        wg = line.replace(".run()", "")
         md = kw["md"]
         tag = kw["tag"]
         widget_list.append((md, wg, tag))
-        code = "from ipyprogressivis.widgets import get_header, Constructor\n"+unmagic(code)
+        code = "from ipyprogressivis.widgets import get_header, Constructor\n" + code
         exec(code)
         return
     hdr = PARAMS["header"]
@@ -597,7 +529,7 @@ def get_schema(sniffer: Sniffer) -> AnyType:
     params = sniffer.params
     usecols = params.get("usecols")
     parse_dates = get_param(params, "parse_dates", [])
-    retype = params.get("dtype", {})
+    retype = params.get("dtype", {}) or {}  # "dtype" key may exist and be None
     def _ds(col: str, dt: str) -> str:
         if col in parse_dates:
             return "datetime64"
@@ -616,7 +548,7 @@ def get_schema(sniffer: Sniffer) -> AnyType:
     return dtypes
 
 
-def disable_all(wg: Any, exceptions: frozenset[Any] = frozenset()) -> None:
+def disable_all(wg: Any, exceptions: Sequence[Any] = tuple()) -> None:
     if hasattr(wg, "disabled") and wg not in exceptions:
         wg.disabled = True
     if hasattr(wg, "children") and wg not in exceptions:
@@ -728,16 +660,16 @@ def create_loader_widget(
     ctx = dict(parent=obj, dtypes=dtypes, input_module=obj._output_module, dag=dag)
     from .csv_loader import CsvLoaderW
     from .parquet_loader import ParquetLoaderW
-    from .custom_loader import CustomLoaderW
+    from .snippet import SnippetW
 
-    loader: CsvLoaderW | ParquetLoaderW | CustomLoaderW
+    loader: CsvLoaderW | ParquetLoaderW | SnippetW
     if ftype == "csv":
         loader = CsvLoaderW()
     elif ftype == "parquet":
         loader = ParquetLoaderW()
     else:
         assert ftype == "custom"
-        loader = CustomLoaderW()
+        loader = SnippetW()
     if frozen is not None:
         loader.frozen_kw = frozen
     stage = NodeCarrier(ctx, loader)
@@ -785,11 +717,11 @@ def _make_btn_start_loader(
         add_new_loader(obj, ftype, alias.value, frozen)
         alias.value = ""
         disable_all(
-            obj, exceptions=frozenset([
+            obj, exceptions=(
                 obj.c_.loader.c_.csv,
                 obj.c_.loader.c_.parquet,
                 obj.c_.loader.c_.custom
-            ])
+            )
         )
     shot_cell_cmd(tag="root", delay=3000)
     return _cbk
@@ -993,51 +925,6 @@ def get_previous(obj: "ChainingWidget") -> "ChainingWidget":
 new_stage_cell_0 = "Constructor.widget('{key}'){end}\n"
 new_stage_cell = "Constructor.widget('{key}', {num}){end}"
 
-new_stage_cell_code = (
-    "%%pv_run_cell -p {key},{num}\n"
-    "# The 'proxy' name is present in this context"
-    " and you can reference it.\n"
-    "# it provides the following attributes:\n"
-    "#  - proxy.input_module: Module | TableFacade \n"
-    "#  - proxy.input_slot: str \n"
-    "#  - proxy.input_dtypes: dict[str, str] | None\n"
-    "#  - proxy.scheduler: Scheduler\n"
-    "# Put your own imports here\n"
-    "...\n"
-    "...\n"
-    "with scheduler:\n"
-    "    # Put your own code here\n"
-    "    ...\n"
-    "    ...\n"
-    "    # fill in the following proxy attributes:\n"
-    "    proxy.output_module = ...  # Module | TableFacade\n"
-    "    proxy.output_slot = 'result'  # str\n"
-    "    proxy.freeze = True  # bool\n"
-    "    # Warning: keep the code below unchanged\n"
-    "    display(proxy.resume())"
-    "{end}"
-)
-
-new_loader_cell_code = (
-    "%%pv_run_cell -p {key},{num}\n"
-    "scheduler = proxy.scheduler\n"
-    "# Warning: keep the code above unchanged\n"
-    "# Put your own imports here\n"
-    "... \n"
-    "... \n"
-    "with scheduler:\n"
-    "    # Put your own code here\n"
-    "    ...\n"
-    "    ...\n"
-    "    # fill in the following proxy attributes:\n"
-    "    proxy.output_module = ...  # Module | TableFacade\n"
-    "    proxy.output_slot = 'result'  # str\n"
-    "    proxy.freeze = True  # bool\n"
-    "    # Warning: keep the code below unchanged\n"
-    "    display(proxy.resume())"
-    "{end}"
-)
-
 
 def is_replay() -> bool:
     return cast(bool, PARAMS.get("is_replay", False))
@@ -1058,28 +945,12 @@ def is_replay_batch() -> bool:
 def get_stage_cell(
     key: str, num: int, end: str, frozen: AnyType = None
 ) -> tuple[str, bool, bool]:
-    if key == "Python":
-        if is_step() and frozen:
-            assert "cell" in frozen
-            return frozen["cell"], True, False  # editable, not running
-        if is_replay() and frozen:
-            assert "cell" in frozen
-            return frozen["cell"], False, True
-        return new_stage_cell_code.format(key=key, num=num, end=end), True, False
     return new_stage_cell.format(key=key, num=num, end=end), False, True
 
 
 def get_loader_cell(
     key: str, ftype: str, num: int, end: str, frozen: AnyType = None
 ) -> tuple[str, bool, bool]:
-    if ftype == "custom":
-        if is_step() and frozen:
-            assert "cell" in frozen
-            return frozen["cell"], True, False  # editable, not running
-        if is_replay() and frozen:
-            assert "cell" in frozen
-            return frozen["cell"], False, True
-        return new_loader_cell_code.format(key=key, num=num, end=end), True, False
     return new_stage_cell.format(key=key, num=num, end=end), False, True
 
 
@@ -1357,21 +1228,8 @@ class GuestWidget:
             sink.input.inp = ds.output.result
 
     @property
-    def dot_progressivis(self) -> str:
-        home = HOME
-        pv_dir = f"{home}/.progressivis/"
-        if os.path.isdir(pv_dir):
-            return pv_dir
-        dn = os.path.dirname
-        repo_dir = dn(dn(dn(dn(__file__))))
-        pv_dir = str(Path(repo_dir) / ".progressivis")
-        if os.path.isdir(pv_dir):
-            return pv_dir
-        return ""
-
-    @property
     def widget_dir(self) -> str:
-        pv_dir = self.dot_progressivis
+        pv_dir = dot_progressivis()
         if not pv_dir:
             return ""
         settings_dir = f"{pv_dir}/widget_settings/"

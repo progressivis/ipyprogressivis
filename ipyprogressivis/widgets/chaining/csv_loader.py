@@ -303,7 +303,7 @@ class CsvLoaderW(VBoxTyped):
             n_lines = self.c_.n_lines.value
             self._sniffer = CSVSniffer(path=to_sniff, lines=n_lines)
             self.c_.sniffer = self._sniffer.box
-            pv_dir = self.dot_progressivis
+            pv_dir = dot_progressivis()
             placeholder = (
                 (
                     "'.progressivis' dir not found in your home dir. Create it"
@@ -355,6 +355,7 @@ class CsvLoaderW(VBoxTyped):
             throttle=throttle,
             shuffle=shuffle,
             sniffed_params=sniffed_params,
+            schema=get_schema(self._sniffer),
             filter_=filter_,
         )
         if is_recording():
@@ -370,7 +371,7 @@ class CsvLoaderW(VBoxTyped):
         disable_all(self)
 
     def _save_settings_cb(self, btn: ipw.Button) -> None:
-        pv_dir = self.dot_progressivis
+        pv_dir = dot_progressivis()
         assert pv_dir
         base_name = self.c_.start_save.c_.text.value
         file_name = f"{self.widget_dir}/{base_name}"
@@ -415,6 +416,7 @@ class CsvLoaderW(VBoxTyped):
         shuffle: bool = False,
         sniffed_params: Dict[str, Any] | None = None,
         filter_: Dict[str, Any] | None = None,
+        **kw: Any
     ) -> SimpleCSVLoader:
         def _shuffle_if(urls: list[str]) -> list[str]:
             if shuffle:

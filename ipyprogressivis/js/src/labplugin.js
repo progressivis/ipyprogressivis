@@ -75,8 +75,10 @@ export const progressivisPlugin = {
       caption: "Cleanup and run",
       execute: (args) => {
         cmds.progressivisCleanup(app, nbtracker);
-	  let indices = Number.isInteger(args.index) ? [args.index] : args.index;
-	  indices.forEach(function (item) {cmds.runCellAt(nbtracker, item);});
+	//let indices = Number.isInteger(args.index) ? [args.index] : args.index;
+        //indices.forEach(function (item) {cmds.runCellAt(nbtracker, item);});
+	cmds.runCellAt(nbtracker, args.index);
+        cmds.runAllSnippetCells(nbtracker);
       },
     });
     app.commands.addCommand("progressivis:run_cell_at", {
@@ -84,6 +86,13 @@ export const progressivisPlugin = {
       caption: "Run cell at index",
       execute: (args) => {
         cmds.runCellAt(nbtracker, args.index);
+      },
+    });
+    app.commands.addCommand("progressivis:run_all_snippet_cells", {
+      label: "Run snippet cells",
+      caption: "Run snippet cells",
+      execute: () => {
+        cmds.runAllSnippetCells(nbtracker);
       },
     });
     app.commands.addCommand("progressivis:remove_tagged_cells", {
