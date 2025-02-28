@@ -43,9 +43,13 @@ def main(progressibook: str, overwrite: bool, output: str) -> None:
                               "output_type": "display_data", "metadata": {}}]
     else:
         cell_1["outputs"] = []
-    root_cell = cells[3]
-    root_cell["source"] = ["..."]
-    root_cell["outputs"] = []
+    #root_cell = cells[3]
+    #root_cell["source"] = ["..."]
+    #root_cell["outputs"] = []
+    for cell in cells:
+        if cell.get("source") and cell["source"][-1].startswith("header.talker.labcommand('notebook:hide-cell-code')"):
+            cell["source"] = ["..."]
+            cell["outputs"] = []
     with TemporaryDirectory() as tmpdirname:
         tmpdir = Path(tmpdirname)
         nbdoc_path = tmpdir / pb_name
