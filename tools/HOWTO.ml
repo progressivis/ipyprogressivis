@@ -40,7 +40,6 @@ Options:
 
 ProgressiBooks cannot be converted to clean html via `jupyter nbconvert`command due to some technical peculiarities (mainly hidden cells and use of the Sidecar widget). The following script overcomes these problems and produces self-sufficient html files that can be easily integrated into Sphinx documentation. As the output is a directory, the file generated will have the same name as the `ProgressiBook`, but with the extension changed to 'html':
 
-Translated with DeepL.com (free version)
 
 ```sh
 $ python tools/nb_to_doc_html.py -p notebooks/userguide-widgets1.1.ipynb -o notebooks/
