@@ -1,5 +1,5 @@
 from .utils import (make_button, stage_register, dongle_widget, VBoxTyped,
-                    TypedBase, amend_last_record, GuestWidget,
+                    TypedBase, amend_last_record, GuestWidget, IpyHBoxTyped,
                     is_recording, disable_all, runner, needs_dtypes)
 from ..df_grid import DataFrameGrid
 import pandas as pd
@@ -8,12 +8,18 @@ from progressivis.core.api import Module, Sink
 
 from typing import Any as AnyType, List
 
+layout_refresh = ipw.Layout(width='30px', height='30px')
 
 
+class SnippetBar(IpyHBoxTyped):
+    class Typed(TypedBase):
+        choice: ipw.Dropdown
+        refresh_btn: ipw.Button
 
 class SnippetW(VBoxTyped):
     class Typed(TypedBase):
-        snippet: ipw.Dropdown
+        snippet: SnippetBar
+        refresh_btn: ipw.Button
         cols_mode: ipw.RadioButtons
         columns: DataFrameGrid
         start_btn: ipw.Button
@@ -23,11 +29,17 @@ class SnippetW(VBoxTyped):
     def initialize(self) -> None:
         from .custom import CUSTOMER_SNIPPET
         inp_module = self.input_module
-        self.child.snippet = ipw.Dropdown(description="Snippet:",
-                                          options=[""] + list(CUSTOMER_SNIPPET.keys()),
-                                          value = ""
-                                          )
-        self.child.snippet.observe(self._snippet_cb, names="value")
+        self.child.snippet = SnippetBar()
+        wg = self.child.snippet.child.choice = ipw.Dropdown(
+            description="Snippet:",
+            options=[""] + list(CUSTOMER_SNIPPET.keys()),
+            value = ""
+        )
+        wg.observe(self._snippet_cb, names="value")
+        self.child.snippet.child.refresh_btn = make_button(
+            "", cb=self._refresh_btn_cb, disabled=False, icon="refresh",
+            layout=layout_refresh
+        )
         if not isinstance(inp_module, Sink):  # i.e. not a custom loader
             self.child.cols_mode = ipw.RadioButtons(
                 options=[("All", "all"),
@@ -75,13 +87,17 @@ class SnippetW(VBoxTyped):
         assert isinstance(self.output_module, Module)
         return [self.output_module.name]
 
+    def _refresh_btn_cb(self, btn: ipw.Button) -> None:
+        from .custom import CUSTOMER_SNIPPET
+        self.child.snippet.child.choice.options = [""] + list(CUSTOMER_SNIPPET.keys())
+
     def _start_btn_cb(self, btn: ipw.Button) -> None:
         from .custom import CUSTOMER_SNIPPET
-        snippet = CUSTOMER_SNIPPET[self.child.snippet.value]
+        snippet = CUSTOMER_SNIPPET[self.child.snippet.child.choice.value]
         mode = self.child.cols_mode.value
         columns: list[str] | dict[str, str] = []
         if mode == "aslist":
-            columns = self.child.columns.value
+            columns = self.child.columnvalue
         elif mode == "asdict":
             columns = {row["Key"].value: cname for (cname, row) in
                        self.child.columns.df.iterrows()
@@ -89,7 +105,7 @@ class SnippetW(VBoxTyped):
         else:
             assert mode in ("all", "")
         if is_recording():
-            amend_last_record({'frozen': dict(snippet=self.child.snippet.value, columns=columns)})
+            amend_last_record({'frozen': dict(snippet=self.child.snippet.child.choice.value, columns=columns)})
         res = snippet(self.input_module, self.input_slot, columns)
         self.output_module = res.output_module
         self.output_slot = res.output_slot

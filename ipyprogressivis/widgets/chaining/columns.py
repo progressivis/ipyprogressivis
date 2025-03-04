@@ -230,6 +230,7 @@ class IfElseW(ipw.VBox):
         assert self.main is not None
         self.main.c_.cols_funcs.c_.funcs.options = [""] + list(ALL_FUNCS.keys())
 
+layout_refresh = ipw.Layout(width='30px', height='30px')
 
 class ColsFuncs(IpyHBoxTyped):
     class Typed(TypedBase):
@@ -243,10 +244,15 @@ class KeepStored(IpyHBoxTyped):
         stored_cols: ipw.SelectMultiple
         keep_all: ipw.Checkbox
 
+class OptsBar(IpyHBoxTyped):
+    class Typed(TypedBase):
+        numpy_ufuncs: ipw.Checkbox
+        refresh_btn: ipw.Button
+        label: ipw.Label
 
 class PColumnsW(VBoxTyped):
     class Typed(TypedBase):
-        numpy_ufuncs: ipw.Checkbox
+        opts: OptsBar
         custom_funcs: ipw.Accordion
         cols_funcs: ColsFuncs
         func_table: Optional[Union[ipw.Label, ipw.GridBox]]
@@ -257,10 +263,18 @@ class PColumnsW(VBoxTyped):
     def initialize(self) -> None:
         self._col_widgets: Dict[Tuple[str, str], FuncW] = {}
         self._computed: List[Optional[FuncW]] = []
-        self.c_.numpy_ufuncs = ipw.Checkbox(
+        self.c_.opts = OptsBar()
+        wg: AnyType
+        wg = self.c_.opts.c_.numpy_ufuncs = ipw.Checkbox(
             value=True, description="Show Numpy universal functions", disabled=False, indent=False
         )
-        self.c_.numpy_ufuncs.observe(self._numpy_ufuncs_cb, names="value")
+        wg.observe(self._numpy_ufuncs_cb, names="value")
+        wg = self.c_.opts.c_.refresh_btn = make_button(
+            "", cb=self._refresh_funcs_cb, disabled=False, icon="refresh",
+            layout=layout_refresh
+        )
+        wg.observe(self._refresh_funcs_cb, names="value")
+        self.c_.opts.c_.label = ipw.Label("Refresh custom function list")
         self._if_else = IfElseW(self)
         self.c_.custom_funcs = ipw.Accordion(
             children=[self._if_else], selected_index=None
@@ -301,6 +315,11 @@ class PColumnsW(VBoxTyped):
         self.c_.keep_stored.c_.stored_cols.value = (
             list(self.dtypes.keys()) if val else []
         )
+
+    def _refresh_funcs_cb(self, change: AnyType) -> None:
+        from .custom import CUSTOMER_FNC
+        ALL_FUNCS.update(CUSTOMER_FNC)
+        self.c_.cols_funcs.c_.funcs.options = list(ALL_FUNCS.keys())
 
     def _numpy_ufuncs_cb(self, change: AnyType) -> None:
         if change["new"]:

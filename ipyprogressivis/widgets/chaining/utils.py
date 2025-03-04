@@ -557,17 +557,18 @@ def disable_all(wg: Any, exceptions: Sequence[Any] = tuple()) -> None:
 
 
 def make_button(
-    label: str,
-    disabled: bool = False,
-    cb: Optional[Callable[..., AnyType]] = None,
-    **kw: Any,
+        label: str,
+        disabled: bool = False,
+        cb: Optional[Callable[..., AnyType]] = None,
+        icon: str = "check",
+        **kw: Any,
 ) -> ipw.Button:
     btn = ipw.Button(
         description=label,
         disabled=disabled,
         button_style="",
         tooltip=label,
-        icon="check",
+        icon=icon,
         **kw,
     )
     if cb is not None:
