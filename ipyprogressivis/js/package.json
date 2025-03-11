@@ -61,7 +61,7 @@
     "@jupyter-widgets/base": "^1.1 || ^2 || ^3 || ^4 || ^6",
     "@jupyterlab/filebrowser": "^4.0.12",
     "@jupyterlab/notebook": "^4.0.3",
-    "chroma-js": "^2.4.2",
+    "chroma-js": "~2.4",
     "d3": "^7.6.1",
     "d3-dag": "^0.11.5",
     "datatables": "^1.10.18",
