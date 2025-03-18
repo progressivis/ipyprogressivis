@@ -155,13 +155,12 @@ class CsvLoaderW(VBoxTyped):
             self.c_.reuse_ck.observe(self._reuse_cb, names="value")
         else:
             self.c_.reuse_ck = None
-        home = HOME
         bmk_disabled = True
-        bookmarks = [
-            f"no '{home}/.progressivis/' directory found",
-            f"no '{home}/.progressivis/bookmarks' file found",
-        ]
         pv_dir = dot_progressivis()
+        bookmarks = [
+            f"no '{pv_dir}/' directory found",
+            f"no '{pv_dir}/bookmarks' file found",
+        ]
         if os.path.isdir(pv_dir):
             bookmarks_file = f"{pv_dir}/bookmarks"
             if os.path.exists(bookmarks_file):
