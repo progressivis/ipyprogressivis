@@ -16,9 +16,8 @@ from .utils import (
 from ..utils import historized_widget
 import ipywidgets as ipw
 from ..vega import VegaWidget
+from ..json_editor import JsonEditor
 from ..df_grid import DataFrameGrid
-import panel as pn
-from jupyter_bokeh.widgets import BokehModel  # type: ignore
 import pandas as pd
 import numpy as np
 from progressivis.core.api import Module, Sink, notNone
@@ -46,8 +45,7 @@ class AfterRun(Coro):
 class AnyVegaW(VBoxTyped):
     class Typed(TypedBase):
         schemas: ipw.Dropdown | None
-        mode: ipw.Dropdown | None
-        editor: BokehModel | None
+        editor: JsonEditor
         save_schema: ipw.HBox | None
         grid: DataFrameGrid | None
         btn_apply: ipw.Button | None
@@ -61,15 +59,8 @@ class AnyVegaW(VBoxTyped):
 
     @needs_dtypes
     def initialize(self) -> None:
-        self.c_.mode = ipw.Dropdown(
-            options=["tree", "view", "form", "text", "preview"],
-            description="Edition mode",
-            disabled=False,
-        )
-        self.c_.mode.observe(self._mode_cb, names="value")
-        self.json_editor = pn.widgets.JSONEditor(value={}, mode="form", width=600)
-        self.json_editor.param.trigger("value")
-        self.c_.editor = pn.ipywidget(self.json_editor)
+        self.c_.editor = JsonEditor()
+        self.c_.editor.data = {}  # type: ignore
         self.c_.schemas = ipw.Dropdown(
             options=[""] + os.listdir(self.widget_dir),
             value="",
@@ -107,7 +98,7 @@ class AnyVegaW(VBoxTyped):
         base_name = self.c_.save_schema.children[2].value
         file_name = f"{self.widget_dir}/{base_name}"
         with open(file_name, "w") as f:
-            json.dump(self.json_editor.value, f, indent=4)
+            json.dump(self.c_.editor.data, f, indent=4)
         self.c_.schemas.options = [""] + os.listdir(self.widget_dir)
 
     def _observe_keys(self, change: Dict[str, AnyType]) -> None:
@@ -135,7 +126,7 @@ class AnyVegaW(VBoxTyped):
              k_widget.value = m_key
 
     def _btn_fetch_cols_cb(self, btn: ipw.Button) -> None:
-        edit_val = self.json_editor.value
+        edit_val = self.c_.editor.data
         en_ = edit_val.get("encoding")
         if en_ is None:
             return
@@ -171,17 +162,14 @@ class AnyVegaW(VBoxTyped):
         )
         self.c_.grid.observe_col("Mapping", self._observe_keys)
 
-    def _mode_cb(self, change: Dict[str, AnyType]) -> None:
-        self.json_editor.mode = change["new"]
-
     def _schemas_cb(self, change: Dict[str, AnyType]) -> None:
         base_name = change["new"]
         if not base_name:
-            self.json_editor.value = {}
+            self.c_.editor.data = {}
             return
         file_name = f"{self.widget_dir}/{base_name}"
         with open(file_name) as f:
-            self.json_editor.value = json.load(f)
+            self.c_.editor.data = json.load(f)
 
     def _update_vw_facade(self, _: Module, run_number: int) -> None:  # TODO: replace
         slider = self.c_.refresh_ratio
@@ -234,7 +222,7 @@ class AnyVegaW(VBoxTyped):
         for i, row in df_dict.items():
             for k, wg in row.items():
                 row[k] = wg.value
-        js_val = self.json_editor.value.copy()
+        js_val = self.c_.editor.data.copy()
         if is_recording():
             amend_last_record(
                 {"frozen": dict(mapping_dict=df_dict, vega_schema=js_val)}

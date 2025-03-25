@@ -1,10 +1,9 @@
 import ipywidgets as ipw
 import pandas as pd
-import panel as pn
-from jupyter_bokeh.widgets import BokehModel  # type: ignore
 from glob import glob
 import random
 from ..csv_sniffer import CSVSniffer
+from ..json_editor import JsonEditor
 from progressivis.io.api import SimpleCSVLoader
 from progressivis.core.api import Module
 from progressivis.table.api import PTable, Constant
@@ -95,30 +94,19 @@ class JsonEditorW(IpyVBoxTyped):
     class Typed(TypedBase):
         files: ipw.Select
         edit: ipw.Checkbox
-        mode: ipw.Dropdown | None
-        editor: BokehModel | None
+        #mode: ipw.Dropdown | None
+        editor: JsonEditor
 
     def __init__(self, parent: "CsvLoaderW") -> None:
         super().__init__()
         self._parent = parent  # TODO: use a weakref
 
     def initialize(self) -> None:
-        self.c_.mode = ipw.Dropdown(
-            options=["tree", "view", "form", "text", "preview"],
-            description="Edition mode",
-            disabled=False,
-        )
-        self.c_.mode.observe(self._mode_cb, names="value")
         file_ = "/".join([self._parent.widget_dir, self._parent.c_.bookmarks.value])
         with open(file_) as f:
             content = js.load(f)
-        # pn.extension('ace', 'jsoneditor', 'ipywidgets')  # run it in a nb cell
-        self.json_editor = pn.widgets.JSONEditor(value=content, mode="form", width=600)
-        self.json_editor.param.trigger("value")
-        self.c_.editor = pn.ipywidget(self.json_editor)
-
-    def _mode_cb(self, change: Dict[str, Any]) -> None:
-        self.json_editor.mode = change["new"]
+        self.c_.editor = JsonEditor()
+        self.c_.editor.data = content
 
 
 class BtnBar(IpyHBoxTyped):
@@ -256,7 +244,8 @@ class CsvLoaderW(VBoxTyped):
 
     def _start_loader_reuse_cb(self, btn: ipw.Button) -> None:
         if isinstance(self.c_.sniffer, JsonEditorW):
-            content = self.c_.sniffer.json_editor.value
+            #content = self.c_.sniffer.json_editor.value
+            content = self.c_.sniffer.c_.editor.data
         else:
             file_ = "/".join([self.widget_dir, self.c_.bookmarks.value])
             with open(file_) as f:
@@ -374,17 +363,20 @@ class CsvLoaderW(VBoxTyped):
         assert pv_dir
         base_name = self.c_.start_save.c_.text.value
         file_name = f"{self.widget_dir}/{base_name}"
-        assert self._sniffer is not None
-        pv_params = self._sniffer.progressivis
-        schema = get_schema(self._sniffer)
-        filter_ = pv_params.get("filter_values", {})
-        res = dict(
-            urls=relative_urls(self._urls),
-            throttle=self.c_.throttle.value,
-            sniffed_params=clean_nodefault(self._sniffer.params),
-            schema=schema,
-            filter_=filter_,
-        )
+        if self._sniffer is not None:  # after sniffing
+            pv_params = self._sniffer.progressivis
+            schema = get_schema(self._sniffer)
+            filter_ = pv_params.get("filter_values", {})
+            res = dict(
+                urls=relative_urls(self._urls),
+                throttle=self.c_.throttle.value,
+                sniffed_params=clean_nodefault(self._sniffer.params),
+                schema=schema,
+                filter_=filter_,
+            )
+        else:
+            assert isinstance(self.c_.sniffer, JsonEditorW)
+            res = self.c_.sniffer.c_.editor.data
         with open(file_name, "w") as f:
             js.dump(res, f, indent=4)
 

@@ -14,6 +14,7 @@ import { ScatterplotModel, ScatterplotView } from './scatterplot';
 import { PrevImagesModel, PrevImagesView } from './previmages';
 import { ModuleGraphModel, ModuleGraphView } from './module_graph';
 import { JsonHTMLModel, JsonHTMLView } from './json_html';
+import { JsonEditorModel, JsonEditorView } from './json_editor';
 import { SparkLineProgressBarModel, SparkLineProgressBarView,
          PlottingProgressBarModel, PlottingProgressBarView,
        } from './sparkline_progressbar';
@@ -24,6 +25,7 @@ export {
   PrevImagesModel, PrevImagesView,
   ModuleGraphModel, ModuleGraphView,
   JsonHTMLModel, JsonHTMLView,
+  JsonEditorModel, JsonEditorView,
   SparkLineProgressBarModel, SparkLineProgressBarView,
   PlottingProgressBarModel, PlottingProgressBarView,
   DataTableModel, DataTableView,
