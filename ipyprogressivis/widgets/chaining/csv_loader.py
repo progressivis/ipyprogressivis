@@ -1,9 +1,7 @@
 import ipywidgets as ipw
 import pandas as pd
-from glob import glob
-import random
+from .loaders import JsonEditorW, BtnBar
 from ..csv_sniffer import CSVSniffer
-from ..json_editor import JsonEditor
 from progressivis.io.api import SimpleCSVLoader
 from progressivis.core.api import Module
 from progressivis.table.api import PTable, Constant
@@ -11,15 +9,15 @@ from .utils import (
     make_button,
     get_schema,
     VBoxTyped,
-    IpyVBoxTyped,
-    IpyHBoxTyped,
     TypedBase,
     amend_last_record,
     is_recording,
     disable_all,
     runner,
-    glob_url,
     dot_progressivis,
+    expand_urls,
+    shuffle_urls,
+    relative_urls,
 )
 import os
 import time
@@ -30,28 +28,6 @@ from typing import List, Optional, Any, Dict, Callable, cast
 
 HOME = os.getenv("HOME")
 assert HOME is not None
-
-
-def expand_urls(urls: list[str]) -> list[str]:
-    exp_urls = [os.path.expanduser(url) for url in urls if url]
-    res = []
-    for url in exp_urls:
-        if url.startswith("http://") or url.startswith("https://"):
-            res.extend(glob_url(url))
-        else:
-            res.extend(glob(url))
-    return res
-
-
-def _relative_url(url: str) -> str:
-    assert HOME is not None
-    if url.startswith(HOME):
-        return url.replace(HOME, "~", 1)
-    return url
-
-
-def relative_urls(urls: list[str]) -> list[str]:
-    return [_relative_url(url) for url in urls if url]
 
 
 def clean_nodefault(d: Dict[str, Any]) -> Dict[str, Any]:
@@ -90,31 +66,6 @@ def test_filter(df: pd.DataFrame) -> pd.DataFrame:
     return df[(pklon > -74.08) & (pklon < -73.5) & (pklat > 40.55) & (pklat < 41.00)]
 
 
-class JsonEditorW(IpyVBoxTyped):
-    class Typed(TypedBase):
-        files: ipw.Select
-        edit: ipw.Checkbox
-        #mode: ipw.Dropdown | None
-        editor: JsonEditor
-
-    def __init__(self, parent: "CsvLoaderW") -> None:
-        super().__init__()
-        self._parent = parent  # TODO: use a weakref
-
-    def initialize(self) -> None:
-        file_ = "/".join([self._parent.widget_dir, self._parent.c_.bookmarks.value])
-        with open(file_) as f:
-            content = js.load(f)
-        self.c_.editor = JsonEditor()
-        self.c_.editor.data = content
-
-
-class BtnBar(IpyHBoxTyped):
-    class Typed(TypedBase):
-        start: ipw.Button
-        save: ipw.Button | ipw.Label
-        sniff_btn: ipw.Button | ipw.Label
-        text: ipw.Text | ipw.Label
 
 
 class CsvLoaderW(VBoxTyped):
@@ -409,18 +360,10 @@ class CsvLoaderW(VBoxTyped):
         filter_: Dict[str, Any] | None = None,
         **kw: Any
     ) -> SimpleCSVLoader:
-        def _shuffle_if(urls: list[str]) -> list[str]:
-            if shuffle:
-                shuffled_urls = random.sample(urls, k=len(urls))
-                assert sorted(urls) == sorted(shuffled_urls)
-                return shuffled_urls
-            else:
-                return urls
-
         if urls is None:
             assert self._sniffer is not None
             urls = expand_urls(self._urls)
-            urls = _shuffle_if(urls)
+            urls = shuffle_urls(urls) if shuffle else urls
             params = self._sniffer.params.copy()
             pv_params = self._sniffer.progressivis
             if "filter_values" in pv_params:
@@ -429,13 +372,14 @@ class CsvLoaderW(VBoxTyped):
             params["throttle"] = self.c_.throttle.value
         else:
             urls = expand_urls(urls)
-            urls = _shuffle_if(urls)
             if filter_:
                 filter_ = dict(filter_=make_filter(filter_))
             else:
                 filter_ = {}
             assert sniffed_params is not None
             params = dict(throttle=throttle, **sniffed_params, **filter_)
+        if shuffle:
+            urls = shuffle_urls(urls)
         sink = self.input_module
         assert isinstance(sink, Module)
         s = sink.scheduler()

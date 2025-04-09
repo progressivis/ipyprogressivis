@@ -1,12 +1,21 @@
 import ipywidgets as ipw
 import numpy as np
+import pandas as pd
 import pyarrow.parquet as pq
 from progressivis.table.dshape import dataframe_dshape, ExtensionDtype
 from progressivis.core.api import Module
+from progressivis.table.api import PTable, Constant
 from progressivis.io.api import ParquetLoader
+from .loaders import JsonEditorW, BtnBar
 from .utils import (make_button, VBoxTyped, TypedBase, is_recording,
                     amend_last_record,
-                    disable_all, dot_progressivis, IpyHBoxTyped, runner)
+                    disable_all,
+                    dot_progressivis,
+                    runner,
+                    expand_urls,
+                    shuffle_urls,
+                    relative_urls,
+                    )
 import os
 import time
 import json
@@ -129,21 +138,24 @@ class Sniffer(ipw.HBox):
         col = self.info_cols[column]
         self.details.children = [col]
 
-class BtnBar(IpyHBoxTyped):
-    class Typed(TypedBase):
-        start: ipw.Button
-        save: ipw.Button | ipw.Label
-        sniff_btn: ipw.Button | ipw.Label
-        text: ipw.Text | ipw.Label
 
 class ParquetLoaderW(VBoxTyped):
     class Typed(TypedBase):
         reuse_ck: ipw.Checkbox
-        bookmarks: ipw.Select
-        url: ipw.Text
+        bookmarks: ipw.SelectMultiple
+        urls_wg: ipw.Textarea
+        to_sniff: ipw.Text
+        n_lines: ipw.IntText
+        shuffle_ck: ipw.Checkbox
         throttle: ipw.IntText
-        sniffer: Sniffer
+        sniffer: Sniffer | JsonEditorW
         start_save: BtnBar
+
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._urls: list[str] = []
+        self.child.start_save = BtnBar()
 
     def initialize(self) -> None:
         self.child.start_save = BtnBar()
@@ -168,32 +180,39 @@ class ParquetLoaderW(VBoxTyped):
                     bookmarks = [f"cannot read '{pv_dir}/bookmarks'"]
             else:
                 bookmarks = [f"no '{pv_dir}/bookmarks' file found"]
-
-        self.c_.bookmarks = ipw.Select(
+        self.c_.bookmarks = ipw.SelectMultiple(
             options=bookmarks,
+            value=[],
             rows=5,
             description="Bookmarks",
             disabled=bmk_disabled,
             layout=ipw.Layout(width="60%"),
         )
-        self.c_.bookmarks.observe(self._bookmarks_cb, names="value")
-        self.child.url = ipw.Text(
+        self.c_.urls_wg = ipw.Textarea(
             value="",
             placeholder="",
-            description="File:",
+            description="New URLs:",
             disabled=False,
-            layout=ipw.Layout(width="100%"),
+            layout=ipw.Layout(width="60%"),
+        )
+        self.c_.to_sniff = ipw.Text(
+            value="",
+            placeholder="",
+            description="URL to sniff(optional):",
+            disabled=False,
+            layout=ipw.Layout(width="60%"),
+        )
+        self.c_.shuffle_ck = ipw.Checkbox(
+            description="Shuffle URLs", value=True, disabled=False
         )
         self.c_.throttle = ipw.IntText(value=0, description="Throttle:", disabled=False)
         self.c_.start_save.c_.sniff_btn = make_button("Sniff ...", cb=self._sniffer_cb)
 
-    def _bookmarks_cb(self, change: Dict[str, Any]) -> None:
-        self.child.url.value = change["new"]
-
     def _reuse_cb(self, change: Dict[str, Any]) -> None:
         if change["new"]:
+            self.c_.to_sniff = None
             self.c_.sniffer = None
-            self.c_.url = None
+            self.c_.urls_wg = None
             self.c_.bookmarks = ipw.Select(
                 options=[""] + os.listdir(self.widget_dir),
                 value="",
@@ -204,8 +223,11 @@ class ParquetLoaderW(VBoxTyped):
             )
             self.c_.bookmarks.observe(self._enable_reuse_cb, names="value")
             self.c_.throttle = None
+            self.c_.start_save.c_.sniff_btn = make_button(
+                "Edit settings", cb=self._edit_settings_cb, disabled=True
+            )
             self.c_.start_save.c_.start = make_button(
-                "Start loading ...",
+                "Start loading csv ...",
                 cb=self._start_loader_reuse_cb,
                 disabled=True,
             )
@@ -216,9 +238,37 @@ class ParquetLoaderW(VBoxTyped):
         self.c_.start_save.c_.sniff_btn.disabled = not change["new"]
         self.c_.start_save.c_.start.disabled = not change["new"]
 
+    def _edit_settings_cb(self, btn: ipw.Button) -> None:
+        self.c_.sniffer = JsonEditorW(self)
+        self.c_.sniffer.initialize()
+        self.c_.start_save.c_.start = make_button(
+            "Start loading csv ...",
+            cb=self._start_loader_reuse_cb)
+        self.c_.start_save.c_.save = make_button(
+            "Save settings ...",
+            cb=self._save_settings_cb,
+            disabled=False,
+        )
+        self.c_.start_save.c_.text = ipw.Text(
+            value=self.c_.bookmarks.value,
+            placeholder="",
+            description="File:",
+            disabled=False,
+            layout=ipw.Layout(width="100%"),
+        )
+
     def _sniffer_cb(self, btn: ipw.Button) -> None:
         if btn.description.startswith("Sniff"):
-            url = self.child.url.value.strip()
+            urls = list(self.c_.bookmarks.value) + self.c_.urls_wg.value.strip().split(
+                "\n"
+            )
+            urls = [elt for elt in urls if elt]
+            assert urls
+            self._urls = urls
+            to_sniff = self.c_.to_sniff.value.strip()
+            if not to_sniff:
+                to_sniff = urls[0]
+            to_sniff = expand_urls([to_sniff])[0]
             pv_dir = dot_progressivis()
             placeholder = (
                 (
@@ -233,7 +283,7 @@ class ParquetLoaderW(VBoxTyped):
                 "Start loading ...",
                 cb=self._start_loader_cb
             )
-            self.child.sniffer = Sniffer(url, self.c_.start_save.c_.start)
+            self.child.sniffer = Sniffer(to_sniff, self.c_.start_save.c_.start)
             self.c_.start_save.c_.save = make_button(
                 "Save settings ...",
                 cb=self._save_settings_cb,
@@ -246,7 +296,7 @@ class ParquetLoaderW(VBoxTyped):
                 disabled=disabled,
                 layout=ipw.Layout(width="100%"),
             )
-            self.c_.url.disabled = True
+            self.c_.urls_wg.disabled = True
             btn.description = "Hide sniffer"
         elif btn.description.startswith("Hide"):
             self.c_.sniffer = None
@@ -255,18 +305,21 @@ class ParquetLoaderW(VBoxTyped):
             assert btn.description.startswith("Show")
             btn.description = "Hide sniffer"
 
-
-
     def _start_loader_reuse_cb(self, btn: ipw.Button) -> None:
-        file_ = "/".join([self.widget_dir, self.c_.bookmarks.value])
-        with open(file_) as f:
-            content = json.load(f)
-        url = content["url"]
+        if isinstance(self.c_.sniffer, JsonEditorW):
+            content = self.c_.sniffer.c_.editor.data
+        else:
+            file_ = "/".join([self.widget_dir, self.c_.bookmarks.value])
+            with open(file_) as f:
+                content = json.load(f)
+        urls = content["urls"]
         throttle = content["throttle"]
+        shuffle = content.get("shuffle", False)
         dtypes = content["dtypes"]
         kw = dict(
-            url=url,
+            urls=urls,
             throttle=throttle,
+            shuffle=shuffle,
             dtypes=dtypes
         )
         pq_module = self.init_modules(**kw)
@@ -281,14 +334,15 @@ class ParquetLoaderW(VBoxTyped):
         disable_all(self)
         self.manage_replay()
 
-
     def _start_loader_cb(self, btn: ipw.Button) -> None:
-        url = self.c_.url.value
+        urls = relative_urls(self._urls)
         throttle = self.c_.throttle.value
+        shuffle = self.c_.shuffle_ck.value
         dtypes = self.child.sniffer.get_dtypes()
         kw = dict(
-            url=url,
+            urls=urls,
             throttle=throttle,
+            shuffle=shuffle,
             dtypes= dtypes
         )
         if is_recording():
@@ -309,7 +363,7 @@ class ParquetLoaderW(VBoxTyped):
         file_name = f"{self.widget_dir}/{base_name}"
         dtypes = self.child.sniffer.get_dtypes()
         res = dict(
-            url=self.c_.url.value,
+            urls=self.c_.urls_wg.value,
             throttle=self.c_.throttle.value,
             dtypes=dtypes
         )
@@ -319,25 +373,37 @@ class ParquetLoaderW(VBoxTyped):
     @runner
     def run(self) -> Any:
         content = self.frozen_kw
-        url = content["url"]
+        urls = content["urls"]
         throttle = content["throttle"]
+        shuffle = content.get("shuffle", False)
         dtypes = content["dtypes"]
         pq_module = self.init_modules(
-            url=url,
+            urls=urls,
             throttle=throttle,
+            shuffle=shuffle,
             dtypes=dtypes
         )
         self.output_module = pq_module
         self.output_slot = "result"
         self.output_dtypes = dtypes
 
-    def init_modules(self, url: str,
-                     throttle: int, dtypes: dict[str, str], **kw: Any) -> ParquetLoader:
+    def init_modules(self, urls: list[str] | None,
+                     throttle: int, dtypes: dict[str, str], shuffle: bool = False, **kw: Any) -> ParquetLoader:
+        if urls is None:
+            urls = expand_urls(self._urls)
+            throttle = self.c_.throttle.value
+        else:
+            urls = expand_urls(urls)
+        if shuffle:
+            urls = shuffle_urls(urls)
         sink = self.input_module
         assert isinstance(sink, Module)
         s = sink.scheduler()
         with s:
+            filenames = pd.DataFrame({"filename": urls})
+            cst = Constant(PTable("filenames", data=filenames), scheduler=s)
             cols = list(dtypes.keys())
-            pql = ParquetLoader(url, columns=cols, scheduler=s)
+            pql = ParquetLoader(columns=cols, throttle=throttle, scheduler=s)
+            pql.input.filenames = cst.output[0]
             sink.input.inp = pql.output.result
         return pql

@@ -7,6 +7,8 @@ import time
 import logging
 import ipywidgets as ipw
 import fsspec  # type: ignore
+from glob import glob
+import random
 from progressivis.table.dshape import dataframe_dshape
 from progressivis.vis import DataShape
 from progressivis.core.api import Sink, Module
@@ -72,10 +74,6 @@ LOADERS = {"CSV loader": "csv", "PARQUET loader": "parquet", "CUSTOM loader": "c
 SHOT_LATER: list[str] = []
 
 
-def glob_url(url: str) -> list[str]:
-    return cast(list[str], FSSPEC_HTTPS.glob(url))
-
-
 def dot_progressivis() -> str:
     home = HOME
     pv_dir: Path | str = f"{home}/.progressivis/"
@@ -100,6 +98,10 @@ def shot_cell_cmd(tag: str, delay: int = 3000) -> None:
     labcommand("progressivis:shot_cell", tag=tag, delay=delay)
 
 
+def glob_url(url: str) -> list[str]:
+    return cast(list[str], FSSPEC_HTTPS.glob(url))
+
+
 def shot_cell(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
     def wrapper(*args: Any, **kwargs: Any) -> None:
         self_ = args[0]
@@ -108,6 +110,33 @@ def shot_cell(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
         shot_cell_cmd(tag=self_.carrier.title, delay=3000)
     return wrapper
 
+
+def expand_urls(urls: list[str]) -> list[str]:
+    exp_urls = [os.path.expanduser(url) for url in urls if url]
+    res = []
+    for url in exp_urls:
+        if url.startswith("http://") or url.startswith("https://"):
+            res.extend(glob_url(url))
+        else:
+            res.extend(glob(url))
+    return res
+
+
+def _relative_url(url: str) -> str:
+    assert HOME is not None
+    if url.startswith(HOME):
+        return url.replace(HOME, "~", 1)
+    return url
+
+
+def relative_urls(urls: list[str]) -> list[str]:
+    return [_relative_url(url) for url in urls if url]
+
+
+def shuffle_urls(urls: list[str]) -> list[str]:
+    shuffled_urls = random.sample(urls, k=len(urls))
+    assert sorted(urls) == sorted(shuffled_urls)
+    return shuffled_urls
 
 def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
     def wrapper(*args: Any, **kwargs: Any) -> "NodeCarrier":
