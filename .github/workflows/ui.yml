@@ -69,5 +69,5 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: ipyprogressivis-updated-images
+        name: ipyprogressivis-updated-images-${{ matrix.python }}
         path: ui-tests/tests/end2end.test.ts-snapshots/
