@@ -28,12 +28,6 @@ jobs:
     - name: Run mypy
       run: |
         python -m pip install -r requirements_typing.txt
-        git clone https://github.com/progressivis/progressivis.git
-        cd progressivis
-        git submodule init
-        git submodule update --remote --merge
-        cd ..
-        python -m pip install panel
-        python -m pip install ./progressivis
+        python -m pip install git+https://github.com/progressivis/progressivis.git
         mv mypy_ci.ini mypy.ini
         mypy --strict ipyprogressivis/
