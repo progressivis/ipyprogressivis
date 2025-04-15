@@ -43,7 +43,6 @@ dependencies = [
     "numpy>=1.26.4",
     "pandas>=1.0.0,<3.0.0",
     "ipydatawidgets",
-    "progressivis@git+https://github.com/progressivis/progressivis.git",
     "jupyter-client>=8.6.0",
     "vega>=4.0.0",
     "sidecar>=0.7.0",
@@ -52,6 +51,9 @@ dependencies = [
 
 
 [project.optional-dependencies]
+
+standalone = ["progressivis@git+https://github.com/progressivis/progressivis.git"]
+
 docs = [
     "jupyter_sphinx",
     "nbsphinx",
