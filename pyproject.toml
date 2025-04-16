@@ -53,7 +53,7 @@ dependencies = [
 [project.optional-dependencies]
 
 standalone = ["progressivis@git+https://github.com/progressivis/progressivis.git"]
-
+dev = ["jupyterlab>=4.0.0"]
 docs = [
     "jupyter_sphinx",
     "nbsphinx",
@@ -67,7 +67,6 @@ docs = [
     "click",
     "click-types"
 ]
-examples = []
 test = [
     "nbval",
     "pytest-cov",
