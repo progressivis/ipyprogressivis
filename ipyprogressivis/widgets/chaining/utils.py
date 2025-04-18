@@ -20,7 +20,7 @@ from ._js import jslab_func_remove
 from ..csv_sniffer import CSVSniffer
 from collections import defaultdict
 from .. import DagWidgetController  # type: ignore
-from .. import PsBoard
+from ..psboard import PsBoard
 from ..cell_out import CellOut
 from pathlib import Path
 import copy
@@ -47,7 +47,7 @@ from ..talker import Talker
 from sidecar import Sidecar  # type: ignore
 
 if TYPE_CHECKING:
-    from ipyprogressivis.widgets import Constructor
+    from ipyprogressivis.widgets.chaining.constructor import Constructor
 
 
 Sniffer = CSVSniffer
@@ -228,7 +228,7 @@ def get_header() -> Header:
     """
     NB: call this function ONLY from the first cell of the notebook!!
     """
-    from ipyprogressivis.widgets import Constructor
+    from ipyprogressivis.widgets.chaining.constructor import Constructor
 
     if "header" in PARAMS:
         hdr = cast(Header, PARAMS["header"])

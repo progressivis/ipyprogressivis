@@ -33,7 +33,6 @@ jobs:
       uses: actions/setup-node@v3
     - name: Install dependencies
       run: |
-        python -m pip install git+https://github.com/progressivis/progressivis.git
         python -m pip install jupyterlab==4.0.0
         pushd js
         yarn --frozen-lockfile

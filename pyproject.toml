@@ -30,9 +30,11 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Framework :: Jupyter",
     "Framework :: Jupyter :: JupyterLab",
-    "Framework :: Jupyter :: JupyterLab :: 3",
+    "Framework :: Jupyter :: JupyterLab :: 4",
     "Framework :: Jupyter :: JupyterLab :: Extensions",
     "Framework :: Jupyter :: JupyterLab :: Extensions :: Prebuilt"
 ]
@@ -47,12 +49,13 @@ dependencies = [
     "vega>=4.0.0",
     "sidecar>=0.7.0",
     "lz4",
+    "pillow"
 ]
 
 
 [project.optional-dependencies]
 
-standalone = ["progressivis@git+https://github.com/progressivis/progressivis.git"]
+progressivis = ["progressivis@git+https://github.com/progressivis/progressivis.git"]
 dev = ["jupyterlab>=4.0.0"]
 docs = [
     "jupyter_sphinx",
@@ -98,16 +101,22 @@ version-file = "ipyprogressivis/_version.py"
 
 [tool.hatch.build.targets.sdist]
 exclude = [
-    ".github",
     "js/.yarn",
     ".gitmodules",
+    ".github",
     ".mypy.ini",
+    ".mypy_ci.ini",
     ".pre-commit-config.yaml",
     ".pylintrc",
     "refresh_pv.sh",
     "requirements_typing.txt",
     ".yarn",
-    ".gitignore",
+    "recipe",
+    "notebooks",
+    ".progressivis",
+    "tools",
+    "jupyter-config",
+    "ui-tests",
     "schema_plugin.py",
 ]
 
