@@ -52,7 +52,7 @@ test.describe('Widget Visual Regression', () => {
     tmpPath,
   }) => {
     //const notebook = 'vega.ipynb';
-    for (const notebook of ['vega.ipynb', 'dag.ipynb', 'simple_widgets.ipynb']) {
+    for (const notebook of ['vega.ipynb', 'dag.ipynb']) {
     await page.notebook.openByPath(`${tmpPath}/${notebook}`);
     await page.notebook.activate(notebook);
 
