@@ -71,45 +71,5 @@
         "dropoff_latitude": "float64"
     },
     "filter_": {
-        "pickup_longitude": [
-            [
-                ">",
-                -74.08
-            ],
-            [
-                "<",
-                -73.5
-            ]
-        ],
-        "pickup_latitude": [
-            [
-                ">",
-                40.55
-            ],
-            [
-                "<",
-                41.0
-            ]
-        ],
-        "dropoff_longitude": [
-            [
-                ">",
-                -74.08
-            ],
-            [
-                "<",
-                -73.5
-            ]
-        ],
-        "dropoff_latitude": [
-            [
-                ">",
-                40.55
-            ],
-            [
-                "<",
-                41.0
-            ]
-        ]
     }
 }
