@@ -271,7 +271,8 @@ def labcommand(cmd: str, **kw: AnyType) -> None:
         md = kw["md"]
         tag = kw["tag"]
         widget_list.append((md, wg, tag))
-        code = "from ipyprogressivis.widgets import get_header, Constructor\n" + code
+        code = ("from ipyprogressivis.widgets.chaining.constructor import Constructor\n"
+                "from ipyprogressivis.widgets.chaining.utils import get_header\n") + code
         exec(code)
         return
     hdr = PARAMS["header"]
