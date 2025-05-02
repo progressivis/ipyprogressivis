@@ -15,6 +15,7 @@ from progressivis.core.api import Sink, Module
 from progressivis.table.api import TableFacade
 from progressivis.core.utils import normalize_columns
 from progressivis.core import aio
+from ipyprogressivis.hook_tools import make_css_marker
 import asyncio
 from ._js import jslab_func_remove
 from ..csv_sniffer import CSVSniffer
@@ -272,7 +273,8 @@ def labcommand(cmd: str, **kw: AnyType) -> None:
         tag = kw["tag"]
         widget_list.append((md, wg, tag))
         code = ("from ipyprogressivis.widgets.chaining.constructor import Constructor\n"
-                "from ipyprogressivis.widgets.chaining.utils import get_header\n") + code
+                "from ipyprogressivis.widgets.chaining.utils import get_header\n"
+                ) + code
         exec(code)
         return
     hdr = PARAMS["header"]
@@ -643,6 +645,7 @@ class _Dag:
         self._alias = alias
 
 
+
 def create_stage_widget(
         key: str, alias: str, frozen: AnyType = None, number: int | None = None
 ) -> "NodeCarrier":
@@ -670,11 +673,14 @@ def create_stage_widget(
     if alias:
         widget_by_key[(alias, 0)] = stage
         key_by_id[id(stage)] = (alias, 0)
+        guest.add_class(make_css_marker(alias))
     else:
         widget_by_key[(key, stage.number)] = stage
         widget_by_id[id(stage)] = stage
         key_by_id[id(stage)] = (key, stage.number)
+        guest.add_class(make_css_marker(key, stage.number))
     return stage
+
 
 
 def create_loader_widget(
@@ -712,9 +718,11 @@ def create_loader_widget(
     if alias:
         widget_by_key[(alias, 0)] = stage
         key_by_id[id(stage)] = (alias, 0)
+        loader.add_class(make_css_marker(alias))
     else:
         widget_by_key[(key, stage.number)] = stage
         key_by_id[id(stage)] = (key, stage.number)
+        loader.add_class(make_css_marker(key, stage.number))
     return stage
 
 

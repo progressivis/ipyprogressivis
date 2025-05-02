@@ -1,10 +1,7 @@
 # type: ignore
 from ._version import __version__
-import io
-import os
-import base64
-from PIL import Image
-from pathlib import Path
+import asyncio
+
 _ = __version__
 
 
@@ -60,71 +57,24 @@ def _jupyter_server_extension_points():
     return [{"module": "ipyprogressivis.app"}]
 
 
-eye_img = Image.open(Path(os.path.dirname(__file__)) / "resources" / "snapshot_marker.png")
-eye_img = eye_img.resize((64, 64))
+def pre_save(model, contents_manager,  **kwargs):
+    from .pre_save import pre_save_impl
+    log = contents_manager.log
+    log.info("Starting pre_save ...")
+    pre_save_impl(model, contents_manager, **kwargs)
+    log.info("... end pre_save")
 
-def add_snapshot_tag(data):
-    img = Image.open(io.BytesIO(base64.b64decode(data)))
-    # img = img.filter(ImageFilter.BLUR)
-    img.paste(eye_img, (0, 0), eye_img)
-    buffered = io.BytesIO()
-    img.save(buffered, format="PNG")
-    return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
-def pre_save(model, **kwargs):
-    """copy ProgressiVis snapshots to cells outputs before saving notebooks"""
-    # only run on notebooks
-    if model['type'] != 'notebook':
-        return
-    # only run on nbformat v4
-    if model['content']['nbformat'] != 4:
-        return
-    metadata = model["content"]["metadata"]
-    if not (outs := metadata.get("progressivis_outs")):
-        return
-    cell_1 = model['content']['cells'][1]  # if progressivis_outs exists then 1 index exists too
-    if cell_1['cell_type'] != 'code':
-        print("Unconsistent ProgressiBook, exit")
-        return
-    for out in cell_1.get('outputs', []):
-        if out.get("data", {}).get("text/plain") in ("Talker()", "BackupWidget()"):
-            out["data"]["text/plain"] = ""
-    for i, cell in enumerate(model['content']['cells']):
-        if cell['cell_type'] != 'code':
-            continue
-        if i >= len(outs) or not outs[i]:  # an empty dict actually
-            continue
-        prefix, b64_data = outs[i].split(",", 1)
-        b64_data = add_snapshot_tag(b64_data)
-        outs[i] = prefix + "," + b64_data
-        for j, out in enumerate(cell['outputs']):
-            if out["output_type"] not in ("execute_result", "display_data"):
-                continue
-            if not out.get("data", {}).get("application/vnd.jupyter.widget-view+json"):
-                continue
-            out["data"] = {
-                "image/png": b64_data
-            }
-    metadata["progressivis_prev_outs"] = metadata["progressivis_outs"]
-    # metadata["progressivis_outs"] = []
-    if not (dag_png := metadata.get("progressivis_dag_png")):
-        return
-    _, b64_data = dag_png.split(",", 1)
-    if not (wg_values := metadata.get("widgets", {})
-            .get('application/vnd.jupyter.widget-state+json', {})
-            ).values():
-        return
-    for _, wg in wg_values.get("state", {}).items():
-        if wg.get("model_module") != "@jupyter-widgets/jupyterlab-sidecar":
-            continue
-        for out in wg.get("state", {}).get("outputs", []):
-            if out.get("data", {}).get("text/plain") != "DagWidgetController()":
-                continue
-            out["data"] = {
-                "image/png": b64_data,
-                "output_type": "display_data",
-                "metadata": {}
-            }
+def pre_save_x(model, contents_manager,  **kwargs):
+    import nest_asyncio
+    nest_asyncio.apply()
+    from .pre_save_x import pre_save_impl
+    log = contents_manager.log
+    log.info("Starting pre_save_x ...")
+    loop = asyncio.get_event_loop()
+    task = loop.create_task(pre_save_impl(model, contents_manager, **kwargs))
+    loop.run_until_complete(task)
+    log.info("... end pre_save_x")
 
 
 __all__ = ["__version__"]

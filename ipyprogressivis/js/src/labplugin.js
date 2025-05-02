@@ -154,7 +154,8 @@ export const progressivisPlugin = {
         var crtWidget = nbtracker.currentWidget;
         var notebook = crtWidget.content;
         var backupCell = notebook.widgets[0];
-        this.model.set("value", backupCell.model.metadata.progressivis_backup);
+        this.model.set("value", backupCell.model.metadata.progressivis_backup || "");
+	this.model.set("markdown", "<!-- -->");
         this.model.set(
           "root_markdown",
           backupCell.model.metadata.progressivis_root_backup || "",

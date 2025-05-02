@@ -2,6 +2,7 @@ import ipywidgets as ipw
 from progressivis.io.api import Variable
 from progressivis.core.api import Sink, Scheduler
 import progressivis.core.aio as aio
+from ipyprogressivis.hook_tools import make_css_marker
 import asyncio
 
 
@@ -124,6 +125,7 @@ class Constructor(RootVBox, TypedBox):
         set_recording_state(False)
         self._do_record = not self._backup.value
         self.add_class("progressivis_guest_widget")
+        self.add_class(make_css_marker("root"))
 
     def _allow_overwrite_cb(self, change: dict[str, AnyType]) -> None:
         self._do_record = change["new"]
