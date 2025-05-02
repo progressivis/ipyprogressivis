@@ -39,3 +39,4 @@ repos:
           - 'ipykernel'
           - 'panel'
           - 'click-types'
+          - 'playwright'
