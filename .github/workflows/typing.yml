@@ -28,6 +28,6 @@ jobs:
     - name: Run mypy
       run: |
         git clone https://github.com/progressivis/progressivis.git
-        python -m pip install ./progressivis[typing]
+        python -m pip install ./progressivis[typing] playwright nbconvert
         mv mypy_ci.ini mypy.ini
         mypy --strict ipyprogressivis/
