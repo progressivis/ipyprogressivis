@@ -49,6 +49,13 @@ export const progressivisPlugin = {
         console.log("progressivis args:", args);
       },
     });
+    app.commands.addCommand("progressivis:set_cell_meta", {
+      label: "Progressivis set cell meta",
+      caption: "Progressivis set cell meta",
+      execute: (args) => {
+          cmds.setCellMeta(nbtracker, args.i, args.key, args.value);
+      },
+    });
     app.commands.addCommand("progressivis:set_backup", {
       label: "Progressivis set backup",
       caption: "Progressivis set backup",
@@ -155,7 +162,7 @@ export const progressivisPlugin = {
         var notebook = crtWidget.content;
         var backupCell = notebook.widgets[0];
         this.model.set("value", backupCell.model.metadata.progressivis_backup || "");
-	this.model.set("markdown", "<!-- -->");
+	//this.model.set("markdown", "<!-- -->");
         this.model.set(
           "root_markdown",
           backupCell.model.metadata.progressivis_root_backup || "",
@@ -196,6 +203,9 @@ export const progressivisPlugin = {
             x.model.metadata.progressivis_tag === this.model.get("tag") &&
             x.model.sharedModel.cell_type === "code",
         );
+	if(i===undefined) return;
+	if(notebook.model.metadata.progressivis_prev_outs === undefined||
+	    notebook.model.metadata.progressivis_prev_outs.length <= i) return;
         let imgSrc = notebook.model.metadata.progressivis_prev_outs[i];
         this.el.innerHTML = "<img src='" + imgSrc + "'></img>";
         this.touch();

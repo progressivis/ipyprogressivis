@@ -58,9 +58,11 @@ def _jupyter_server_extension_points():
 
 
 def pre_save(model, contents_manager,  **kwargs):
+    from .pre_save_md import pre_save_md_impl
     from .pre_save import pre_save_impl
     log = contents_manager.log
     log.info("Starting pre_save ...")
+    pre_save_md_impl(model, contents_manager, **kwargs)
     pre_save_impl(model, contents_manager, **kwargs)
     log.info("... end pre_save")
 
@@ -68,13 +70,21 @@ def pre_save(model, contents_manager,  **kwargs):
 def pre_save_x(model, contents_manager,  **kwargs):
     import nest_asyncio
     nest_asyncio.apply()
+    from .pre_save_md import pre_save_md_impl
     from .pre_save_x import pre_save_impl
     log = contents_manager.log
     log.info("Starting pre_save_x ...")
+    pre_save_md_impl(model, contents_manager, **kwargs)
     loop = asyncio.get_event_loop()
     task = loop.create_task(pre_save_impl(model, contents_manager, **kwargs))
     loop.run_until_complete(task)
     log.info("... end pre_save_x")
 
+def pre_save_md(model, contents_manager,  **kwargs):
+    from .pre_save_md import pre_save_md_impl
+    log = contents_manager.log
+    log.info("Starting pre_save_md ...")
+    pre_save_md_impl(model, contents_manager, **kwargs)
+    log.info("... end pre_save_md")
 
 __all__ = ["__version__"]

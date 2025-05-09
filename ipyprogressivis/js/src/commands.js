@@ -117,6 +117,14 @@ export function unlockMarkdownCells(nbtracker) {
   });
 }
 
+export function setCellMeta(nbtracker, i, key, value) {
+  var crtWidget = nbtracker.currentWidget;
+  var notebook = crtWidget.content;
+  var backupCell = notebook.widgets[i];
+    console.log("set cell meta", backupCell.model.metadata, key, value);
+    backupCell.model.sharedModel.setMetadata(key, value);
+}
+
 export function setBackup(nbtracker, backupstring) {
   var crtWidget = nbtracker.currentWidget;
   var notebook = crtWidget.content;
@@ -162,7 +170,7 @@ export function createStageCells(nbtracker, tag, md, code, rw, run) {
   var cell = notebook.widgets[i];
   NotebookActions.run(notebook, crtWidget.sessionContext);
   cell.model.sharedModel.setMetadata("trusted", true);
-  cell.model.sharedModel.setMetadata("editable", false);
+  cell.model.sharedModel.setMetadata("editable", true);
   cell.model.sharedModel.setMetadata("deletable", false);
   cell.model.sharedModel.setMetadata("progressivis_tag", tag);
   notebook.model.sharedModel.insertCell(i + 1, {
@@ -190,13 +198,9 @@ export function runCellAt(nbtracker, ix) {
 export function shotCellAtIndex(notebook, cell, i, delay) {
   let prevOuts = notebook.model.metadata.progressivis_outs || [];
   function fun() {
-    htmlToImage
-      .toPng(
-        $(cell.outputArea.node)
-          .find($(".progressivis_guest_widget"))
-          .first()[0],
-      )
-      .then((png) => {
+    let pvWidget = $(cell.outputArea.node).find($(".progressivis_guest_widget")).first()[0];
+    if(pvWidget === undefined) return;  // already an image
+    htmlToImage.toPng(pvWidget).then((png) => {
         prevOuts[i] = png;
         notebook.model.sharedModel.setMetadata("progressivis_outs", prevOuts);
       });
