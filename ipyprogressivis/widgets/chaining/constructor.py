@@ -129,6 +129,7 @@ class Constructor(RootVBox, TypedBox):
 
     def _allow_overwrite_cb(self, change: dict[str, AnyType]) -> None:
         self._do_record = change["new"]
+        self.child.btnbar.child.sbs.disabled = not change["new"]
 
     def _start_scheduler_cb(self, btn: ipw.Button | None = None) -> None:
         init_module = init_dataflow(self.scheduler)
@@ -143,7 +144,7 @@ class Constructor(RootVBox, TypedBox):
                 "Replay all", cb=self._replay_cb, disabled=False
             )
             self.child.btnbar.child.sbs = make_button(
-                "Step by step", cb=self._step_by_step_cb, disabled=False
+                "Step by step", cb=self._step_by_step_cb, disabled=True
             )
         else:  # no backup => new scenario
             self.child.record_ck = ipw.Checkbox(description="Record this scenario",
