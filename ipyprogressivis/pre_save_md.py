@@ -18,8 +18,10 @@ def pre_save_md_impl(model: dict[str, Any], contents_manager: Any, **kwargs: Any
         return
     if "progressivis_backup" not in cell_0["metadata"]:
         return
-    log.info("this notebook has a backup!")
     backup_str = cell_0["metadata"]["progressivis_backup"]
+    if not backup_str:
+        return
+    log.info("this notebook has a backup!")
     backup = dump_backup(backup_str)
     backup_dict = {}
     for elt in backup:

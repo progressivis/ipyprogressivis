@@ -85,6 +85,7 @@ export const progressivisPlugin = {
           alert("ProgressiVis is already running!");
           return;
         }
+	$('.progressivis-cleanup-and-run-btn').hide()
         nbtracker.currentWidget.progressivis_started = true;
         cmds.progressivisCleanup(app, nbtracker);
         //let indices = Number.isInteger(args.index) ? [args.index] : args.index;
