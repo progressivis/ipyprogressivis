@@ -81,13 +81,16 @@ export const progressivisPlugin = {
       label: "Cleanup and run",
       caption: "Cleanup and run",
       execute: (args) => {
-        let isRunning = cmds.progressivisCleanup(app, nbtracker);
+        if (nbtracker.currentWidget.progressivis_started !== undefined) {
+          alert("ProgressiVis is already running!");
+          return;
+        }
+        nbtracker.currentWidget.progressivis_started = true;
+        cmds.progressivisCleanup(app, nbtracker);
         //let indices = Number.isInteger(args.index) ? [args.index] : args.index;
         //indices.forEach(function (item) {cmds.runCellAt(nbtracker, item);});
-        if (!isRunning) {
-          cmds.runCellAt(nbtracker, args.index);
-          cmds.runAllSnippetCells(nbtracker);
-        }
+        cmds.runCellAt(nbtracker, args.index);
+        cmds.runAllSnippetCells(nbtracker);
       },
     });
     app.commands.addCommand("progressivis:run_cell_at", {
