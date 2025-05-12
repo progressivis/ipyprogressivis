@@ -53,7 +53,7 @@ export const progressivisPlugin = {
       label: "Progressivis set cell meta",
       caption: "Progressivis set cell meta",
       execute: (args) => {
-          cmds.setCellMeta(nbtracker, args.i, args.key, args.value);
+        cmds.setCellMeta(nbtracker, args.i, args.key, args.value);
       },
     });
     app.commands.addCommand("progressivis:set_backup", {
@@ -81,11 +81,13 @@ export const progressivisPlugin = {
       label: "Cleanup and run",
       caption: "Cleanup and run",
       execute: (args) => {
-        cmds.progressivisCleanup(app, nbtracker);
-	//let indices = Number.isInteger(args.index) ? [args.index] : args.index;
+        let isRunning = cmds.progressivisCleanup(app, nbtracker);
+        //let indices = Number.isInteger(args.index) ? [args.index] : args.index;
         //indices.forEach(function (item) {cmds.runCellAt(nbtracker, item);});
-	cmds.runCellAt(nbtracker, args.index);
-        cmds.runAllSnippetCells(nbtracker);
+        if (!isRunning) {
+          cmds.runCellAt(nbtracker, args.index);
+          cmds.runAllSnippetCells(nbtracker);
+        }
       },
     });
     app.commands.addCommand("progressivis:run_cell_at", {
@@ -161,8 +163,11 @@ export const progressivisPlugin = {
         var crtWidget = nbtracker.currentWidget;
         var notebook = crtWidget.content;
         var backupCell = notebook.widgets[0];
-        this.model.set("value", backupCell.model.metadata.progressivis_backup || "");
-	//this.model.set("markdown", "<!-- -->");
+        this.model.set(
+          "value",
+          backupCell.model.metadata.progressivis_backup || "",
+        );
+        //this.model.set("markdown", "<!-- -->");
         this.model.set(
           "root_markdown",
           backupCell.model.metadata.progressivis_root_backup || "",
@@ -203,9 +208,12 @@ export const progressivisPlugin = {
             x.model.metadata.progressivis_tag === this.model.get("tag") &&
             x.model.sharedModel.cell_type === "code",
         );
-	if(i===undefined) return;
-	if(notebook.model.metadata.progressivis_prev_outs === undefined||
-	    notebook.model.metadata.progressivis_prev_outs.length <= i) return;
+        if (i === undefined) return;
+        if (
+          notebook.model.metadata.progressivis_prev_outs === undefined ||
+          notebook.model.metadata.progressivis_prev_outs.length <= i
+        )
+          return;
         let imgSrc = notebook.model.metadata.progressivis_prev_outs[i];
         this.el.innerHTML = "<img src='" + imgSrc + "'></img>";
         this.touch();
