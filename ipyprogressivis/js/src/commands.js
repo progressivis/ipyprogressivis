@@ -37,12 +37,6 @@ window.html_to_image = htmlToImage; // idem
 
 export function progressivisCleanup(app, nbtracker) {
   // cleanup sidecars
-  var crtWidget = nbtracker.currentWidget;
-  if (crtWidget.progressivis_started !== undefined) {
-    alert("ProgressiVis is already running!");
-    return true;
-  }
-  crtWidget.progressivis_started = true;
   let widgets = [];
   app.shell._rightHandler._items.forEach(function (item) {
     if (
@@ -57,6 +51,7 @@ export function progressivisCleanup(app, nbtracker) {
   });
   // end cleanup sidecars
   // cleanup tagged cells
+  var crtWidget = nbtracker.currentWidget;
   var notebook = crtWidget.content;
   let toDelete = [];
   // NB: all cells having progressivis_tag (with any value) are deleted
@@ -74,7 +69,6 @@ export function progressivisCleanup(app, nbtracker) {
     let i = notebook.widgets.findIndex((x) => x == c);
     notebook.model.sharedModel.deleteCell(i);
   }
-  return false;
 }
 
 export function removeTaggedCells(nbtracker, tag) {
