@@ -180,7 +180,7 @@ dependencies = [
 path = "./ipyprogressivis/js"
 build_cmd = "prepublish"
 npm = [
-    "yarn<2",
+    "yarn",
 ]
 
 [tool.ruff]
