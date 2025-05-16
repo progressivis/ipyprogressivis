@@ -141,10 +141,10 @@ class HeatmapW(VBoxTyped):
         self.child.choice_y.observe(self.obs_columns, "value")
         self.has_quantiles = isinstance(self.input_module, Quantiles)
         self.child.min_q = (
-            make_float("Min:", value=0.03) if self.has_quantiles else dongle_widget()
+            make_float("MinQuant.:", value=0.03) if self.has_quantiles else dongle_widget()
         )
         self.child.max_q = (
-            make_float("Max:", value=0.97) if self.has_quantiles else dongle_widget()
+            make_float("MaxQuant.:", value=0.97) if self.has_quantiles else dongle_widget()
         )
         self.child.image = dongle_widget()
         self.child.start_btn = make_button(
