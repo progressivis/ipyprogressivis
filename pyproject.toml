@@ -11,7 +11,8 @@ name = "ipyprogressivis"
 dynamic = ["version"]
 description = "A Custom Jupyter Widget Library for Progressivis"
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "BSD-2-Clause"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [
     { name = "INRIA, Jean-Daniel Fekete, Christian Poli", email = "jean-daniel.fekete@inria.fr" },
@@ -55,27 +56,35 @@ dependencies = [
 
 [project.optional-dependencies]
 
-progressivis = ["progressivis@git+https://github.com/progressivis/progressivis.git"]
+progressivis = ["progressivis"]
 dev = ["jupyterlab>=4.0.0"]
-docs = [
-    "jupyter_sphinx",
-    "nbsphinx",
-    "nbsphinx-link",
-    "pypandoc",
-    "pytest_check_links",
-    "recommonmark",
-    "sphinx>=1.5",
-    "sphinx_rtd_theme",
-    "more-itertools",
-    "click",
-    "click-types"
-]
+
 test = [
     "nbval",
     "pytest-cov",
     "pytest>=6.0",
 ]
 
+typing = [
+    "mypy>=1.0.1",
+    "numpy",
+    "ipython",
+    "jinja2",
+    "sqlalchemy-stubs",
+    "pandas-stubs",
+    "traits-stubs",
+    "traittypes",
+    "types-pillow",
+    "types-pytz",
+    "types-pyyaml",
+    "types-requests",
+    "types-urllib3",
+    "typing-extensions",
+    "typing_extensions",
+    "types-setuptools",
+    "typeguard",
+    "duckdb",
+]
 [project.urls]
 Homepage = "https://github.com/progressivis/ipyprogressivis"
 
@@ -100,6 +109,14 @@ version-file = "ipyprogressivis/_version.py"
 "jupyter-config/jupyter_server_config.d/ipyprogressivis.json" = "etc/jupyter/jupyter_server_config.d/ipyprogressivis.json"
 
 [tool.hatch.build.targets.sdist]
+
+only-include = [
+    "ipyprogressivis",
+    "ipyprogressivis.widgets",
+    "ipyprogressivis.widgets.chaining",
+
+
+]
 exclude = [
     "js/.yarn",
     ".gitmodules",
@@ -108,8 +125,6 @@ exclude = [
     ".mypy_ci.ini",
     ".pre-commit-config.yaml",
     ".pylintrc",
-    "refresh_pv.sh",
-    "requirements_typing.txt",
     ".yarn",
     "recipe",
     "notebooks",
@@ -117,8 +132,35 @@ exclude = [
     "tools",
     "jupyter-config",
     "ui-tests",
-    "schema_plugin.py",
 ]
+
+[tool.hatch.build.targets.wheel]
+
+only-include = [
+    "ipyprogressivis",
+    "ipyprogressivis.widgets",
+    "ipyprogressivis.widgets.chaining",
+
+
+]
+exclude = [
+    "js/.yarn",
+    ".gitmodules",
+    ".github",
+    ".mypy.ini",
+    ".mypy_ci.ini",
+    ".pre-commit-config.yaml",
+    ".pylintrc",
+    ".yarn",
+    "recipe",
+    "notebooks",
+    ".progressivis",
+    "tools",
+    "jupyter-config",
+    "ui-tests",
+]
+
+
 
 [tool.hatch.build.hooks.jupyter-builder]
 build-function = "hatch_jupyter_builder.npm_builder"
@@ -138,29 +180,8 @@ dependencies = [
 path = "./ipyprogressivis/js"
 build_cmd = "prepublish"
 npm = [
-    "yarn",
+    "yarn<2",
 ]
-
-[tool.hatch.metadata]
-allow-direct-references = true
-
-[tool.tbump]
-field = [
-    { name = "channel", default = "" },
-    { name = "release", default = "" },
-]
-file = [
-    { src = "pyproject.toml", version_template = "version = \"{major}.{minor}.{patch}{channel}{release}\"" },
-    { src = "ipyprogressivis/_version.py" },
-]
-
-[tool.tbump.version]
-current = "0.1.0.dev0"
-regex = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)((?P<channel>a|b|rc|.dev)(?P<release>\\d+))?"
-
-[tool.tbump.git]
-message_template = "Bump to {new_version}"
-tag_template = "v{new_version}"
 
 [tool.ruff]
 exclude = [
