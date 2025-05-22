@@ -9,7 +9,7 @@ from progressivis.core.api import JSONEncoderNp as JS, asynchronize
 import progressivis.core.aio as aio
 from .utils import data_union_serialization_compress
 from .. _frontend import NPM_PACKAGE, NPM_PACKAGE_RANGE
-
+import copy
 from typing import Any as AnyType, Sequence, TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from progressivis.vis.mcscatterplot import MCScatterPlot
 WidgetType = AnyType
 
+DISPLAY_RATE = 40
 
 # See js/lib/widgets.js for the frontend counterpart to this file.
 
@@ -53,6 +54,7 @@ class Scatterplot(DataWidget, widgets.DOMWidget):  # type: ignore
     move_point = Any("{}").tag(sync=True)
     modal = Bool(False).tag(sync=True)
     to_hide = Any([]).tag(sync=True)
+    display_counter = 0
 
     def link_module(
         self, module: MCScatterPlot, refresh: bool = True
@@ -66,15 +68,19 @@ class Scatterplot(DataWidget, widgets.DOMWidget):  # type: ignore
             }
             ht = val.get("hist_tensor", None)
             if ht is not None:
-                wg.hists = ht
+                wg.hists = copy.copy(ht)  # TODO: avoid copy when possible
             st = val.get("sample_tensor", None)
             if st is not None:
-                wg.samples = st
+                wg.samples = copy.copy(st)
             wg.data = JS.dumps(data_)
 
         async def _after_run(
             m: Module, run_number: int
         ) -> None:  # pylint: disable=unused-argument
+            if self.display_counter < DISPLAY_RATE:
+                self.display_counter += 1
+                return
+            self.display_counter = 0
             if not self.modal:
                 await asynchronize(_feed_widget, self, m)
 
@@ -84,11 +90,11 @@ class Scatterplot(DataWidget, widgets.DOMWidget):  # type: ignore
             bounds = self.value
 
             async def _cbk() -> None:
-                assert module.min_value is not None
-                assert module.max_value is not None
+                assert module.dep.min_value is not None
+                assert module.dep.max_value is not None
                 assert isinstance(bounds, dict)
-                await module.min_value.from_input(bounds["min"])
-                await module.max_value.from_input(bounds["max"])
+                await module.dep.min_value.from_input(bounds["min"])
+                await module.dep.max_value.from_input(bounds["max"])
 
             aio.create_task(_cbk())
 
