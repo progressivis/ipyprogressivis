@@ -126,17 +126,17 @@ class CSVSniffer:
             self.tab.set_title(i, title)
         # Delimiters
         self.delimiter = widgets.RadioButtons(
-            orientation="horizontal",
+            orientation="vertical",
             options=list(zip(self.delimiters, self.del_values)),
         )
         self.delimiter.observe(self._delimiter_cb, names="value")
-        self.delim_other = widgets.Text()  # description='Other:')
+        self.delim_other = widgets.Text()
         self.delim_other.observe(self._delimiter_cb, names="value")
         self.delimiter = widgets.VBox(
             [
                 # widgets.Label("Delimiter"),
-                self.delimiter,
                 self.delim_other,
+                self.delimiter,
             ],
             layout=layout,
         )
@@ -185,7 +185,7 @@ class CSVSniffer:
             self.global_tab.set_title(i, title)
 
         # PColumn selection
-        self.columns = widgets.Select(disabled=True, rows=7)
+        self.columns = widgets.Select(disabled=True, rows=9)
         self.columns.observe(self._columns_cb, names="value")
         self.enable_all = widgets.Checkbox(description="Enable/disable all", value=True)
         self.enable_all.observe(self._enable_all_cb, names="value")
@@ -202,17 +202,20 @@ class CSVSniffer:
                     layout=layout,
                 ),
                 widgets.VBox(
-                    [widgets.Label("Selected PColumn"), self.details], layout=layout
+                    [widgets.Label("Selected PColumn"), self.details],
+                    layout=layout
                 ),
             ]
         )
-        self.cmdline = widgets.Textarea(layout=widgets.Layout(width="100%"), rows=3)
+        self.cmdline = widgets.Textarea(layout=widgets.Layout(width="100%"),
+                                        rows=3)
         self.testBtn = widgets.Button(description="Test")
         self.box = widgets.VBox(
             [
                 self.top,
                 widgets.HBox(
-                    [self.testBtn, widgets.Label(value="CmdLine:"), self.cmdline]
+                    [self.testBtn, widgets.Label(value="CmdLine:"),
+                     self.cmdline]
                 ),
                 self.tab,
             ]
@@ -564,10 +567,15 @@ class PColumnInfo:
         )
         self.retype.observe(self.retype_column, names="value")
         self.nunique = widgets.Text(
-            description="Unique vals:", value=f"{series.nunique()}/{len(series)}"
+            description="Unique vals:",
+            value=f"{series.nunique()}/{len(series)}",
+            disabled=True,
         )
         self.na_values_ck = widgets.Checkbox(
-            description="NA values", indent=True, value=False
+            description="NA values",
+            indent=True,
+            value=False,
+            disabled=True,
         )
         self.na_values_ck.observe(self.na_values_ck_cb, "value")
         self.na_values_ = widgets.Text(description="NA values:", value="")
@@ -632,14 +640,14 @@ class PColumnInfo:
         self.sniffer.usecols_columns()
         if change["new"]:
             for wg in self.box.children:
-                if wg is self.use:
+                if wg in [self.use, self.type, self.name, self.nunique]:
                     continue
                 wg.disabled = False
             self.na_values_ck.disabled = False
             self.filtering_ck.disabled = False
         else:
             for wg in self.box.children:
-                if wg is self.use:
+                if wg in [self.use, self.type, self.name, self.nunique]:
                     continue
                 wg.disabled = True
             self.na_values_ck.value = False

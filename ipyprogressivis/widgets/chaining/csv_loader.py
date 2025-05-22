@@ -63,9 +63,8 @@ def make_filter(
 def test_filter(df: pd.DataFrame) -> pd.DataFrame:
     pklon = df["pickup_longitude"]
     pklat = df["pickup_latitude"]
-    return df[(pklon > -74.08) & (pklon < -73.5) & (pklat > 40.55) & (pklat < 41.00)]
-
-
+    return df[(pklon > -74.08) & (pklon < -73.5)
+              & (pklat > 40.55) & (pklat < 41.00)]
 
 
 class CsvLoaderW(VBoxTyped):
@@ -90,7 +89,9 @@ class CsvLoaderW(VBoxTyped):
         self, urls: List[str] = [], to_sniff: str = "", lines: int = 100
     ) -> None:
         if self.widget_dir and os.listdir(self.widget_dir):
-            self.c_.reuse_ck = ipw.Checkbox(description="Reuse previous settings ...")
+            self.c_.reuse_ck = ipw.Checkbox(
+                description="Reuse previous settings ..."
+            )
             self.c_.reuse_ck.observe(self._reuse_cb, names="value")
         else:
             self.c_.reuse_ck = None
@@ -140,8 +141,15 @@ class CsvLoaderW(VBoxTyped):
         self.c_.shuffle_ck = ipw.Checkbox(
             description="Shuffle URLs", value=True, disabled=False
         )
-        self.c_.throttle = ipw.IntText(value=0, description="Throttle:", disabled=False)
-        self.c_.start_save.c_.sniff_btn = make_button("Sniff ...", cb=self._sniffer_cb)
+        self.c_.throttle = ipw.IntText(
+            value=0,
+            description="Throttle:",
+            disabled=False
+        )
+        self.c_.start_save.c_.sniff_btn = make_button(
+            "Sniff ...",
+            cb=self._sniffer_cb
+        )
 
     def _reuse_cb(self, change: Dict[str, Any]) -> None:
         if change["new"]:
@@ -195,7 +203,7 @@ class CsvLoaderW(VBoxTyped):
 
     def _start_loader_reuse_cb(self, btn: ipw.Button) -> None:
         if isinstance(self.c_.sniffer, JsonEditorW):
-            #content = self.c_.sniffer.json_editor.value
+            # content = self.c_.sniffer.json_editor.value
             content = self.c_.sniffer.c_.editor.data
         else:
             file_ = "/".join([self.widget_dir, self.c_.bookmarks.value])
@@ -229,9 +237,8 @@ class CsvLoaderW(VBoxTyped):
 
     def _sniffer_cb(self, btn: ipw.Button) -> None:
         if btn.description.startswith("Sniff"):
-            urls = list(self.c_.bookmarks.value) + self.c_.urls_wg.value.strip().split(
-                "\n"
-            )
+            urls = (list(self.c_.bookmarks.value)
+                    + self.c_.urls_wg.value.strip().split("\n"))
             urls = [elt for elt in urls if elt]
             assert urls
             self._urls = urls
