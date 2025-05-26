@@ -11,7 +11,8 @@ from .utils import (
     needs_dtypes,
     GuestWidget,
     dot_progressivis,
-    Coro
+    Coro,
+    modules_producer
 )
 from ..utils import historized_widget
 import ipywidgets as ipw
@@ -243,6 +244,7 @@ class AnyVegaW(VBoxTyped):
             readout_format="d",
         )
 
+    @modules_producer
     def init_modules(
         self, mapping_dict: dict[str, dict[str, str]], vega_schema: AnyType
     ) -> None:

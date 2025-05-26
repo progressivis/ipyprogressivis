@@ -8,6 +8,7 @@ from .utils import (
     is_recording,
     runner,
     needs_dtypes,
+    modules_producer
 )
 import ipywidgets as ipw
 from progressivis import (
@@ -52,6 +53,7 @@ class QuantilesW(VBoxTyped):
         self.output_module = self.init_quantiles(content)
         self.output_slot = "result"
 
+    @modules_producer
     def init_quantiles(self, content: list[str]) -> None:
         s = self.input_module.scheduler()
         with s:

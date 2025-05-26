@@ -18,6 +18,7 @@ from .utils import (
     expand_urls,
     shuffle_urls,
     relative_urls,
+    modules_producer
 )
 import os
 import time
@@ -358,6 +359,7 @@ class CsvLoaderW(VBoxTyped):
         self.output_slot = "result"
         self.output_dtypes = schema
 
+    @modules_producer
     def init_modules(
         self,
         urls: List[str] | None = None,
@@ -397,3 +399,4 @@ class CsvLoaderW(VBoxTyped):
             csv.input.filenames = cst.output[0]
             sink.input.inp = csv.output.result
             return csv
+

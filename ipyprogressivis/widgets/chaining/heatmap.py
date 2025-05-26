@@ -11,7 +11,8 @@ from .utils import (
     runner,
     GuestWidget,
     dongle_widget,
-    Coro
+    Coro,
+    modules_producer
 )
 import ipywidgets as ipw
 from progressivis.core.api import Module
@@ -169,6 +170,7 @@ class HeatmapW(VBoxTyped):
         self.child.choice_y.disabled = True
         self.child.choice_dim.disabled = True
 
+    @modules_producer
     def init_heatmap(self, ctx: dict[str, AnyType]) -> Heatmap:
         col_x = ctx["X"]
         col_y = ctx["Y"]
@@ -218,6 +220,7 @@ class HeatmapW(VBoxTyped):
         self.output_module = self.init_heatmap(content)
         self.output_slot = "result"
 
-
+    def get_underlying_modules(self) -> list[object]:
+        return []
 
 stage_register["Heatmap"] = HeatmapW

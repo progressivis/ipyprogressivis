@@ -8,7 +8,8 @@ from .utils import (
     is_recording,
     amend_last_record,
     runner,
-    needs_dtypes
+    needs_dtypes,
+    modules_producer
 )
 import ipywidgets as ipw
 import numpy as np
@@ -379,6 +380,7 @@ class PColumnsW(VBoxTyped):
         self.output_module = self.init_module(**content)
         self.output_slot = "result"
 
+    @modules_producer
     def init_module(self, comp_list: list[dict[str, str]],
                     columns: List[str]) -> Repeater:
         comp = Computed()

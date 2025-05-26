@@ -8,7 +8,8 @@ from progressivis.table.api import RangeQuery, TableFacade
 from progressivis.stats.api import Histogram1D, KLLSketch
 from ..df_grid import DataFrameGrid
 from .utils import (TreeTab, make_button, stage_register, VBox, TypedBase, IpyVBoxTyped,
-                    amend_last_record, is_recording, disable_all, runner, needs_dtypes)
+                    amend_last_record, is_recording, disable_all, runner, needs_dtypes,
+                    modules_producer)
 from progressivis.io.api import Variable
 from ..vega import VegaWidget
 from .._stacked_hist_schema import stacked_hist_spec_no_data
@@ -579,6 +580,7 @@ class DynViewer(TreeTab):
         content = carrier.frozen_kw
         self._run(carrier, **content)
 
+    @modules_producer
     def _run(self, carrier: "FacadeCreatorW",
              num_bounds: dict[str, AnyType],
              max_num_cols: list[str],

@@ -1,6 +1,7 @@
 from .utils import (make_button, stage_register, dongle_widget, VBoxTyped,
                     TypedBase, amend_last_record,
-                    is_recording, disable_all, runner, needs_dtypes)
+                    is_recording, disable_all, runner, needs_dtypes,
+                    modules_producer)
 import ipywidgets as ipw
 from progressivis.core.api import Module, Sink
 from progressivis.table.group_by import (
@@ -38,6 +39,7 @@ class GroupByW(VBoxTyped):
             "Activate", cb=self._add_group_by_cb, disabled=True
         )
 
+    @modules_producer
     def init_group_by(self, by: AnyType) -> GroupBy:
         if isinstance(by, dict):
             by = SC(by["col"]).dt[by["subcols"]]

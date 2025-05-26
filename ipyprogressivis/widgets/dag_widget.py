@@ -95,8 +95,22 @@ class DagWidgetController(widgets.DOMWidget):
         for pr in parents:
             if pr not in self._children:
                 self._children[pr] = []
-            self._children[pr].append(internal_id)
+            if internal_id not in self._children[pr]:
+                self._children[pr].append(internal_id)
         #
+        self.update_dag()
+
+    def remove_widget(self, internal_id):
+        parents = []
+        if internal_id in self._widgets:
+            parents = self._widgets[internal_id]
+            del self._widgets[internal_id]
+        for pr in parents:
+            if pr not in self._children:
+                continue
+            if internal_id in self._children[pr]:
+                self._children[pr].remove(internal_id)
+        # TODO: remove orphans
         self.update_dag()
 
     def add_parent(self, widgetID, parentID):

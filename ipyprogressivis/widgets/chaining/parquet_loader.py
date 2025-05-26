@@ -15,6 +15,7 @@ from .utils import (make_button, VBoxTyped, TypedBase, is_recording,
                     expand_urls,
                     shuffle_urls,
                     relative_urls,
+                    modules_producer
                     )
 import os
 import time
@@ -387,6 +388,7 @@ class ParquetLoaderW(VBoxTyped):
         self.output_slot = "result"
         self.output_dtypes = dtypes
 
+    @modules_producer
     def init_modules(self, urls: list[str] | None,
                      throttle: int, dtypes: dict[str, str], shuffle: bool = False, **kw: Any) -> ParquetLoader:
         if urls is None:

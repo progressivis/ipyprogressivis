@@ -19,8 +19,8 @@ from progressivis.stats.api import (
 )
 from progressivis.vis import (
     StatsFactory,
-    Histogram1dPattern,
-    Histogram2dPattern,
+    Histogram1DPattern,
+    Histogram2DPattern,
 )
 from ..vega import VegaWidget
 from .._hist1d_schema import hist1d_spec_no_data, kll_spec_no_data
@@ -373,9 +373,9 @@ class DynViewer(TreeTab):
         self.info_cbx: Dict[Tuple[str, str], ipw.Checkbox] = {}
         self.h2d_cbx: Dict[Tuple[str, str], ipw.Checkbox] = {}
         self._hdict: Dict[
-            str, Tuple[Union[Histogram1dPattern, Histogram1DCategorical], WidgetType]
+            str, Tuple[Union[Histogram1DPattern, Histogram1DCategorical], WidgetType]
         ] = {}
-        self._h2d_dict: Dict[str, Tuple[Histogram2dPattern, WidgetType]] = {}
+        self._h2d_dict: Dict[str, Tuple[Histogram2DPattern, WidgetType]] = {}
         self._hist_tab: Optional[TreeTab] = None
         self._hist_sel: Set[AnyType] = set()
         self._h2d_tab: Optional[TreeTab] = None
@@ -519,7 +519,7 @@ class DynViewer(TreeTab):
         return self._btn_bar
 
     def set_histogram_widget(
-        self, name: str, hist_mod: Union[Histogram1dPattern, Histogram1DCategorical]
+        self, name: str, hist_mod: Union[Histogram1DPattern, Histogram1DCategorical]
     ) -> None:
         if name in self._hdict and self._hdict[name][0] is hist_mod:
             return  # self._hdict[name][1], None # None means selection unchanged
@@ -534,7 +534,7 @@ class DynViewer(TreeTab):
                 refresh_info_barplot(hout, bp_mod, name, self._hist_tab)
             )
         else:
-            hist_mod = cast(Histogram1dPattern, hist_mod)
+            hist_mod = cast(Histogram1DPattern, hist_mod)
             hmod_1d = hist_mod.dep.histogram1d
             sk_mod = hist_mod.dep.kll
             lower_mod = hist_mod.dep.lower
@@ -578,7 +578,7 @@ class DynViewer(TreeTab):
     def set_module_selection(self, sel: Optional[Set[str]]) -> None:
         self._registry_mod.scheduler()._module_selection = sel
 
-    def set_h2d_widget(self, name: str, h2d_mod: Histogram2dPattern) -> None:
+    def set_h2d_widget(self, name: str, h2d_mod: Histogram2DPattern) -> None:
         if name in self._h2d_dict and self._h2d_dict[name][0] is h2d_mod:
             return
         hout = _VegaWidget(spec=hist2d_spec_no_data)
@@ -676,7 +676,7 @@ class DynViewer(TreeTab):
                     self.set_histogram_widget(
                         attr,
                         cast(
-                            Union[Histogram1dPattern, Histogram1DCategorical], hist_mod
+                            Union[Histogram1DPattern, Histogram1DCategorical], hist_mod
                         ),
                     )
                 self._hist_sel = hist_sel

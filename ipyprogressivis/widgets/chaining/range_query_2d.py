@@ -9,12 +9,13 @@ from .utils import (
     is_recording,
     runner,
     needs_dtypes,
+    modules_producer
 )
 import ipywidgets as ipw
 import pandas as pd
 from progressivis import (
     BinningIndexND,
-    RangeQuery2d,
+    RangeQuery2D,
     Variable,
 )
 import progressivis.core.aio as aio
@@ -173,6 +174,7 @@ class RangeQuery2DW(VBoxTyped):
         if not self.var_min.result:
             observer(slider_x)
 
+    @modules_producer
     def init_min_max(self, ctx) -> None:
         col_x = ctx["X"]
         col_y = ctx["Y"]
@@ -182,7 +184,7 @@ class RangeQuery2DW(VBoxTyped):
             # Creates one index per numeric column
             index.input.table = self.input_module.output.result[col_x, col_y]
             # Create a querying module
-            query = RangeQuery2d(column_x=col_x, column_y=col_y, scheduler=s)
+            query = RangeQuery2D(column_x=col_x, column_y=col_y, scheduler=s)
             # Variable modules allow to dynamically modify their values; here, the query ranges
             init_val_min = ({col_x: ctx.get("x_min"), col_y: ctx.get("y_min")}
                             if "x_min" in ctx else None)

@@ -9,6 +9,7 @@ import ipywidgets as ipw
 import fsspec  # type: ignore
 from glob import glob
 import random
+from functools import wraps
 from progressivis.table.dshape import dataframe_dshape
 from progressivis.vis import DataShape
 from progressivis.core.api import Sink, Module
@@ -17,7 +18,6 @@ from progressivis.core.utils import normalize_columns
 from progressivis.core import aio
 from ipyprogressivis.hook_tools import make_css_marker
 import asyncio
-from ._js import jslab_func_remove
 from ..csv_sniffer import CSVSniffer
 from collections import defaultdict
 from .. import DagWidgetController  # type: ignore
@@ -800,20 +800,23 @@ def replay_new_stage(
     add_new_stage(obj, title, alias=alias, frozen=frozen, number=number, markdown=kw.get("markdown", ""))
 
 
-def remove_tagged_cells(tag: int) -> None:
-    s = jslab_func_remove.format(tag=tag)
-    get_dag().exec_js(s)
-
-
 def _remove_subtree(obj: "ChainingWidget") -> None:
+    print("remove subtree", obj.title)
     for sw in obj.subwidgets:
+
         _remove_subtree(sw)
-    tag = id(obj)
-    remove_tagged_cells(tag)
+    print("remove node", obj.title)
+    get_dag().remove_widget(obj.title)
+    tag = obj.title
+    labcommand("progressivis:remove_tagged_cells", tag=tag)
+    #tag = id(obj)
+    #print("tag", tag)
+    #remove_tagged_cells(tag)
     if obj.parent is not None:
         obj.parent.subwidgets.remove(obj)
-    if tag in widget_by_id:
-        del widget_by_id[tag]
+    #if tag in widget_by_id:
+    #    del widget_by_id[tag]
+    if (obj.label, obj.number) in widget_by_key:
         del widget_by_key[(obj.label, obj.number)]
     obj.delete_underlying_modules()
 
@@ -896,7 +899,7 @@ class ChainingMixin:
 
         btn = make_button("Chain it", disabled=True, cb=self._make_btn_chain_it_cb(sel, alias))
         del_btn = make_button(
-            "Remove subtree", disabled=False, cb=make_remove(self)  # type: ignore
+            f"Remove {self.title}", disabled=False, cb=make_remove(self)  # type: ignore
         )
 
         def _on_sel_change(change: Any) -> None:
@@ -1092,18 +1095,19 @@ class ChainingWidget:
             self._output_dtypes = None
         self._dag = kw["dag"]
         self.subwidgets: List[ChainingWidget] = []
-        self.managed_modules: List[ModuleOrFacade] = []
+        self.managed_modules: set[str] = set()
 
     def get_underlying_modules(self) -> List[str]:
         raise NotImplementedError()
 
     def delete_underlying_modules(self) -> None:
-        managed_modules = self.get_underlying_modules()
+        managed_modules = self.managed_modules
         if not managed_modules:
             return
         with self._input_module.scheduler() as dataflow:
-            # for m in obj.managed_modules:
+            print("managed", managed_modules)
             deps = dataflow.collateral_damage(*managed_modules)
+            print("deps", deps)
             dataflow.delete_modules(*deps)
 
     def dag_register(self) -> None:
@@ -1144,6 +1148,7 @@ class GuestWidget:
         self.frozen_kw: Dict[str, Any]
         self._do_replay_next: bool = False
         self._record_index: int = 0
+
     def initialize(self) -> None:
         pass
 
@@ -1485,3 +1490,36 @@ class Coro:
         self.calls_counter += 1
         if self.calls_counter % self._shot_rate == self._shot_offset and self.leaf is not None:
             shot_cell_cmd(tag=self.leaf.carrier.title, delay=3000)
+
+def modules_producer(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyType]:
+    """
+    Decorator for method which create modules
+    """
+    @wraps(to_decorate)
+    def _wrapper(self_: GuestWidget, *args: AnyType, **kwargs: AnyType) -> AnyType:
+        """
+        Get a trace of modules created by to_decorate() method
+        """
+        s = self_.input_module.scheduler()
+        mods_before = set(s.modules().keys())
+        ret = to_decorate(self_, *args, **kwargs)
+        assert s.dataflow is not None
+        mods_after = set(s.dataflow.modules().keys())
+        self_.carrier.managed_modules = mods_after.difference(mods_before)
+        print("created modules:", self_.carrier.managed_modules)
+        return ret
+    return _wrapper
+
+
+"""
+def show(key, num):
+    o_module = get_widget_by_key(key, num).children[0].output_module
+    for out in o_module.outputs:
+        if (name := out.name) is None:
+            continue
+        if (val := getattr(o_module, name)) is None:
+            continue
+        print(val)
+"""
+
+

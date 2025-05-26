@@ -1,5 +1,6 @@
 from .utils import (make_button, stage_register, VBoxTyped, TypedBase,
-                    amend_last_record, is_recording, disable_all, runner, needs_dtypes)
+                    amend_last_record, is_recording, disable_all, runner,
+                    needs_dtypes, modules_producer)
 import ipywidgets as ipw
 import pandas as pd
 from progressivis.table.api import Aggregate
@@ -41,6 +42,7 @@ class AggregateW(VBoxTyped):
             "Activate", cb=self._start_btn_cb, disabled=True
         )
 
+    @modules_producer
     def init_aggregate(self, compute: AnyType) -> Aggregate:
         s = self.input_module.scheduler()
         with s:
