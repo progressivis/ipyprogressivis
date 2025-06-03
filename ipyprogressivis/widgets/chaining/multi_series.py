@@ -27,7 +27,7 @@ class MultiSeriesW(VBoxTyped):
 
     @needs_dtypes
     def initialize(self) -> None:
-        self.output_dtypes = None
+        self.output_dtypes = None  # type: ignore
         self._axis = []
         lst: List[ipw.DOMWidget] = [
             _l(""),

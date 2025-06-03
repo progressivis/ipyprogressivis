@@ -83,8 +83,8 @@ class Scatterplot(DataWidget, widgets.DOMWidget):  # type: ignore
             self.display_counter = 0
             if not self.modal:
                 await asynchronize(_feed_widget, self, m)
-
-        module.on_after_run(_after_run)
+        if refresh:
+            module.on_after_run(_after_run)
 
         def from_input_value(_val: Any) -> None:
             bounds = self.value
