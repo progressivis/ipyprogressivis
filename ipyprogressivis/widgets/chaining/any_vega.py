@@ -61,7 +61,7 @@ class AnyVegaW(VBoxTyped):
     @needs_dtypes
     def initialize(self) -> None:
         self.c_.editor = JsonEditor()
-        self.c_.editor.data = {}  # type: ignore
+        self.c_.editor.data = {}
         self.c_.schemas = ipw.Dropdown(
             options=[""] + os.listdir(self.widget_dir),
             value="",
@@ -88,7 +88,7 @@ class AnyVegaW(VBoxTyped):
                 ),
             ]
         )
-        self.output_dtypes = None
+        self.output_dtypes = None  # type: ignore
         self.c_.btn_apply = self._btn_ok = make_button(
             "Apply", disabled=False, cb=self._btn_apply_cb
         )

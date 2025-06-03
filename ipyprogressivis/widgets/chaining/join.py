@@ -64,7 +64,7 @@ class JoinW(VBox):
 
     @needs_dtypes
     def initialize(self) -> None:
-        self.output_dtypes = None
+        self.output_dtypes = None  # type: ignore
         dd_list = [(f"{k}[{n}]" if n
                     else k, (k, n)) for (k, n) in self.current_widget_keys]
         self._input_1 = _l(self.parent.title)

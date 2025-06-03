@@ -1,3 +1,4 @@
+# type: ignore
 import logging
 import ipywidgets as ipw
 import pandas as pd
