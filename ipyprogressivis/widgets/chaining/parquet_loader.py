@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 from progressivis.table.dshape import dataframe_dshape, ExtensionDtype
-from progressivis.core.api import Module
+from progressivis.core.api import Module, Sink
 from progressivis.table.api import PTable, Constant
 from progressivis.io.api import ParquetLoader
 from .loaders import JsonEditorW, BtnBar
@@ -398,14 +398,15 @@ class ParquetLoaderW(VBoxTyped):
             urls = expand_urls(urls)
         if shuffle:
             urls = shuffle_urls(urls)
-        sink = self.input_module
-        assert isinstance(sink, Module)
-        s = sink.scheduler()
+        imodule = self.input_module
+        assert isinstance(imodule, Module)
+        s = imodule.scheduler()
         with s:
             filenames = pd.DataFrame({"filename": urls})
             cst = Constant(PTable("filenames", data=filenames), scheduler=s)
             cols = list(dtypes.keys())
             pql = ParquetLoader(columns=cols, throttle=throttle, scheduler=s)
             pql.input.filenames = cst.output[0]
+            sink = Sink(scheduler=s)
             sink.input.inp = pql.output.result
         return pql

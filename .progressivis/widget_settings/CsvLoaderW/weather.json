@@ -6,7 +6,6 @@
     "sniffed_params": {
         "delimiter": ",",
         "header": 0,
-        "index_col": false,
         "usecols": [
             "Date",
             "Max.TemperatureF",

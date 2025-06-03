@@ -6,7 +6,6 @@
     "sniffed_params": {
         "delimiter": ",",
         "header": 0,
-        "index_col": false,
         "usecols": [
             "tpep_pickup_datetime",
             "tpep_dropoff_datetime",

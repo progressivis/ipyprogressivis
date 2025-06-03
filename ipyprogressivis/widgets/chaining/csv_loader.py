@@ -3,7 +3,7 @@ import pandas as pd
 from .loaders import JsonEditorW, BtnBar
 from ..csv_sniffer import CSVSniffer
 from progressivis.io.api import SimpleCSVLoader
-from progressivis.core.api import Module
+from progressivis.core.api import Module, Sink
 from progressivis.table.api import PTable, Constant
 from .utils import (
     make_button,
@@ -389,14 +389,15 @@ class CsvLoaderW(VBoxTyped):
             params = dict(throttle=throttle, **sniffed_params, **filter_)
         if shuffle:
             urls = shuffle_urls(urls)
-        sink = self.input_module
-        assert isinstance(sink, Module)
-        s = sink.scheduler()
+        imodule = self.input_module
+        assert isinstance(imodule, Module)
+        s = imodule.scheduler()
         with s:
             filenames = pd.DataFrame({"filename": urls})
             cst = Constant(PTable("filenames", data=filenames), scheduler=s)
             csv = SimpleCSVLoader(scheduler=s, **params)
             csv.input.filenames = cst.output[0]
+            sink = Sink(scheduler=s)
             sink.input.inp = csv.output.result
             return csv
 

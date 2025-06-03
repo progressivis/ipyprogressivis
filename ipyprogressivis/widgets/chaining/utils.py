@@ -9,7 +9,7 @@ import ipywidgets as ipw
 import fsspec  # type: ignore
 from glob import glob
 import random
-from functools import wraps
+from functools import wraps, partial
 from progressivis.table.dshape import dataframe_dshape
 from progressivis.vis import DataShape
 from progressivis.core.api import Sink, Module
@@ -25,6 +25,7 @@ from ..psboard import PsBoard
 from ..cell_out import CellOut
 from pathlib import Path
 import copy
+import io
 from typing import (
     Any,
     Tuple,
@@ -61,6 +62,122 @@ PARAMS: Dict[str, AnyType] = {}
 
 HOME = os.getenv("HOME")
 assert HOME is not None
+
+ITRASH = 0
+IGUEST = 1
+BOX_SIZE = 2
+
+def dongle_widget(v: str = "") -> ipw.HTML:
+    return ipw.HTML(v)
+
+def get_dag() -> DAGWidget:
+    assert "dag_widget" in PARAMS
+    return PARAMS["dag_widget"]
+
+def make_button(
+        label: str,
+        disabled: bool = False,
+        cb: Optional[Callable[..., AnyType]] = None,
+        icon: str = "check",
+        **kw: Any,
+) -> ipw.Button:
+    btn = ipw.Button(
+        description=label,
+        disabled=disabled,
+        button_style="",
+        tooltip=label,
+        icon=icon,
+        **kw,
+    )
+    if cb is not None:
+        btn.on_click(cb)
+    return btn
+
+BTN_DEL = ipw.HBox([make_button("", icon="trash", disabled=True)])
+BTN_DEL.display = 'flex'
+BTN_DEL.layout.justify_content = 'flex-end'
+
+
+def enable_all(wg: Any, exceptions: Sequence[Any] = tuple()) -> None:
+    if hasattr(wg, "disabled") and wg not in exceptions:
+        wg.disabled = False
+    if hasattr(wg, "children") and wg not in exceptions:
+        for ch in wg.children:
+            enable_all(ch, exceptions)
+
+
+def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
+    guest_backup = cast(ipw.Box, obj.children[IGUEST]).children
+    cast(ipw.Box, obj.children[IGUEST]).children = [dongle_widget()]
+    objects = [obj]
+    def _aux(obj_: "NodeCarrier") -> None:
+        for sw in obj_.subwidgets:
+            objects.append(sw)  # type: ignore
+            _aux(sw)  # type: ignore
+    _aux(obj)
+    modules: list[str] = []
+    for obj_ in objects:
+        modules.extend(obj_.managed_modules)
+    with obj._input_module.scheduler() as dataflow:
+        deps = dataflow.collateral_damage(*modules)
+    others = set()
+    m_set = set(modules)
+    if m_set != deps:
+        others = deps.difference(m_set)
+    messg = ("<b>You will delete the following widgets and"
+             " their underlying modules:</b>\n<ul>\n")
+    end = "</ul>\n"
+    sio = io.StringIO()
+    sio.write(messg)
+    for obj_ in objects:
+        sio.write(f"<li><b>{obj_.title}:&nbsp;</b>")
+        sio.write(", ".join(obj_.managed_modules))
+        sio.write("</li>\n")
+    if others:
+        sio.write("<li><b>Others:&nbsp;</b>")
+        sio.write(" ,".join(others))
+        sio.write("</li>\n")
+    sio.write(end)
+    def _cancel(b: AnyType) -> None:
+        make_trash_box(obj, box)
+        cast(ipw.Box, obj.children[IGUEST]).children = guest_backup
+
+    def _confirm(b: AnyType) -> None:
+        if obj.parent is not None and obj in obj.parent.subwidgets:
+            obj.parent.subwidgets.remove(obj)
+        i = obj.children[IGUEST]._record_index  # type: ignore
+        assert i is not None
+        amend_nth_record(i, {"deleted": True})
+        tags = [obj_.title for obj_ in objects]
+        with obj._input_module.scheduler() as dataflow:
+            dataflow.delete_modules(*m_set)
+        for tag in tags:
+            labcommand("progressivis:remove_tagged_cells", tag=tag)
+        for obj_ in objects:
+            get_dag().remove_widget(obj_.title)
+            if (obj_.label, obj_.number) in widget_by_key:
+                del widget_by_key[(obj_.label, obj_.number)]
+        if not len(widget_by_key):
+            enable_all(PARAMS["header"].constructor)
+    print(sio.getvalue())
+    vbox = ipw.VBox([ipw.HTML(sio.getvalue()),
+                     ipw.HBox([make_button("Cancel", cb=_cancel),
+                               make_button("Confirm", cb=_confirm)])])
+    box.children = [vbox]
+    box.display = None
+    box.layout.justify_content = None # 'flex-start'
+
+def make_trash_box(obj: "NodeCarrier", box: ipw.HBox | None = None) -> ipw.HBox:
+    trash_btn = make_button("", icon="trash")
+    if box is None:
+        box = ipw.HBox([trash_btn])
+    else:
+        box.children = [trash_btn]
+    box.display = 'flex'
+    box.layout.justify_content = 'flex-end'
+    trash_btn.on_click(partial(_process_trash, box=box, obj=obj))
+    return box
+
 
 replay_list: List[Dict[str, AnyType]] = []
 md_list: list[str] = []
@@ -178,7 +295,7 @@ def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
             btn_e = make_button("Edit", cb=_edit_cb, disabled=not is_recording())
             btn_d = make_button("Delete", cb=_delete_cb, disabled=not is_recording())
             box = ipw.HBox([btn_c, btn_e, btn_d])
-            self_.carrier.children = (box,)
+            self_.carrier.children = (BTN_DEL, box,)
             return self_.carrier
         else:
             func(*args, **kwargs)
@@ -451,9 +568,6 @@ def create_root(backup: BackupWidget) -> None:
     loop.create_task(_func())
 
 
-def get_dag() -> DAGWidget:
-    assert "dag_widget" in PARAMS
-    return PARAMS["dag_widget"]
 
 
 def set_dag(dag: DAGWidget) -> None:
@@ -488,10 +602,6 @@ def append_child(wg: ipw.Tab, child: ipw.DOMWidget, title: str = "") -> None:
     wg.children = tuple(children)
     if title:
         wg.set_title(last, title)
-
-
-def dongle_widget(v: str = "") -> ipw.HTML:
-    return ipw.HTML(v)
 
 
 class HandyTab(ipw.Tab):
@@ -586,27 +696,6 @@ def disable_all(wg: Any, exceptions: Sequence[Any] = tuple()) -> None:
     if hasattr(wg, "children") and wg not in exceptions:
         for ch in wg.children:
             disable_all(ch, exceptions)
-
-
-def make_button(
-        label: str,
-        disabled: bool = False,
-        cb: Optional[Callable[..., AnyType]] = None,
-        icon: str = "check",
-        **kw: Any,
-) -> ipw.Button:
-    btn = ipw.Button(
-        description=label,
-        disabled=disabled,
-        button_style="",
-        tooltip=label,
-        icon=icon,
-        **kw,
-    )
-    if cb is not None:
-        btn.on_click(cb)
-    return btn
-
 
 def make_replay_next_btn() -> ipw.Button:
     def _fnc(btn: ipw.Button) -> None:
@@ -800,34 +889,6 @@ def replay_new_stage(
     add_new_stage(obj, title, alias=alias, frozen=frozen, number=number, markdown=kw.get("markdown", ""))
 
 
-def _remove_subtree(obj: "ChainingWidget") -> None:
-    print("remove subtree", obj.title)
-    for sw in obj.subwidgets:
-
-        _remove_subtree(sw)
-    print("remove node", obj.title)
-    get_dag().remove_widget(obj.title)
-    tag = obj.title
-    labcommand("progressivis:remove_tagged_cells", tag=tag)
-    #tag = id(obj)
-    #print("tag", tag)
-    #remove_tagged_cells(tag)
-    if obj.parent is not None:
-        obj.parent.subwidgets.remove(obj)
-    #if tag in widget_by_id:
-    #    del widget_by_id[tag]
-    if (obj.label, obj.number) in widget_by_key:
-        del widget_by_key[(obj.label, obj.number)]
-    obj.delete_underlying_modules()
-
-
-def make_remove(obj: "NodeVBox") -> Callable[..., None]:
-    def _cbk(btn: ipw.Button) -> None:
-        _remove_subtree(obj)
-
-    return _cbk
-
-
 class ChainingProtocol(Protocol):
     _output_dtypes: Optional[Dict[str, str]]
     _output_module: ModuleOrFacade
@@ -898,9 +959,9 @@ class ChainingMixin:
         )
 
         btn = make_button("Chain it", disabled=True, cb=self._make_btn_chain_it_cb(sel, alias))
-        del_btn = make_button(
-            f"Remove {self.title}", disabled=False, cb=make_remove(self)  # type: ignore
-        )
+        #del_btn = make_button(
+        #    f"Remove {self.title}", disabled=False, cb=make_remove(self)  # type: ignore
+        #)
 
         def _on_sel_change(change: Any) -> None:
             if change["new"]:
@@ -910,7 +971,7 @@ class ChainingMixin:
 
         prog_wg = self._progress_bar()  # type: ignore
         sel.observe(_on_sel_change, names="value")
-        chaining = ipw.HBox([sel, alias, btn, del_btn])
+        chaining = ipw.HBox([sel, alias, btn])
         return ipw.VBox([prog_wg, chaining])
 
     def _make_replay_chaining_box(self: ChainingProtocol) -> ipw.Box:
@@ -1089,7 +1150,7 @@ class ChainingWidget:
         self._input_module: ModuleOrFacade = cast(ModuleOrFacade, kw["input_module"])
         self._input_slot: str = kw.get("input_slot", "result")
         self._output_module: ModuleOrFacade = self._input_module
-        self._output_slot = self._input_slot
+        self._output_slot: str = self._input_slot
         self._output_dtypes: Optional[Dict[str, str]] = None
         if self._dtypes is not None:  # i.e. not a loader
             self._output_dtypes = None
@@ -1099,16 +1160,6 @@ class ChainingWidget:
 
     def get_underlying_modules(self) -> List[str]:
         raise NotImplementedError()
-
-    def delete_underlying_modules(self) -> None:
-        managed_modules = self.managed_modules
-        if not managed_modules:
-            return
-        with self._input_module.scheduler() as dataflow:
-            print("managed", managed_modules)
-            deps = dataflow.collateral_damage(*managed_modules)
-            print("deps", deps)
-            dataflow.delete_modules(*deps)
 
     def dag_register(self) -> None:
         assert self.parent is not None
@@ -1202,7 +1253,7 @@ class GuestWidget:
         assert isinstance(self.carrier, NodeCarrier)
         assert self.carrier.parent is not None
         assert len(self.carrier.parent.children)
-        return cast("VBox", self.carrier.parent.children[0])
+        return cast("VBox", self.carrier.parent.children[IGUEST])
 
     @property
     def title(self) -> str:
@@ -1218,7 +1269,7 @@ class GuestWidget:
 
     def get_widget_by_key(self, key: Tuple[str, int]) -> "VBox":
         key = tuple(key)  # type: ignore
-        return cast("VBox", widget_by_key[key].children[0])
+        return cast("VBox", widget_by_key[key].children[IGUEST])
 
     def dag_running(self) -> None:
         self.carrier.dag_running()
@@ -1290,7 +1341,7 @@ class GuestWidget:
     def post_run(self, title: str) -> "NodeCarrier":
         self.dag_running()
         surrogate = self.provide_surrogate(title)
-        self.carrier.children = (surrogate,)  # type: ignore
+        self.carrier.children = (BTN_DEL, surrogate,)  # type: ignore
         surrogate._GuestWidget__carrier = ref(self.carrier)  # type: ignore
 
         if PARAMS["replay_before_resume"]:
@@ -1301,7 +1352,7 @@ class GuestWidget:
         return self.carrier
 
     def post_delete(self) -> "NodeCarrier":
-        self.carrier.children = (ipw.Label("deleted"),)
+        self.carrier.children = (BTN_DEL, ipw.Label("deleted"),)
         replay_next_if()
         return self.carrier
 
@@ -1349,16 +1400,16 @@ class RootVBox(LeafVBox):
 
 class NodeCarrier(NodeVBox):
     def __init__(self, ctx: Dict[str, Any], guest: GuestWidget) -> None:
-        super().__init__(ctx, (guest,))
+        super().__init__(ctx, (make_trash_box(self), guest,))  # type: ignore
         guest._GuestWidget__carrier = ref(self)  # type: ignore
         self.dag_register()
 
     def run(self) -> None:
-        assert self.children[0].frozen_kw is not None  # type: ignore
-        return self.children[0].run()  # type: ignore
+        assert self.children[IGUEST].frozen_kw is not None  # type: ignore
+        return self.children[IGUEST].run()  # type: ignore
 
     def make_chaining_box(self) -> None:
-        if len(self.children) > 1:
+        if len(self.children) > BOX_SIZE:
             raise ValueError("The chaining box already exists")
         if replay_list and not PARAMS["replay_before_resume"]:
             box = self._make_replay_chaining_box()  # type: ignore
@@ -1366,18 +1417,18 @@ class NodeCarrier(NodeVBox):
             box = self._make_chaining_box()  # type: ignore
         if not box:
             return
-        self.children = (self.children[0], box)
+        self.children = (self.children[ITRASH], self.children[IGUEST], box)
 
     def make_leaf_bar(self, coro_obj: "Coro") -> None:
-        self.children = (self.children[0], coro_obj.bar)
+        self.children = (self.children[ITRASH], self.children[IGUEST], coro_obj.bar)
 
     def make_progress_bar(self) -> None:
         box = self._make_progress_bar()
-        self.children = (self.children[0], box)
+        self.children = (self.children[ITRASH], self.children[IGUEST], box)
 
     @property
     def guest(self) -> GuestWidget:
-        return cast(GuestWidget, self.children[0])
+        return cast(GuestWidget, self.children[IGUEST])
 
 
 class TypedBase:

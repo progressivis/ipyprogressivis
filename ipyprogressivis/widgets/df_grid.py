@@ -56,11 +56,11 @@ class DataFrameGrid(ipw.GridBox):
     ) -> None:
         for row in self.df.index:
             for col in self.df.columns:
-                self.df.loc[row, col].observe(fnc, names=names)
+                self.df.loc[row, col].observe(fnc, names=names)  # type: ignore
 
     def observe_col(
             self, col: str,
             fnc: Callable[..., Any], names: str | list[str] = "value"
     ) -> None:
         for row in self.df.index:
-            self.df.loc[row, col].observe(fnc, names=names)
+            self.df.loc[row, col].observe(fnc, names=names)  # type: ignore
