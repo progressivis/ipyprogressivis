@@ -204,7 +204,9 @@ class JoinW(VBox):
         if widget_2.output_dtypes is None:
             widget_2.compute_dtypes_then_call(self._btn_ok_cb, args, kw)
             return
-        self.dag.add_parent(self.title,  widget_2.title)
+        self.dag.add_parent(self.title,  widget_2.title)  # TODO: find a cleaner way to add a second parnt
+        assert self.carrier not in widget_2.carrier.subwidgets
+        widget_2.carrier.subwidgets.append(self.carrier)
         if self._role_1.value == "primary":
             primary_wg = widget_1
             primary_wg_frozen = widget_1_frozen

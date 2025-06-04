@@ -79,12 +79,13 @@ def make_button(
         disabled: bool = False,
         cb: Optional[Callable[..., AnyType]] = None,
         icon: str = "check",
+        button_style: str = "",
         **kw: Any,
 ) -> ipw.Button:
     btn = ipw.Button(
         description=label,
         disabled=disabled,
-        button_style="",
+        button_style=button_style,
         tooltip=label,
         icon=icon,
         **kw,
@@ -124,11 +125,12 @@ def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
     m_set = set(modules)
     if m_set != deps:
         others = deps.difference(m_set)
-    messg = ("<b>You will delete the following widgets and"
-             " their underlying modules:</b>\n<ul>\n")
+    messg = ("<b>WARNING:</b> This action will permanently delete the widgets listed below and"
+             " their underlying modules")
+    begin = f"<table style='border: 1px solid;background-color:red;'><tr><td>&#9888;</td><td>{messg}</td></tr></table>"
     end = "</ul>\n"
     sio = io.StringIO()
-    sio.write(messg)
+    sio.write(begin)
     for obj_ in objects:
         sio.write(f"<li><b>{obj_.title}:&nbsp;</b>")
         sio.write(", ".join(obj_.managed_modules))
@@ -150,7 +152,7 @@ def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
         amend_nth_record(i, {"deleted": True})
         tags = [obj_.title for obj_ in objects]
         with obj._input_module.scheduler() as dataflow:
-            dataflow.delete_modules(*m_set)
+            dataflow.delete_modules(*deps)
         for tag in tags:
             labcommand("progressivis:remove_tagged_cells", tag=tag)
         for obj_ in objects:
@@ -159,10 +161,10 @@ def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
                 del widget_by_key[(obj_.label, obj_.number)]
         if not len(widget_by_key):
             enable_all(PARAMS["header"].constructor)
-    print(sio.getvalue())
+    # print(sio.getvalue())
     vbox = ipw.VBox([ipw.HTML(sio.getvalue()),
                      ipw.HBox([make_button("Cancel", cb=_cancel),
-                               make_button("Confirm", cb=_confirm)])])
+                               make_button("Confirm", cb=_confirm, button_style="danger")])])
     box.children = [vbox]
     box.display = None
     box.layout.justify_content = None # 'flex-start'
@@ -919,6 +921,7 @@ class ChainingMixin:
             else:
                 parent_widget = self  # type: ignore
                 add_new_stage(self, sel.value, alias.value, frozen=frozen, number=number)  # type: ignore
+            sel.value = ""
             shot_cell_cmd(tag=self.title, delay=3000)
         return _cbk
 
@@ -1557,20 +1560,7 @@ def modules_producer(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyTy
         assert s.dataflow is not None
         mods_after = set(s.dataflow.modules().keys())
         self_.carrier.managed_modules = mods_after.difference(mods_before)
-        print("created modules:", self_.carrier.managed_modules)
         return ret
     return _wrapper
-
-
-"""
-def show(key, num):
-    o_module = get_widget_by_key(key, num).children[0].output_module
-    for out in o_module.outputs:
-        if (name := out.name) is None:
-            continue
-        if (val := getattr(o_module, name)) is None:
-            continue
-        print(val)
-"""
 
 
