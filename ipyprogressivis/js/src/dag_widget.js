@@ -374,7 +374,7 @@ export class DagWidgetView extends DOMWidgetView {
                 //
                 d3.select('#widgetNameForm'+extId).text(_id);
                 if (elt) {
-                    document.getElementById(elt.divID).scrollIntoView();
+		    location.href = "#"+elt.divID;
                 }
                 //
                 that.fillDetails(_id);
