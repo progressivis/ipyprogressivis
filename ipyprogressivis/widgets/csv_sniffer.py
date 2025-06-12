@@ -293,7 +293,6 @@ class CSVSniffer:
                 continue
             if name != "sep" and param.default is not inspect._empty:
                 self.params[name] = args.pop(name, param.default)
-        self.params["index_col"] = False
         self.params = _merge_with_dialect_properties(self._dialect, self.params)
         self.set_cmdline()
         if args:
