@@ -18,6 +18,7 @@ import { JsonEditorModel, JsonEditorView } from './json_editor';
 import { SparkLineProgressBarModel, SparkLineProgressBarView,
          PlottingProgressBarModel, PlottingProgressBarView,
        } from './sparkline_progressbar';
+import { KNNKernelModel, KNNKernelView } from "./knn_kernel";
 
 export {
   register_config_editor,
@@ -29,5 +30,7 @@ export {
   SparkLineProgressBarModel, SparkLineProgressBarView,
   PlottingProgressBarModel, PlottingProgressBarView,
   DataTableModel, DataTableView,
-  SensitiveHTMLModel, SensitiveHTMLView,
+    SensitiveHTMLModel, SensitiveHTMLView,
+        KNNKernelModel,
+    KNNKernelView,
 };

@@ -94,7 +94,7 @@ def make_button(
         btn.on_click(cb)
     return btn
 
-BTN_DEL = ipw.HBox([make_button("", icon="trash", disabled=True)])
+BTN_DEL = ipw.HBox([make_button("", icon="trash", button_style="danger", disabled=True)])
 BTN_DEL.display = 'flex'
 BTN_DEL.layout.justify_content = 'flex-end'
 
@@ -170,7 +170,7 @@ def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
     box.layout.justify_content = None # 'flex-start'
 
 def make_trash_box(obj: "NodeCarrier", box: ipw.HBox | None = None) -> ipw.HBox:
-    trash_btn = make_button("", icon="trash")
+    trash_btn = make_button("", icon="trash", button_style="danger")
     if box is None:
         box = ipw.HBox([trash_btn])
     else:

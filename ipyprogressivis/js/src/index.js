@@ -19,6 +19,7 @@ import { BackupModel } from "./backup";
 import { TalkerModel } from "./talker";
 import { CellOutModel } from "./cell_out";
 import { VegaWidgetModel, VegaWidget } from "jupyter-vega/dist/index";
+import { KNNKernelModel, KNNKernelView } from "./knn_kernel";
 
 export {
   register_config_editor,
@@ -46,5 +47,7 @@ export {
   VegaWidget,
   BackupModel,
   TalkerModel,
-  CellOutModel,
+    CellOutModel,
+    KNNKernelModel,
+    KNNKernelView,
 };
