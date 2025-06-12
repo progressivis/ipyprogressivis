@@ -18,6 +18,7 @@ from .range_query_2d import RangeQuery2DW
 from .quantiles import QuantilesW
 from .snippet import SnippetW
 from .mc_density_map import MCDensityMapW
+from .knn_density import KNNDensityW
 __all__ = [
     "Constructor",
     "DescStatsW",
@@ -35,5 +36,6 @@ __all__ = [
     "AnyVegaW",
     "RangeQuery2DW",
     "QuantilesW",
-    "MCDensityMapW"
+    "MCDensityMapW",
+    "KNNDensityW"
     ]

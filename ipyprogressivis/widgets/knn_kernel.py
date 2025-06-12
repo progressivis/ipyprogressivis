@@ -4,7 +4,7 @@ from .. _frontend import NPM_PACKAGE, NPM_PACKAGE_RANGE
 
 
 @widgets.register
-class KNNKernelEstimator(widgets.DOMWidget):
+class KNNDensity(widgets.DOMWidget):
     """KNN kernel estimator"""
 
     # Name of the widget view class in front-end
