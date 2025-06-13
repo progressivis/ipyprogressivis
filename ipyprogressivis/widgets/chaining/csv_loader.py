@@ -336,6 +336,7 @@ class CsvLoaderW(VBoxTyped):
         else:
             assert isinstance(self.c_.sniffer, JsonEditorW)
             res = self.c_.sniffer.c_.editor.data
+        res.pop("index_col", None)
         with open(file_name, "w") as f:
             js.dump(res, f, indent=4)
 

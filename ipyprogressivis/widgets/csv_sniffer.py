@@ -35,7 +35,7 @@ def quote_html(text: str) -> str:
 _parser_defaults: Dict[str, Any] = {
     key: val.default
     for key, val in inspect.signature(pd.read_csv).parameters.items()
-    if val.default is not inspect._empty and key != "mangle_dupe_cols"
+    if val.default is not inspect._empty and key not in ("mangle_dupe_cols", "index_col")
 }
 
 # Borrowed from pandas
@@ -289,7 +289,7 @@ class CSVSniffer:
         args = self._args.copy()
         self.params = {}
         for name, param in self.signature.parameters.items():
-            if name == "mangle_dupe_cols":
+            if name in ("index_col", "mangle_dupe_cols"):
                 continue
             if name != "sep" and param.default is not inspect._empty:
                 self.params[name] = args.pop(name, param.default)
