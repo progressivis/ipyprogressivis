@@ -10,7 +10,7 @@ from .dump_table import DumpPTableW
 from .join import JoinW
 from .multi_series import MultiSeriesW
 from .scatterplot import ScatterplotW
-from .columns import PColumnsW
+from .computed_view import ComputedViewW
 from .histogram import HistogramW
 from .iscaler import ScalerW
 from .any_vega import AnyVegaW
@@ -28,7 +28,7 @@ __all__ = [
     "JoinW",
     "MultiSeriesW",
     "ScatterplotW",
-    "PColumnsW",
+    "ComputedViewW",
     "HistogramW",
     "ScalerW",
     "FacadeCreatorW",

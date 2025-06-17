@@ -14,7 +14,10 @@ from .utils import (
 import ipywidgets as ipw
 import numpy as np
 import operator as op
+from inspect import signature
 import weakref
+from ..df_grid import DataFrameGrid
+import pandas as pd
 from progressivis.table.repeater import Repeater, Computed
 from progressivis.core.api import Sink, Module
 from progressivis.table.compute import (
@@ -27,7 +30,12 @@ from progressivis.table.compute import (
     month,
     day,
     hour,
-    year_day_int
+    year_day_int,
+    add_,
+    mul_,
+    true_div,
+    floor_div,
+
 )
 
 from typing import Any as AnyType, Optional, Tuple, List, Dict, Callable, Union, cast
@@ -56,22 +64,29 @@ ALL_FUNCS = UFUNCS.copy()
 ALL_FUNCS.update(
     {"week_day": week_day, "is_weekend": is_weekend,
      "ymd_string": ymd_string, "year": year,
-     "month": month, "day": day, "hour": hour, "year_day": year_day_int}
+     "month": month, "day": day, "hour": hour, "year_day": year_day_int,
+     "+": add_,
+     "*": mul_,
+     "/": true_div,
+     "//": floor_div
+     }
 )
 
 class FuncW(ipw.VBox):
-    def __init__(self, main: "PColumnsW", colname: str, fname: str) -> None:
-        self._colname = colname
+    def __init__(self, main: "ComputedViewW", colnames: str, fname: str) -> None:
+        self._colnames = colnames
         self._fname = fname
-        self._name = ipw.Text(
-            value=f"{colname}_{fname}",
-            placeholder="mandatory",
-            description="Name:",
-            disabled=False,
-        )
         fnc = ALL_FUNCS[fname]
+        self._name = ipw.Text(
+            value=f"{'_'.join(colnames)}_{fnc.__name__}",
+            placeholder="mandatory",
+            description="",
+            disabled=False,
+            layout={"width": "initial"}
+        )
+        hbox_name = ipw.HBox([ipw.Label("Name:"), self._name])
         if isinstance(fnc, np.ufunc):
-            type_ = main.dtypes[colname]  # TODO: improve it using ufunc.types information
+            type_ = main.dtypes[colnames[0]]  # TODO: improve it using ufunc.types information
         elif isinstance(fnc, np.vectorize):
             type_ = fnc.pyfunc.__annotations__.get("return", object).__name__
         else:
@@ -84,21 +99,52 @@ class FuncW(ipw.VBox):
             type_ = "object"
         if type_ not in DTYPES:
             type_ = "object"
+        self._col_var_map: ipw.HTML | DataFrameGrid
+        if len(colnames) <= 1:
+            self._col_var_map = dongle_widget()
+        else:
+            df = pd.DataFrame(  # type: ignore
+                index=colnames,
+                columns=["Variable"],
+                dtype=object,
+            )
+            vars = signature(fnc).parameters.keys()
+            df.loc[:, "Variable"] = lambda: ipw.Dropdown(value="",
+                                                    placeholder="var",
+                                                    options=[""]+list(vars),
+                                                    description="",
+                                                    ensure_option=True,
+                                                    disabled=False,
+                                                    layout={"width": "initial"}
+                                                    )
+
+            self._col_var_map = DataFrameGrid(df, first="50%", index_title="Column")
+            self._col_var_map.layout.border = "solid"
         self._dtype = ipw.Dropdown(
             value=type_,
             placeholder="dtype",
             options=DTYPES,
-            description="Out dtype",
+            description="",
             ensure_option=True,
             disabled=False,
+            layout={"width": "initial"}
         )
+        hbox_dtype = ipw.HBox([ipw.Label("Output dtype:"), self._dtype])
         self._use = ipw.Checkbox(value=False, description="Use", disabled=False)
         self._use.observe(main.update_func_list, names="value")
-        super().__init__([self._name, self._dtype, self._use])
+        super().__init__([hbox_name, self._col_var_map, hbox_dtype, self._use])
 
+    def get_map(self) -> AnyType:
+        if len(self._colnames) == 1:
+            return {}
+        assert len(self._colnames) > 1
+        assert isinstance(self._col_var_map, DataFrameGrid)
+        return {row["Variable"].value: cname for (cname, row) in
+                       self._col_var_map.df.iterrows()
+                       if row["Variable"].value}
 
 class IfElseW(ipw.VBox):
-    def __init__(self, main: "PColumnsW") -> None:
+    def __init__(self, main: "ComputedViewW") -> None:
         self._main = weakref.ref(main)
         self._name = ipw.Text(
             value="", placeholder="mandatory", description="Name:", disabled=False
@@ -162,7 +208,7 @@ class IfElseW(ipw.VBox):
         )
 
     @property
-    def main(self) -> Optional["PColumnsW"]:
+    def main(self) -> Optional["ComputedViewW"]:
         return self._main()
 
     def _name_cb(self, change: AnyType) -> None:
@@ -235,7 +281,7 @@ layout_refresh = ipw.Layout(width='30px', height='30px')
 
 class ColsFuncs(IpyHBoxTyped):
     class Typed(TypedBase):
-        cols: ipw.Select
+        cols: ipw.SelectMultiple
         funcs: ipw.Select
         computed: Optional[FuncW]
 
@@ -251,7 +297,7 @@ class OptsBar(IpyHBoxTyped):
         refresh_btn: ipw.Button
         label: ipw.Label
 
-class PColumnsW(VBoxTyped):
+class ComputedViewW(VBoxTyped):
     class Typed(TypedBase):
         opts: OptsBar
         custom_funcs: ipw.Accordion
@@ -284,7 +330,7 @@ class PColumnsW(VBoxTyped):
         cols_t = [f"{c}:{t}" for (c, t) in self.dtypes.items()]
         col_list = list(zip(cols_t, self.dtypes.keys()))
         cols_funcs = ColsFuncs()
-        cols_funcs.c_.cols = ipw.Select(
+        cols_funcs.c_.cols = ipw.SelectMultiple(
             disabled=False, options=[("", "")] + col_list, rows=7
         )
         cols_funcs.c_.cols.observe(self._columns_cb, names="value")
@@ -360,8 +406,8 @@ class PColumnsW(VBoxTyped):
 
     def _make_computed_list(self) -> list[dict[str, str]]:
         return [
-            dict(col=col, fname=fname, wg_name=wg._name.value, wg_dtype=wg._dtype.value)
-            for (col, fname), wg in self._col_widgets.items()
+            dict(cols=cols, fname=fname, map=wg.get_map(), wg_name=wg._name.value, wg_dtype=wg._dtype.value)
+            for (cols, fname), wg in self._col_widgets.items()
             if wg._use.value
         ]
 
@@ -381,16 +427,26 @@ class PColumnsW(VBoxTyped):
         self.output_slot = "result"
 
     @modules_producer
-    def init_module(self, comp_list: list[dict[str, str]],
+    def init_module(self, comp_list: list[dict[str, list[str]]],
                     columns: List[str]) -> Repeater:
         comp = Computed()
         from .custom import CUSTOMER_FNC
         ALL_FUNCS.update(CUSTOMER_FNC)
         for d_ in comp_list:
-            func = ALL_FUNCS[d_["fname"]]
-            comp.add_ufunc_column(
-                d_["wg_name"], d_["col"], func, np.dtype(d_["wg_dtype"])
-            )
+            func = ALL_FUNCS[d_["fname"]]  # type: ignore
+            cols = d_["cols"]
+            if len(cols) == 1:
+                comp.add_ufunc_column(
+                    d_["wg_name"], cols[0], func, np.dtype(d_["wg_dtype"])  # type: ignore
+                )
+            else:
+                assert len(cols) > 1
+                comp.add_multi_col_func(
+                    name=d_["wg_name"], cols=cols, func=func,  # type: ignore
+                    col_var_map=d_["map"],  # type: ignore
+                    dtype=np.dtype(d_["wg_dtype"]),
+
+                )
         s = self.input_module.scheduler()
         with s:
             rep = Repeater(computed=comp, scheduler=s)
@@ -428,4 +484,4 @@ class PColumnsW(VBoxTyped):
         return [cast(Module, self.output_module)]
 
 
-stage_register["View"] = PColumnsW
+stage_register["Computed view"] = ComputedViewW

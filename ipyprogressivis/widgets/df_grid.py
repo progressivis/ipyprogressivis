@@ -34,7 +34,7 @@ class DataFrameGrid(ipw.GridBox):
                 else:
                     others = " ".join([sizes.get(col, repeat) for col in df.columns])
                     gtc = f"{first} {others}"
-            print("grid_template_columns:", gtc, sizes, df.columns)
+            # print("grid_template_columns:", gtc, sizes, df.columns)
             kw["layout"] = ipw.Layout(grid_template_columns=gtc)
 
         super().__init__(lst, **kw)
