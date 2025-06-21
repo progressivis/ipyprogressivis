@@ -10,10 +10,18 @@ from typing import Any as AnyType, Optional, List, Tuple, Dict, Callable, cast
 
 WidgetType = AnyType
 
+ALL_COLS = "<<<--- ROW --->>>"
+ALL_FNC_SET = set(Aggregate.registry.keys())
 
-def get_flag_status(dt: str, op: str) -> bool:
-    return dt in ("string", "datetime64")  # op in type_op_mismatches.get(dt, set())
+type_op_mismatches: dict[str, set[str]] = dict(
+    string=ALL_FNC_SET-{"set", "uniq", "hide"},
+    _=ALL_FNC_SET-{"count", "hide"}
+)
 
+
+def is_disabled(dt: str, op: str) -> bool:
+    # return dt in ("", "string", "datetime64")  # op in type_op_mismatches.get(dt, set())
+    return op in type_op_mismatches.get(dt, {"count"})
 
 class AggregateW(VBoxTyped):
     class Typed(TypedBase):
@@ -34,7 +42,7 @@ class AggregateW(VBoxTyped):
             disabled=False,
         )
         self.child.hidden_sel.observe(self._selm_obs_cb, "value")
-        self.visible_cols: List[str] = list(self.dtypes.keys())
+        self.visible_cols: List[str] = [ALL_COLS] + list(self.dtypes.keys())
         self.obs_flag = False
         self.info_cbx: Dict[Tuple[str, str], ipw.Checkbox] = {}
         self.child.grid = self.draw_matrix()
@@ -58,10 +66,13 @@ class AggregateW(VBoxTyped):
         ]
         width_ = len(lst)
         for col in sorted(self.visible_cols):
-            col_type = self.dtypes[col]
+            if col == ALL_COLS:
+                col_type = "_"
+            else:
+                col_type = self.dtypes[col]
             lst.append(ipw.Label(f"{col}:{col_type}"))
             for k in self.all_functions.keys():
-                lst.append(self._info_checkbox(col, k, get_flag_status(col_type, k)))
+                lst.append(self._info_checkbox(col, k, is_disabled(col_type, k)))
         gb = ipw.GridBox(
             lst,
             layout=ipw.Layout(grid_template_columns=f"200px repeat({width_-1}, 70px)"),
@@ -76,7 +87,7 @@ class AggregateW(VBoxTyped):
 
     def _start_btn_cb(self, btn: ipw.Button) -> None:
         compute = [
-            (col, fnc)
+            ("" if col == ALL_COLS else col, fnc)
             for ((col, fnc), ck) in self.info_cbx.items()
             if fnc != "hide" and ck.value
         ]

@@ -57,7 +57,7 @@ async def pre_save_impl(model: dict[str, Any], contents_manager: Any, **kwargs: 
                 if not (pv_tag := meta_cell.get("progressivis_tag")):
                     continue
                 key, nb = parse_tag(pv_tag)
-                if key in ("Dump_table", "Dump table", "Heatmap", "Any Vega"):
+                if key in ("Dump_table", "Dump table", "Heatmap", "Any Vega", "Line chart"):
                     prefix, b64_data = outs[i].split(",", 1)
                     b64_data = add_snapshot_tag(b64_data)
                     outs[i] = prefix + "," + b64_data

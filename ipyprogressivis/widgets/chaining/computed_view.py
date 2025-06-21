@@ -34,6 +34,7 @@ from progressivis.table.compute import (
     add_,
     mul_,
     true_div,
+    div_percent,
     floor_div,
 
 )
@@ -68,7 +69,8 @@ ALL_FUNCS.update(
      "+": add_,
      "*": mul_,
      "/": true_div,
-     "//": floor_div
+     "//": floor_div,
+     "%": div_percent
      }
 )
 

@@ -74,11 +74,14 @@ def pre_save_x(model, contents_manager,  **kwargs):
     from .pre_save_x import pre_save_impl
     log = contents_manager.log
     log.info("Starting pre_save_x ...")
-    pre_save_md_impl(model, contents_manager, **kwargs)
-    loop = asyncio.get_event_loop()
-    task = loop.create_task(pre_save_impl(model, contents_manager, **kwargs))
-    loop.run_until_complete(task)
-    log.info("... end pre_save_x")
+    try:
+        pre_save_md_impl(model, contents_manager, **kwargs)
+        loop = asyncio.get_event_loop()
+        task = loop.create_task(pre_save_impl(model, contents_manager, **kwargs))
+        loop.run_until_complete(task)
+        log.info("... end pre_save_x")
+    except Exception as exc:
+        log.info(f"Pre-save hook failed: {type(exc)}, {exc.args}")
 
 def pre_save_md(model, contents_manager,  **kwargs):
     from .pre_save_md import pre_save_md_impl
