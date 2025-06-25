@@ -35,6 +35,6 @@ def parse_tag(tag: str) -> tuple[str, int]:
 
 
 def make_css_marker(key: str, nb: int = 0) -> str:
-    key = key.replace(" ", "_")
+    key = key.replace(" ", "_").replace(".", "-")
     return f"progressivis_guest_widget--{key}_{nb}"
 

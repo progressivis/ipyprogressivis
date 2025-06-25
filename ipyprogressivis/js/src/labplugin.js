@@ -85,7 +85,7 @@ export const progressivisPlugin = {
           alert("ProgressiVis is already running!");
           return;
         }
-	$('.progressivis-cleanup-and-run-btn').hide()
+        $(".progressivis-cleanup-and-run-btn").hide();
         nbtracker.currentWidget.progressivis_started = true;
         cmds.progressivisCleanup(app, nbtracker);
         //let indices = Number.isInteger(args.index) ? [args.index] : args.index;
@@ -129,6 +129,8 @@ export const progressivisPlugin = {
         cmds.createStageCells(
           nbtracker,
           args.tag,
+          args.tag_class,
+
           args.md,
           args.code,
           args.rw,
@@ -204,21 +206,10 @@ export const progressivisPlugin = {
         this.touch();
       }
       tag_changed() {
-        console.log("tag changed", this.model.get("tag"));
+        let tag = this.model.get("tag");
         var crtWidget = nbtracker.currentWidget;
         var notebook = crtWidget.content;
-        let i = notebook.widgets.findIndex(
-          (x) =>
-            x.model.metadata.progressivis_tag === this.model.get("tag") &&
-            x.model.sharedModel.cell_type === "code",
-        );
-        if (i === undefined) return;
-        if (
-          notebook.model.metadata.progressivis_prev_outs === undefined ||
-          notebook.model.metadata.progressivis_prev_outs.length <= i
-        )
-          return;
-        let imgSrc = notebook.model.metadata.progressivis_prev_outs[i];
+        let imgSrc = notebook.model.metadata.progressivis_prev_outs[tag];
         this.el.innerHTML = "<img src='" + imgSrc + "'></img>";
         this.touch();
       }

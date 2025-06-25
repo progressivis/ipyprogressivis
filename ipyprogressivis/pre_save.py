@@ -21,15 +21,16 @@ def pre_save_impl(model: dict[str, Any], contents_manager: Any, **kwargs: Any) -
     for out in cell_1.get('outputs', []):
         if out.get("data", {}).get("text/plain") in ("Talker()", "BackupWidget()"):
             out["data"]["text/plain"] = ""
-    for i, cell in enumerate(model['content']['cells']):
+    for cell in model['content']['cells']:
         if cell['cell_type'] != 'code':
             continue
-        if i >= len(outs) or not outs[i]:  # an empty dict actually
+        meta_cell = cell["metadata"]
+        if not (pv_tag := meta_cell.get("progressivis_tag")):
             continue
-        prefix, b64_data = outs[i].split(",", 1)
+        prefix, b64_data = outs[pv_tag].split(",", 1)
         b64_data = add_snapshot_tag(b64_data)
-        outs[i] = prefix + "," + b64_data
-        for j, out in enumerate(cell['outputs']):
+        outs[pv_tag] = prefix + "," + b64_data
+        for out in cell['outputs']:
             if out["output_type"] not in ("execute_result", "display_data"):
                 continue
             if not out.get("data", {}).get("application/vnd.jupyter.widget-view+json"):

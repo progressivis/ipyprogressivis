@@ -16,7 +16,7 @@ from progressivis.core.api import Sink, Module
 from progressivis.table.api import TableFacade
 from progressivis.core.utils import normalize_columns
 from progressivis.core import aio
-from ipyprogressivis.hook_tools import make_css_marker
+from ipyprogressivis.hook_tools import make_css_marker, parse_tag
 import asyncio
 from ..csv_sniffer import CSVSniffer
 from collections import defaultdict
@@ -546,8 +546,9 @@ def replay_sequence(obj: "Constructor") -> None:
             break
     REPLAY_BATCH = False
     for md, code, tag in widget_list:
+        tag_class = get_tag_class(tag)
         labcommand(
-            "progressivis:create_stage_cells", tag=tag,
+            "progressivis:create_stage_cells", tag=tag, tag_class=tag_class,
             md=md, code=code, rw=False, run=True
         )
 
@@ -563,7 +564,7 @@ def create_root(backup: BackupWidget) -> None:
         extra = backup.root_markdown
         md = f"## root\n {extra}" if extra else "## root"
         labcommand(
-            "progressivis:create_stage_cells", tag="root",
+            "progressivis:create_stage_cells", tag="root", tag_class="root",
             md=md, code=code, rw=False, run=True
         )
     loop = asyncio.get_event_loop()
@@ -718,6 +719,10 @@ widget_by_key: Dict[Tuple[str, int], "NodeCarrier"] = {}
 widget_numbers: Dict[str, int] = defaultdict(int)
 recording_state: bool = False
 
+def get_tag_class(tag: str) -> str:
+    key, nb = parse_tag(tag)
+    node = widget_by_key[(key, nb)]
+    return type(node.children[1]).__name__
 
 def set_parent_widget(obj: Union["NodeCarrier", "Constructor"]) -> None:
     global parent_widget
@@ -1083,10 +1088,12 @@ def add_new_stage(
     if markdown:
         md = md + "\n" + markdown
     code, rw, run = get_stage_cell(key=alias or title, num=n, end=end, frozen=frozen)
+    tag_class = get_tag_class(tag)
     labcommand(
         "progressivis:create_stage_cells",
         frozen=frozen,
         tag=tag,
+        tag_class=tag_class,
         md=md,
         code=code,
         rw=rw,
@@ -1125,10 +1132,12 @@ def add_new_loader(
     code, rw, run = get_loader_cell(
         key=alias or title, ftype=ftype, num=n, end=end, frozen=frozen
     )
+    tag_class = get_tag_class(tag)
     labcommand(
         "progressivis:create_stage_cells",
         frozen=frozen,
         tag=tag,
+        tag_class=tag_class,
         md=md,
         code=code,
         rw=rw,
@@ -1179,7 +1188,7 @@ class ChainingWidget:
 
     @property
     def dom_id(self) -> str:
-        return self.title.replace(" ", "-")
+        return self.title.replace(" ", "-").replace(".", "_")
 
     @property
     def label(self) -> str:

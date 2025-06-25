@@ -144,7 +144,7 @@ export function setRootBackup(nbtracker, backupstring) {
   );
 }
 
-export function createStageCells(nbtracker, tag, md, code, rw, run) {
+export function createStageCells(nbtracker, tag, tag_class, md, code, rw, run) {
   var crtWidget = nbtracker.currentWidget;
   var notebook = crtWidget.content;
   var tag = tag.toString();
@@ -173,6 +173,7 @@ export function createStageCells(nbtracker, tag, md, code, rw, run) {
   cell.model.sharedModel.setMetadata("editable", true);
   cell.model.sharedModel.setMetadata("deletable", false);
   cell.model.sharedModel.setMetadata("progressivis_tag", tag);
+  cell.model.sharedModel.setMetadata("progressivis_tag_class", tag_class);
   notebook.model.sharedModel.insertCell(i + 1, {
     cell_type: "code",
     source: code,
@@ -186,6 +187,7 @@ export function createStageCells(nbtracker, tag, md, code, rw, run) {
   cell.model.sharedModel.setMetadata("editable", rw);
   cell.model.sharedModel.setMetadata("deletable", false);
   cell.model.sharedModel.setMetadata("progressivis_tag", tag);
+  cell.model.sharedModel.setMetadata("progressivis_tag_class", tag_class);
 }
 
 export function runCellAt(nbtracker, ix) {
@@ -195,15 +197,15 @@ export function runCellAt(nbtracker, ix) {
   NotebookActions.run(notebook, crtWidget.sessionContext);
 }
 
-export function shotCellAtIndex(notebook, cell, i, delay) {
-  let prevOuts = notebook.model.metadata.progressivis_outs || [];
+export function shotCellAtIndex(notebook, cell, i, tag, delay) {
+  let prevOuts = notebook.model.metadata.progressivis_outs || {};
   function fun() {
     let pvWidget = $(cell.outputArea.node)
       .find($(".progressivis_guest_widget"))
       .first()[0];
     if (pvWidget === undefined) return; // already an image
     htmlToImage.toPng(pvWidget).then((png) => {
-      prevOuts[i] = png;
+      prevOuts[tag] = png;
       notebook.model.sharedModel.setMetadata("progressivis_outs", prevOuts);
     });
   }
@@ -225,5 +227,5 @@ export function shotCell(nbtracker, tag, delay) {
       x.model.sharedModel.cell_type === "code",
   );
   var cell = notebook.widgets[i];
-  shotCellAtIndex(notebook, cell, i, delay);
+  shotCellAtIndex(notebook, cell, i, tag, delay);
 }

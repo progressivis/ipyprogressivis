@@ -154,7 +154,7 @@ To proceed with aggregation, select `Next stage`: `Aggregate` then `Chain it`.
 
 ## Aggregate
 
-The first row of the table displayed is "ROW" and represents not a column but the entire row of the input table.
+The displayed matrix maps columns (vertically) to operations (horizontally) with one exception: the first row of the matrix named "__RECORD__" represents not a particular column but the entire row of the input table.
 <pre></pre>
 
 The only possible operation on rows is their count. We count rows sharing the same pair (`pickup_hour`, `rain_level`), which will produce the `_count` column in the output table.

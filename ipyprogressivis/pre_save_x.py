@@ -10,6 +10,12 @@ _html_exporter = None
 
 #  See: https://stackoverflow.com/questions/36125589/how-to-wait-for-task-created-by-create-task-to-complete
 
+CUSTOM_WIDGETS = (  # these widgets are not exported well in html format
+    "DumpPTableW",  # currently we prefer use instead the snapshot produced by image_to_html
+    "HeatmapW",
+    "AnyVegaW",
+)
+
 async def pre_save_impl(model: dict[str, Any], contents_manager: Any, **kwargs: Any) -> None:
     """copy ProgressiVis snapshots to cells outputs before saving notebooks"""
     # only run on notebooks
@@ -50,22 +56,25 @@ async def pre_save_impl(model: dict[str, Any], contents_manager: Any, **kwargs: 
             for out in cell_1.get('outputs', []):
                 if out.get("data", {}).get("text/plain") in ("Talker()", "BackupWidget()"):
                     out["data"]["text/plain"] = ""
-            for i, cell in enumerate(cells):
+            for cell in cells:
                 if cell['cell_type'] != 'code':
                     continue
                 meta_cell = cell["metadata"]
                 if not (pv_tag := meta_cell.get("progressivis_tag")):
                     continue
                 key, nb = parse_tag(pv_tag)
-                if key in ("Dump_table", "Dump table", "Heatmap", "Any Vega", "Line chart"):
-                    prefix, b64_data = outs[i].split(",", 1)
+                pv_tag_class = meta_cell.get("progressivis_tag_class")
+                assert pv_tag_class
+                if pv_tag_class in CUSTOM_WIDGETS:
+                    prefix, b64_data = outs[pv_tag].split(",", 1)
                     b64_data = add_snapshot_tag(b64_data)
-                    outs[i] = prefix + "," + b64_data
+                    outs[pv_tag] = prefix + "," + b64_data
                 else:
                     css_marker =  make_css_marker(key, nb)
                     buff = await page.locator(f".{css_marker}").screenshot()
                     b64_data = add_snapshot_tag_from_bytes(buff)
-                for j, out in enumerate(cell['outputs']):
+                    outs[pv_tag] = "data:image/png;base64," + b64_data
+                for out in cell['outputs']:
                     if out["output_type"] not in ("execute_result", "display_data"):
                         continue
                     if not out.get("data", {}).get("application/vnd.jupyter.widget-view+json"):

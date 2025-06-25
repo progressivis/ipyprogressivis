@@ -3,6 +3,8 @@ import json
 import click
 from pathlib import Path
 import os
+import logging
+from ipyprogressivis.pre_save_md import pre_save_md_impl
 from more_itertools import split_before  # type: ignore
 
 def split_md(code: str) -> dict[str, list[str]]:
@@ -25,6 +27,7 @@ def split_md(code: str) -> dict[str, list[str]]:
 @click.option("-m", "--markdown", default="", help=("Markdown file."
                                                     "If missing try to merge the markdown homonym"))
 def main(progressibook: str, overwrite: bool, output: str, markdown: str | Path) -> None:
+    logger = logging.getLogger(__name__)
     pb_dir = os.path.dirname(progressibook)
     pb_name = os.path.basename(progressibook)
     bare_name, extn = pb_name.rsplit(".", 1)
@@ -58,6 +61,11 @@ def main(progressibook: str, overwrite: bool, output: str, markdown: str | Path)
             continue
         if (title := src[0].strip("\n")) in md_dict:
             cell["source"] = md_dict[title]
+    model = dict(type='notebook', content=pb)
+    class FakeCM:
+        log = logger
+
+    pre_save_md_impl(model, FakeCM())
     with open(out_name, "w") as f:
         json.dump(pb, f)
 

@@ -110,7 +110,7 @@ class FuncW(ipw.VBox):
                 columns=["Variable"],
                 dtype=object,
             )
-            vars = signature(fnc).parameters.keys()
+            vars = signature(fnc.pyfunc if isinstance(fnc, np.vectorize) else fnc).parameters.keys()
             df.loc[:, "Variable"] = lambda: ipw.Dropdown(value="",
                                                     placeholder="var",
                                                     options=[""]+list(vars),

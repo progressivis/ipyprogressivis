@@ -10,7 +10,7 @@ from typing import Any as AnyType, Optional, List, Tuple, Dict, Callable, cast
 
 WidgetType = AnyType
 
-ALL_COLS = "<<<--- ROW --->>>"
+ALL_COLS = "__RECORD__"
 ALL_FNC_SET = set(Aggregate.registry.keys())
 
 type_op_mismatches: dict[str, set[str]] = dict(
@@ -42,7 +42,7 @@ class AggregateW(VBoxTyped):
             disabled=False,
         )
         self.child.hidden_sel.observe(self._selm_obs_cb, "value")
-        self.visible_cols: List[str] = [ALL_COLS] + list(self.dtypes.keys())
+        self.visible_cols: list[str] = [ALL_COLS] + list(self.dtypes.keys())
         self.obs_flag = False
         self.info_cbx: Dict[Tuple[str, str], ipw.Checkbox] = {}
         self.child.grid = self.draw_matrix()
@@ -65,7 +65,7 @@ class AggregateW(VBoxTyped):
             ipw.Label(s) for s in self.all_functions.values()
         ]
         width_ = len(lst)
-        for col in sorted(self.visible_cols):
+        for col in sorted(self.visible_cols, key=str.lower):  # __RECORD__ first
             if col == ALL_COLS:
                 col_type = "_"
             else:
