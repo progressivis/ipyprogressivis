@@ -10,7 +10,6 @@ Indeed, you can merge the `ProgressiBook` and the underlying markdown file into 
 
 ```sh
 $ python tools/merge_nb_markdown.py -p notebooks/userguide-widgets1.1.ipynb -m notebooks/userguide-widgets1.1.md -o /tmp/foo.ipynb
-notebooks/userguide-widgets1.1.ipynb /tmp/foo.ipynb
 ```
 
 You can also write the result to the current ProgressiBook using the overwrite option:
