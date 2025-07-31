@@ -20,6 +20,7 @@ import { TalkerModel } from "./talker";
 import { CellOutModel } from "./cell_out";
 import { VegaWidgetModel, VegaWidget } from "jupyter-vega/dist/index";
 import { KNNKernelModel, KNNKernelView } from "./knn_kernel";
+import { ContourDensityModel, ContourDensityView } from "./contour_density";
 
 export {
   register_config_editor,
@@ -47,7 +48,9 @@ export {
   VegaWidget,
   BackupModel,
   TalkerModel,
-    CellOutModel,
-    KNNKernelModel,
-    KNNKernelView,
+  CellOutModel,
+  KNNKernelModel,
+  KNNKernelView,
+  ContourDensityModel,
+  ContourDensityView,
 };

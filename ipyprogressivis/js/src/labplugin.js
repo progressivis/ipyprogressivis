@@ -138,6 +138,13 @@ export const progressivisPlugin = {
         );
       },
     });
+    app.commands.addCommand("progressivis:create_code_cell", {
+      label: "Create code cell",
+      caption: "Create code cell",
+      execute: (args) => {
+        cmds.createCodeCell(nbtracker, args.index, args.code, args.run);
+      },
+    });
     app.commands.addCommand("progressivis:shot_cell", {
       label: "Shot cell",
       caption: "Shot cell",

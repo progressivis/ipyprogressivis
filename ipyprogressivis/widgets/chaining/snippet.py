@@ -1,25 +1,33 @@
 from .utils import (make_button, stage_register, dongle_widget, VBoxTyped,
                     TypedBase, amend_last_record, GuestWidget, IpyHBoxTyped,
-                    is_recording, disable_all, runner, needs_dtypes)
+                    is_recording, disable_all, runner, needs_dtypes, labcommand)
 from ..df_grid import DataFrameGrid
 import pandas as pd
 import ipywidgets as ipw
 from progressivis.core.api import Module, Sink
-
+from .custom import register_snippet, SnippetResult
 from typing import Any as AnyType, List
 
 layout_refresh = ipw.Layout(width='30px', height='30px')
-
+_ = register_snippet, SnippetResult
 
 class SnippetBar(IpyHBoxTyped):
     class Typed(TypedBase):
         choice: ipw.Dropdown
         refresh_btn: ipw.Button
 
+class UploadBar(IpyHBoxTyped):
+    class Typed(TypedBase):
+        label: ipw.Label
+        files: ipw.FileUpload
+        # run_cells: ipw.Checkbox
+
+
 class SnippetW(VBoxTyped):
     class Typed(TypedBase):
+        upload: UploadBar
         snippet: SnippetBar
-        refresh_btn: ipw.Button
+        #refresh_btn: ipw.Button
         cols_mode: ipw.RadioButtons
         columns: DataFrameGrid
         start_btn: ipw.Button
@@ -29,6 +37,14 @@ class SnippetW(VBoxTyped):
     def initialize(self) -> None:
         from .custom import CUSTOMER_SNIPPET
         inp_module = self.input_module
+        self.child.upload = UploadBar()
+        self.child.upload.child.label = ipw.Label("Upload snippets:")
+        up = self.child.upload.child.files = ipw.FileUpload(
+            accept='.py',
+            description="",
+            multiple=True  # True to accept multiple files upload else False
+        )
+        up.observe(self._upload_cb, names="value")
         self.child.snippet = SnippetBar()
         wg = self.child.snippet.child.choice = ipw.Dropdown(
             description="Snippet:",
@@ -56,6 +72,17 @@ class SnippetW(VBoxTyped):
         self.child.start_btn = make_button(
             "Start", cb=self._start_btn_cb, disabled=True
         )
+    def _upload_cb(self, change: dict[str, AnyType]) -> None:
+        from .custom import CUSTOMER_SNIPPET
+        _ = CUSTOMER_SNIPPET
+        for item in change["new"]:
+            code = item.content.tobytes().decode()
+            exec(code, globals(),  globals())
+            labcommand("progressivis:create_code_cell",
+                       code=code,
+                       index=2,  # i.e. insert it after #root & co
+                       run=False)
+        self._refresh_btn_cb()
     def _cols_mode_cb(self, val: AnyType) -> None:
         if val["new"] == "all":
             self.child.columns = dongle_widget()
@@ -87,7 +114,7 @@ class SnippetW(VBoxTyped):
         assert isinstance(self.output_module, Module)
         return [self.output_module.name]
 
-    def _refresh_btn_cb(self, btn: ipw.Button) -> None:
+    def _refresh_btn_cb(self, btn: ipw.Button | None = None) -> None:
         from .custom import CUSTOMER_SNIPPET
         self.child.snippet.child.choice.options = [""] + list(CUSTOMER_SNIPPET.keys())
 

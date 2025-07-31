@@ -190,6 +190,22 @@ export function createStageCells(nbtracker, tag, tag_class, md, code, rw, run) {
   cell.model.sharedModel.setMetadata("progressivis_tag_class", tag_class);
 }
 
+export function createCodeCell(nbtracker, i, code, run) {
+  var crtWidget = nbtracker.currentWidget;
+  var notebook = crtWidget.content;
+  //var i = notebook.widgets.length;
+  notebook.model.sharedModel.insertCell(i, {
+    cell_type: "code",
+    source: code,
+  });
+  notebook.activeCellIndex = i;
+  var cell = notebook.widgets[i];
+  if (run) {
+    NotebookActions.run(notebook, crtWidget.sessionContext);
+  }
+  cell.model.sharedModel.setMetadata("trusted", true);
+}
+
 export function runCellAt(nbtracker, ix) {
   var crtWidget = nbtracker.currentWidget;
   var notebook = crtWidget.content;
