@@ -122,10 +122,18 @@ def corr_as_vega_dataset(
 
     def _c(kx: str, ky: str) -> float:
         assert mod.result is not None
-        return mod.result[frozenset([kx, ky])]  # type: ignore
+        res: Dict[AnyType, float] = cast(Dict[AnyType, float], mod.result)
+        try:
+            return res[(kx, ky)]
+        except KeyError:
+            return res[(ky, kx)]
+        # return mod.result[frozenset([kx, ky])]  # type: ignore
 
     return [
-        dict(corr=_c(kx, ky), corr_label=f"{_c(kx,ky):.2f}", var=kx, var2=ky)
+        dict(corr=_c(kx, ky),
+             corr_label=f"{_c(kx, ky):.2f}",
+             var=kx,
+             var2=ky)
         for (kx, ky) in product(columns, columns)
     ]
 
