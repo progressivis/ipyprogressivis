@@ -13,4 +13,4 @@ from .dag_widget import *
 from .vega import VegaWidget
 from .cell_out import CellOut
 from .knn_kernel import KNNDensity
-from .contour_density import ContourDensity
+from .contour_density import ContourDensity  # type: ignore

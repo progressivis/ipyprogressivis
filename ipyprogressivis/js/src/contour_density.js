@@ -37,6 +37,7 @@ import * as widgets from "@jupyter-widgets/base";
 import { new_id } from "./base";
 import { elementReady } from "./es6-element-ready";
 import $ from "jquery";
+import { table_serialization, rowProxy } from "jupyter-tablewidgets";
 
 function translate(x, y) {
   return "translate(" + x + "," + y + ")";
@@ -61,12 +62,22 @@ function shuffle(array) {
 }
 
 function draw(svgId) {
-  return function (data) {
+  return function (table) {
+    if (table === null) return;
     $(svgId).empty();
     let iter = "iter"; //line.iter;
     let time = "time"; //line.time;
     let error = "error"; //line.error;
     let labels = "labels"; //labels
+    let proxy = rowProxy(table);
+    let data = Array(table.size);
+    let cols = table.columns;
+    let col_x = cols[0];
+    let col_y = cols[1];
+    for (let i = 0; i < data.length; ++i) {
+      let pxi = proxy(i);
+      data[i] = [pxi[col_x], pxi[col_y]];
+    }
     let sampleSize = Math.min(1000, data.length);
     let sampleIndex = shuffle(d3.range(data.length)).slice(0, sampleSize);
     let svg = d3.select(svgId);
@@ -151,9 +162,13 @@ export class ContourDensityModel extends widgets.DOMWidgetModel {
       _view_module: "jupyter-progressivis",
       _model_module_version: "0.1.0",
       _view_module_version: "0.1.0",
-      data: "{}",
+      _df: ndarray([]),
     };
   }
+  static serializers = {
+    ...widgets.DOMWidgetModel.serializers,
+    _df: table_serialization,
+  };
 }
 
 // Custom View. Renders the widget model.
@@ -169,12 +184,12 @@ export class ContourDensityView extends widgets.DOMWidgetView {
       that.draw_ = draw(`#${that.id}`);
     });
     this.data_changed();
-    this.model.on("change:data", this.data_changed, this);
+    this.model.on("change:_df", this.data_changed, this);
   }
   data_changed() {
     const that = this;
     elementReady(`#${this.id}`).then(() => {
-      that.draw_(that.model.get("data"));
+      that.draw_(that.model.get("_df"));
     });
   }
 }

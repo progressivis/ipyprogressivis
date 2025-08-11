@@ -70,6 +70,7 @@
     "html-to-image": "^1.11.11",
     "jquery-sparkline": "^2.4.0",
     "jupyter-dataserializers": "^3.0.1",
+    "jupyter-tablewidgets": "^0.3.2",
     "jupyter-vega": "^4.0.0",
     "multiclass-density-maps": "^0.1.5",
     "ndarray": "^1.0.19",
