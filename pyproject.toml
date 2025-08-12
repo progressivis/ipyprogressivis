@@ -46,6 +46,7 @@ dependencies = [
     "numpy>=1.26.4",
     "pandas>=1.0.0,<3.0.0",
     "ipydatawidgets",
+    "ipytablewidgets",
     "jupyter-client>=8.6.0",
     "vega>=4.0.0",
     "sidecar>=0.7.0",

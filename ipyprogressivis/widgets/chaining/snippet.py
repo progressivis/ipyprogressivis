@@ -1,12 +1,12 @@
 from .utils import (make_button, stage_register, dongle_widget, VBoxTyped,
                     TypedBase, amend_last_record, GuestWidget, IpyHBoxTyped,
-                    is_recording, disable_all, runner, needs_dtypes, labcommand)
+                    is_recording, disable_all, runner, needs_dtypes, labcommand, modules_producer)
 from ..df_grid import DataFrameGrid
 import pandas as pd
 import ipywidgets as ipw
 from progressivis.core.api import Module, Sink
 from .custom import register_snippet, SnippetResult
-from typing import Any as AnyType, List
+from typing import Any as AnyType, List, Callable
 
 layout_refresh = ipw.Layout(width='30px', height='30px')
 _ = register_snippet, SnippetResult
@@ -153,10 +153,14 @@ class SnippetW(VBoxTyped):
         print("snippet content", content)
         from .custom import CUSTOMER_SNIPPET
         snippet = CUSTOMER_SNIPPET[content["snippet"]]
-        res = snippet(self.input_module, self.input_slot, content["columns"])
+        res = self.eval_snippet(snippet, content["columns"])
         self.output_module = res.output_module
         self.output_slot = res.output_slot
         if res.widget is not None:
             self.child.widget = res.widget
+
+    @modules_producer
+    def eval_snippet(self, snippet: Callable[..., AnyType], columns: list[str]) -> AnyType:
+        return snippet(self.input_module, self.input_slot, columns)
 
 stage_register["Snippet"] = SnippetW

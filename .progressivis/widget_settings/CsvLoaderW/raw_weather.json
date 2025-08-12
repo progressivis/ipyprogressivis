@@ -14,7 +14,6 @@
             "PrecipitationIn"
         ],
         "dtype": {
-            "Date": "str",
             "PrecipitationIn": "float64"
         },
         "engine": null,
