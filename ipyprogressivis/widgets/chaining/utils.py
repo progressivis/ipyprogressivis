@@ -80,13 +80,14 @@ def make_button(
         cb: Optional[Callable[..., AnyType]] = None,
         icon: str = "check",
         button_style: str = "",
+        tooltip: str = "",
         **kw: Any,
 ) -> ipw.Button:
     btn = ipw.Button(
         description=label,
         disabled=disabled,
         button_style=button_style,
-        tooltip=label,
+        tooltip=tooltip or label,
         icon=icon,
         **kw,
     )
