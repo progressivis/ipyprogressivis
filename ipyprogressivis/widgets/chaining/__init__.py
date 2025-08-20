@@ -20,6 +20,8 @@ from .snippet import SnippetW
 from .mc_density_map import MCDensityMapW
 from .knn_density import KNNDensityW
 from .tsne2d import TSNE2DW
+from .correlation import CorrelationW
+
 __all__ = [
     "Constructor",
     "DescStatsW",
@@ -39,5 +41,6 @@ __all__ = [
     "QuantilesW",
     "MCDensityMapW",
     "KNNDensityW",
-    "TSNE2DW"
+    "TSNE2DW",
+    "CorrelationW",
     ]
