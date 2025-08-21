@@ -9,6 +9,8 @@ from .utils import (
     runner,
     needs_dtypes,
     modules_producer,
+    GuestWidget,
+    disable_all,
     Coro,
 )
 import ipywidgets as ipw
@@ -93,6 +95,7 @@ class CorrelationW(VBoxTyped):
         corr.on_after_run(after_run)
         self.dag_running()
         self.make_leaf_bar(after_run)
+        return corr
 
     def _selection_cb(self, change: AnyType) -> None:
         self.child.start_btn.disabled = len(change["new"]) < 2
@@ -111,5 +114,8 @@ class CorrelationW(VBoxTyped):
         #self.make_chaining_box()
         self.manage_replay()
 
+    def provide_surrogate(self, title: str) -> GuestWidget:
+        disable_all(self)
+        return self
 
 stage_register["Corr"] = CorrelationW
