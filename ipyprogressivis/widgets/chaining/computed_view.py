@@ -13,17 +13,15 @@ from .utils import (
 )
 import ipywidgets as ipw
 import numpy as np
-import operator as op
 from inspect import signature
-import weakref
 from ..df_grid import DataFrameGrid
 import pandas as pd
 from progressivis.table.repeater import Repeater, Computed
 from progressivis.core.api import Sink, Module
 from progressivis.table.compute import (
     week_day,
-    UNCHANGED,
-    make_if_else,
+    # UNCHANGED,
+    # make_if_else,
     ymd_string,
     is_weekend,
     year,
@@ -60,7 +58,7 @@ UFUNCS: Dict[str, Callable[..., AnyType]] = {
     k: v for (k, v) in np.__dict__.items() if isinstance(v, np.ufunc) and v.nin == 1
 }
 
-ALL_FUNCS = UFUNCS.copy()
+ALL_FUNCS: dict[str, Callable[..., AnyType]] = dict()  # UFUNCS.copy()
 
 ALL_FUNCS.update(
     {"week_day": week_day, "is_weekend": is_weekend,
@@ -144,7 +142,7 @@ class FuncW(ipw.VBox):
         return {row["Variable"].value: cname for (cname, row) in
                        self._col_var_map.df.iterrows()
                        if row["Variable"].value}
-
+"""
 class IfElseW(ipw.VBox):
     def __init__(self, main: "ComputedViewW") -> None:
         self._main = weakref.ref(main)
@@ -278,6 +276,7 @@ class IfElseW(ipw.VBox):
         ALL_FUNCS.update({name: np.vectorize(func)})
         assert self.main is not None
         self.main.c_.cols_funcs.c_.funcs.options = [""] + list(ALL_FUNCS.keys())
+"""
 
 layout_refresh = ipw.Layout(width='30px', height='30px')
 
@@ -302,7 +301,7 @@ class OptsBar(IpyHBoxTyped):
 class ComputedViewW(VBoxTyped):
     class Typed(TypedBase):
         opts: OptsBar
-        custom_funcs: ipw.Accordion
+        # custom_funcs: ipw.Accordion
         cols_funcs: ColsFuncs
         func_table: Optional[Union[ipw.Label, ipw.GridBox]]
         keep_stored: KeepStored
@@ -315,7 +314,7 @@ class ComputedViewW(VBoxTyped):
         self.c_.opts = OptsBar()
         wg: AnyType
         wg = self.c_.opts.c_.numpy_ufuncs = ipw.Checkbox(
-            value=True, description="Show Numpy universal functions", disabled=False, indent=False
+            value=False, description="Show Numpy universal functions", disabled=False, indent=False
         )
         wg.observe(self._numpy_ufuncs_cb, names="value")
         wg = self.c_.opts.c_.refresh_btn = make_button(
@@ -324,11 +323,11 @@ class ComputedViewW(VBoxTyped):
         )
         wg.observe(self._refresh_funcs_cb, names="value")
         self.c_.opts.c_.label = ipw.Label("Refresh custom function list")
-        self._if_else = IfElseW(self)
-        self.c_.custom_funcs = ipw.Accordion(
-            children=[self._if_else], selected_index=None
-        )
-        self.c_.custom_funcs.set_title(0, "Add If-Else expressions")
+        # self._if_else = IfElseW(self)
+        # self.c_.custom_funcs = ipw.Accordion(
+        #     children=[self._if_else], selected_index=None
+        # )
+        # self.c_.custom_funcs.set_title(0, "Add If-Else expressions")
         cols_t = [f"{c}:{t}" for (c, t) in self.dtypes.items()]
         col_list = list(zip(cols_t, self.dtypes.keys()))
         cols_funcs = ColsFuncs()

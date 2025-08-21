@@ -935,7 +935,6 @@ class ChainingMixin:
         prog_wg = ipw.IntProgress(
             description="Progress", min=0, max=1000, layout={"width": "100%"}
         )
-        print(self)
         mod_ = self._output_module
         if not isinstance(mod_, Module):
             mod_ = mod_.module  # i.e. mod_ is a Facade
