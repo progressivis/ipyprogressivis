@@ -112,4 +112,4 @@ class CorrelationW(VBoxTyped):
         self.manage_replay()
 
 
-stage_register["Corr-Cov"] = CorrelationW
+stage_register["Corr"] = CorrelationW

@@ -14,6 +14,14 @@ CUSTOM_WIDGETS = (  # these widgets are not exported well in html format
     "DumpPTableW",  # currently we prefer use instead the snapshot produced by image_to_html
     "HeatmapW",
     "AnyVegaW",
+    "HistogramW",
+    "ScatterplotW",
+    "MultiSeriesW",
+    "DescStatsW",
+    "FacadeCreatorW",
+    "CorrelationW",
+    "KNNDensityW",
+    "MCDensityMapW",
 )
 
 async def pre_save_impl(model: dict[str, Any], contents_manager: Any, **kwargs: Any) -> None:
