@@ -21,6 +21,10 @@ import { CellOutModel } from "./cell_out";
 import { VegaWidgetModel, VegaWidget } from "jupyter-vega/dist/index";
 import { KNNKernelModel, KNNKernelView } from "./knn_kernel";
 import { ContourDensityModel, ContourDensityView } from "./contour_density";
+import {
+  QualityVisualizationModel,
+  QualityVisualizationView
+} from "./quality_visualization";
 
 export {
   register_config_editor,
@@ -53,4 +57,6 @@ export {
   KNNKernelView,
   ContourDensityModel,
   ContourDensityView,
+  QualityVisualizationModel,
+  QualityVisualizationView,
 };

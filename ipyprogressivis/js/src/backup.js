@@ -1,5 +1,4 @@
 import { DOMWidgetModel, DOMWidgetView } from "@jupyter-widgets/base";
-import { new_id } from "./base";
 
 // See example.py for the kernel counterpart to this file.
 
