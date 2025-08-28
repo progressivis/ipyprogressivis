@@ -27,7 +27,8 @@ export class QualityVisualizationView extends widgets.DOMWidgetView {
   // Defines how the widget gets rendered into the DOM
   render () {
     this.id = 'quality-vis' + new_id();
-    this.el.innerHTML = '<div class = "quality-vis" style="width: 100%;"></div>';
+    this.el.id = this.id;
+    // this.el.innerHTML = '<div class = "quality-vis" style="width: 100%;"></div>';
     this.pbar = quality_pbar(this.el, this.model.get('width'), this.model.get('height'));
     // this.data_changed();
     // Observe changes in the value traitlet in Python, and define
@@ -54,7 +55,10 @@ function quality_pbar(parent, w, h) {
   let n = 0,
       width = w,
       height = h,
-      svg = d3.create("svg").attr("width", width).attr("height", height),
+      svg = d3.create("svg")
+        .classed("quality-vis", true)
+        .attr("width", width)
+        .attr("height", height),
       g = svg.append("g"),
       all_measures = {},
       all_polylines = {},
@@ -118,6 +122,12 @@ function quality_pbar(parent, w, h) {
           .attr("class", "qline")
           .attr("stroke", scheme[n]);
         all_elements[measure].append("title").text(measure);
+        svg.append("text")
+          .attr("x", 2)
+          .attr("y", 10*n+10)
+          .classed("qlabel", true)
+          .attr("fill", scheme[n])
+          .text(measure);
 
         n++;
       }
