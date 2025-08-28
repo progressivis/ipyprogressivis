@@ -1,7 +1,8 @@
+import time
 from typing import Dict
 
 import ipywidgets as widgets
-from traitlets import Unicode
+from traitlets import Unicode, Float
 from .. _frontend import NPM_PACKAGE, NPM_PACKAGE_RANGE
 
 # See js/src/quality.js for the frontend counterpart to this file.
@@ -29,12 +30,14 @@ class QualityVisualization(widgets.DOMWidget):
     # Version of the front-end module containing widget model
     _model_module_version = Unicode(NPM_PACKAGE_RANGE).tag(sync=True)
 
-    width = Unicode("100%").tag(sync=True)
-    height = Unicode("50px").tag(sync=True)
+    width = Float(300).tag(sync=True)
+    height = Float(50).tag(sync=True)
 
-    def update(self, measures: Dict[str, float]) -> None:
+    def update(self, measures: Dict[str, float], ts: float | None = None) -> None:
         """Update the visualization data.
 
         Add a list of measures, associating a string name to a float value
         """
-        self.send(dict(type="update", measures=measures))
+        if ts is None:
+            ts = time.perf_counter()
+        self.send(dict(type="update", timestamp=ts, measures=measures))

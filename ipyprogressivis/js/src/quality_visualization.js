@@ -4,22 +4,22 @@ import { new_id } from './base';
 import { elementReady } from './es6-element-ready';
 
 import * as d3 from 'd3';
+import "../css/quality_visualization.css";
 
 export class QualityVisualizationModel extends widgets.DOMWidgetModel {
     defaults() {
       return {
         ...super.defaults(),
-    _model_name: 'QualityVisualizationModel',
-    _view_name:  'QualityVisualizationView',
-    _model_module: 'jupyter-progressivis',
-    _view_module:  'jupyter-progressivis',
-    _model_module_version: '0.1.0',
-    _view_module_version: '0.1.0',
-    width: '100%',
-    height: '50px',
-    data: '{}',
-    };
-  }
+        _model_name: 'QualityVisualizationModel',
+        _view_name:  'QualityVisualizationView',
+        _model_module: 'jupyter-progressivis',
+        _view_module:  'jupyter-progressivis',
+        _model_module_version: '0.1.0',
+        _view_module_version: '0.1.0',
+        width: 300,
+        height: 50,
+      };
+    }
 }
 
 // Custom View. Renders the widget model.
@@ -28,7 +28,7 @@ export class QualityVisualizationView extends widgets.DOMWidgetView {
   render () {
     this.id = 'quality-vis' + new_id();
     this.el.innerHTML = '<div class = "quality-vis" style="width: 100%;"></div>';
-    this.pbar = quality_pbar(this.el, model.get_value('width'), model.get_value('height'));
+    this.pbar = quality_pbar(this.el, this.model.get('width'), this.model.get('height'));
     // this.data_changed();
     // Observe changes in the value traitlet in Python, and define
     // a custom callback.
@@ -38,15 +38,15 @@ export class QualityVisualizationView extends widgets.DOMWidgetView {
       if (ev.type != "update") {
         return;
       }
-      this.pbar.add(ev.measures);
+      this.pbar.add(ev.timestamp, ev.measures);
     });
   }
 
   size_changed () {
     let that = this;
     elementReady('#' + that.id).then(
-      () => this.pbar.width(model.get_value('width')),
-      this.pbar.height(model.get_value('height')))
+      () => this.pbar.width(this.model.get('width')),
+      this.pbar.height(this.model.get('height')))
   }
 }
 
@@ -59,8 +59,8 @@ function quality_pbar(parent, w, h) {
       all_measures = {},
       all_polylines = {},
       all_scales = {},
-      min_ts = 0,
-      max_ts = 0,
+      min_ts = Number.POSITIVE_INFINITY,
+      max_ts = Number.NEGATIVE_INFINITY,
       all_elements = {},
       decimate_threshold = width;
 
@@ -100,10 +100,11 @@ function quality_pbar(parent, w, h) {
 
   function add(ts, measures) {
     max_ts = Math.max(max_ts, ts);
-    min_ts = min_ts == 0 ? ts : Math.min(min_ts, ts);
+    min_ts = Math.min(min_ts, ts);
     const xwidth = max_ts - min_ts,
-          xscale = xwidth < width ? 1 : width / xwidth;
-    g.attr("transform", `translate(${-min_ts}, ${height}) scale(${xscale}, -1)`);
+          xscale = xwidth == 0 ? 1 : width / xwidth;
+    g.attr("transform",
+           `scale(${round3(xscale)}, -1) translate(${round3(-min_ts)}, ${-height})`);
 
     for (const [measure, val] of Object.entries(measures)) {
       var scale;
@@ -114,7 +115,7 @@ function quality_pbar(parent, w, h) {
         scale = {xmin: ts, xmax: ts, ymin: val, ymax: val};
         all_scales[measure] = scale;
         all_elements[measure] = g.append("polyline")
-          .attr("class", "line")
+          .attr("class", "qline")
           .attr("stroke", scheme[n]);
         all_elements[measure].append("title").text(measure);
 
@@ -130,13 +131,13 @@ function quality_pbar(parent, w, h) {
       const ymin = scale.ymin,
             yheight = scale.ymax - ymin,
             yscale = yheight === 0 ? 1 : height / yheight;
-      decimate();
+      // decimate();
       all_measures[measure].push([ts, val]);
-      all_polylines[measure] += ` ${ts}, ${round3(val)}`;
+      all_polylines[measure] += ` ${round3(ts)}, ${round3(val)}`;
       all_elements[measure]
         .attr(
           "transform",
-          `translate(0, ${-ymin}) scale(1, ${round3(yscale)})`
+          `scale(1, ${round3(yscale)}) translate(0, ${round3(-ymin)})`
         )
         .attr("points", all_polylines[measure]);
     }
