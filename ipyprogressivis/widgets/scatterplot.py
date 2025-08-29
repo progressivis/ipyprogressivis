@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from progressivis.vis.mcscatterplot import MCScatterPlot
 WidgetType = AnyType
 
-DISPLAY_RATE = 40
+DISPLAY_RATE = 2
 
 # See js/lib/widgets.js for the frontend counterpart to this file.
 

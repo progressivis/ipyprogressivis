@@ -27,6 +27,8 @@ def pre_save_impl(model: dict[str, Any], contents_manager: Any, **kwargs: Any) -
         meta_cell = cell["metadata"]
         if not (pv_tag := meta_cell.get("progressivis_tag")):
             continue
+        if pv_tag not in outs:
+            continue
         prefix, b64_data = outs[pv_tag].split(",", 1)
         b64_data = add_snapshot_tag(b64_data)
         outs[pv_tag] = prefix + "," + b64_data

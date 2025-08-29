@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from playwright.async_api import async_playwright
@@ -7,9 +8,10 @@ from .hook_tools import add_snapshot_tag, add_snapshot_tag_from_bytes, parse_tag
 from typing import Any
 
 _html_exporter = None
-
+HERE = Path(os.path.dirname(os.path.abspath(__file__)))
 #  See: https://stackoverflow.com/questions/36125589/how-to-wait-for-task-created-by-create-task-to-complete
-
+CUSTOM_WIDGETS: list[str] = []
+"""
 CUSTOM_WIDGETS = (  # these widgets are not exported well in html format
     "DumpPTableW",  # currently we prefer use instead the snapshot produced by image_to_html
     "HeatmapW",
@@ -23,7 +25,7 @@ CUSTOM_WIDGETS = (  # these widgets are not exported well in html format
     "KNNDensityW",
     "MCDensityMapW",
 )
-
+"""
 async def pre_save_impl(model: dict[str, Any], contents_manager: Any, **kwargs: Any) -> None:
     """copy ProgressiVis snapshots to cells outputs before saving notebooks"""
     # only run on notebooks
@@ -48,6 +50,7 @@ async def pre_save_impl(model: dict[str, Any], contents_manager: Any, **kwargs: 
         html, resources = _html_exporter.from_filename(nb_fname)  # type: ignore
         with open(html_fname, 'w', encoding='utf-8') as f:
             f.write(html)
+        os.symlink(HERE / "nbextension"/ "index.js", tmpdir / "jupyter-progressivis.js")
         async with async_playwright() as p:
             browser_type = p.chromium  # or p.firefox or p.webkit
             browser = await browser_type.launch()

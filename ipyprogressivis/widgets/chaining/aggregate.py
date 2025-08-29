@@ -14,7 +14,7 @@ ALL_COLS = "__RECORD__"
 ALL_FNC_SET = set(Aggregate.registry.keys())
 
 type_op_mismatches: dict[str, set[str]] = dict(
-    string=ALL_FNC_SET-{"set", "uniq", "hide"},
+    string=ALL_FNC_SET-{"set", "nunique", "hide"},
     _=ALL_FNC_SET-{"count", "hide"}
 )
 
