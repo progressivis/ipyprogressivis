@@ -2,7 +2,7 @@ import json
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright  # type: ignore
 from nbconvert.exporters.html import HTMLExporter
 from .hook_tools import add_snapshot_tag, add_snapshot_tag_from_bytes, parse_tag, make_css_marker
 from typing import Any

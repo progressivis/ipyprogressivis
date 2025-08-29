@@ -1,0 +1,13 @@
+.quality-vis {
+  border: thin solid black;
+}
+
+.qline {
+  fill: none;
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke
+}
+
+.qlabel {
+  font-size: 10px;
+}
