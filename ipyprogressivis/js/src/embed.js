@@ -21,6 +21,11 @@ import {
   PlottingProgressBarModel,
   PlottingProgressBarView,
 } from "./sparkline_progressbar";
+import { DagWidgetModel, DagWidgetView } from "./dag_widget";
+import { BackupModel } from "./backup";
+import { TalkerModel } from "./talker";
+import { CellOutModel } from "./cell_out";
+import { VegaWidgetModel, VegaWidget } from "jupyter-vega/dist/index";
 import { KNNKernelModel, KNNKernelView } from "./knn_kernel";
 import { ContourDensityModel, ContourDensityView } from "./contour_density";
 import {
@@ -44,6 +49,13 @@ export {
   SparkLineProgressBarView,
   PlottingProgressBarModel,
   PlottingProgressBarView,
+  DagWidgetModel,
+  DagWidgetView,
+  VegaWidgetModel,
+  VegaWidget,
+  BackupModel,
+  TalkerModel,
+  CellOutModel,
   DataTableModel,
   DataTableView,
   SensitiveHTMLModel,

@@ -5,11 +5,13 @@ from ..csv_sniffer import CSVSniffer
 from progressivis.io.api import SimpleCSVLoader
 from progressivis.core.api import Module, Sink
 from progressivis.table.api import PTable, Constant
+from .custom import register_function
 from .utils import (
     make_button,
     get_schema,
     VBoxTyped,
     TypedBase,
+    IpyHBoxTyped,
     amend_last_record,
     is_recording,
     disable_all,
@@ -18,7 +20,8 @@ from .utils import (
     expand_urls,
     shuffle_urls,
     relative_urls,
-    modules_producer
+    modules_producer,
+    labcommand
 )
 import os
 import time
@@ -60,13 +63,40 @@ def make_filter(
 
     return filter_
 
-
 def test_filter(df: pd.DataFrame) -> pd.DataFrame:
     pklon = df["pickup_longitude"]
     pklat = df["pickup_latitude"]
     return df[(pklon > -74.08) & (pklon < -73.5)
               & (pklat > 40.55) & (pklat < 41.00)]
 
+def combine_filters(
+        fnc1: Callable[[pd.DataFrame], pd.DataFrame] | None,
+        fnc2: Callable[[pd.DataFrame], pd.DataFrame] | None
+) -> Callable[[pd.DataFrame], pd.DataFrame] | None:
+    if fnc1 and fnc2:
+        return lambda x: fnc2(fnc1(x))
+    if fnc1:
+        return fnc1
+    if fnc2:
+        return fnc2
+    return None
+
+
+
+
+layout_refresh = ipw.Layout(width='30px', height='30px')
+_ = register_function
+
+class SnippetBar(IpyHBoxTyped):
+    class Typed(TypedBase):
+        choice: ipw.Dropdown
+        refresh_btn: ipw.Button
+
+class UploadBar(IpyHBoxTyped):
+    class Typed(TypedBase):
+        label: ipw.Label
+        files: ipw.FileUpload
+        # run_cells: ipw.Checkbox
 
 class CsvLoaderW(VBoxTyped):
     class Typed(TypedBase):
@@ -78,6 +108,9 @@ class CsvLoaderW(VBoxTyped):
         shuffle_ck: ipw.Checkbox
         throttle: ipw.IntText
         sniffer: CSVSniffer | JsonEditorW | None
+        n_rows: ipw.IntText
+        upload: UploadBar
+        pre_proc: SnippetBar
         start_save: BtnBar
 
     def __init__(self) -> None:
@@ -151,7 +184,42 @@ class CsvLoaderW(VBoxTyped):
             "Sniff ...",
             cb=self._sniffer_cb
         )
-
+        self.c_.n_rows = ipw.IntText(
+            value=0, description="Stop after:", disabled=False
+        )
+        self.child.upload = UploadBar()
+        self.child.upload.child.label = ipw.Label("Upload snippets:")
+        up = self.child.upload.child.files = ipw.FileUpload(
+            accept='.py',
+            description="",
+            multiple=True  # True to accept multiple files upload else False
+        )
+        up.observe(self._upload_cb, names="value")
+        from .custom import CUSTOMER_FNC
+        self.child.pre_proc = SnippetBar()
+        self.child.pre_proc.child.choice = ipw.Dropdown(
+            description="Preprocessor:",
+            options=[""] + list(CUSTOMER_FNC.keys()),
+            value = ""
+        )
+        self.child.pre_proc.child.refresh_btn = make_button(
+            "", cb=self._refresh_btn_cb, disabled=False, icon="refresh",
+            layout=layout_refresh
+        )
+    def _refresh_btn_cb(self, btn: ipw.Button | None = None) -> None:
+        from .custom import CUSTOMER_FNC
+        self.child.pre_proc.child.choice.options = [""] + list(CUSTOMER_FNC.keys())
+    def _upload_cb(self, change: dict[str, Any]) -> None:
+        from .custom import CUSTOMER_FNC
+        _ = CUSTOMER_FNC
+        for item in change["new"]:
+            code = item.content.tobytes().decode()
+            exec(code, globals(),  globals())
+            labcommand("progressivis:create_code_cell",
+                       code=code,
+                       index=2,  # i.e. insert it after #root & co
+                       run=False)
+        self._refresh_btn_cb()
     def _reuse_cb(self, change: Dict[str, Any]) -> None:
         if change["new"]:
             self.c_.to_sniff = None
@@ -216,12 +284,14 @@ class CsvLoaderW(VBoxTyped):
         sniffed_params = content["sniffed_params"]
         schema = content["schema"]
         filter_ = content["filter_"]
+        filter_code = self.child.pre_proc.child.choice.value
         kw = dict(
             urls=urls,
             throttle=throttle,
             shuffle=shuffle,
             sniffed_params=sniffed_params,
             filter_=filter_,
+            filter_code=filter_code,
         )
         csv_module = self.init_modules(**kw)
         kw["schema"] = schema
@@ -294,6 +364,7 @@ class CsvLoaderW(VBoxTyped):
         assert self._sniffer is not None
         pv_params = self._sniffer.progressivis
         filter_ = pv_params.get("filter_values", {})
+        filter_code = self.child.pre_proc.child.choice.value
         throttle = self.c_.throttle.value
         shuffle = self.c_.shuffle_ck.value
         sniffed_params = clean_nodefault(self._sniffer.params)
@@ -304,6 +375,7 @@ class CsvLoaderW(VBoxTyped):
             sniffed_params=sniffed_params,
             schema=get_schema(self._sniffer),
             filter_=filter_,
+            filter_code=filter_code,
         )
         if is_recording():
             amend_last_record({"frozen": kw})
@@ -349,12 +421,14 @@ class CsvLoaderW(VBoxTyped):
         sniffed_params = content["sniffed_params"]
         schema = content["schema"]
         filter_ = content["filter_"]
+        filter_code = content.get("filter_code", "")
         csv_module = self.init_modules(
             urls=urls,
             throttle=throttle,
             shuffle=shuffle,
             sniffed_params=sniffed_params,
             filter_=filter_,
+            filter_code=filter_code,
         )
         self.output_module = csv_module
         self.output_slot = "result"
@@ -368,8 +442,11 @@ class CsvLoaderW(VBoxTyped):
         shuffle: bool = False,
         sniffed_params: Dict[str, Any] | None = None,
         filter_: Dict[str, Any] | None = None,
+        filter_code: str = "",
         **kw: Any
     ) -> SimpleCSVLoader:
+        filter_fnc = None
+        filter_fnc2 = None
         if urls is None:
             assert self._sniffer is not None
             urls = expand_urls(self._urls)
@@ -377,17 +454,20 @@ class CsvLoaderW(VBoxTyped):
             params = self._sniffer.params.copy()
             pv_params = self._sniffer.progressivis
             if "filter_values" in pv_params:
-                filter_fnc = make_filter(pv_params["filter_values"])
-                params["filter_"] = filter_fnc
+               filter_fnc = make_filter(pv_params["filter_values"])
+               #params["filter_"] = filter_fnc
             params["throttle"] = self.c_.throttle.value
         else:
             urls = expand_urls(urls)
             if filter_:
-                filter_ = dict(filter_=make_filter(filter_))
-            else:
-                filter_ = {}
+                filter_fnc = make_filter(filter_)
             assert sniffed_params is not None
-            params = dict(throttle=throttle, **sniffed_params, **filter_)
+            params = dict(throttle=throttle, **sniffed_params)
+        if filter_code:
+            from .custom import CUSTOMER_FNC
+            filter_fnc2 = CUSTOMER_FNC[filter_code]
+        if filter_impl := combine_filters(filter_fnc, filter_fnc2):
+            params["filter_"] = filter_impl
         if shuffle:
             urls = shuffle_urls(urls)
         imodule = self.input_module
@@ -396,9 +476,9 @@ class CsvLoaderW(VBoxTyped):
         with s:
             filenames = pd.DataFrame({"filename": urls})
             cst = Constant(PTable("filenames", data=filenames), scheduler=s)
+            #params["throttle"] = 100
             csv = SimpleCSVLoader(scheduler=s, **params)
             csv.input.filenames = cst.output[0]
             sink = Sink(scheduler=s)
             sink.input.inp = csv.output.result
             return csv
-

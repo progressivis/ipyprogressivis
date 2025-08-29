@@ -71,7 +71,6 @@ class MCDensityMapW(VBoxTyped):
 
     def __init__(self) -> None:
         super().__init__()
-        self.has_quantiles: bool = False
         self._last_display: int = 0
 
 
@@ -123,10 +122,6 @@ class MCDensityMapW(VBoxTyped):
         s = self.input_module.scheduler()
         self.child.image = Scatterplot()
         with s:
-            if self.has_quantiles:
-                pass
-            else:
-                pass
             heatmap = MCScatterPlot(scheduler=s, classes=ctx, approximate=True)
             heatmap.create_dependent_modules(self.input_module, self.input_slot)
             after_run = AfterRun()

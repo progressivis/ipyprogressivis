@@ -73,10 +73,8 @@ def _refresh_info(wg: Any) -> Callable[..., Any]:
 def refresh_info_hist(hout: Any, hmod: Any) -> None:
     if not hmod.result:
         return
-    # spec_with_data = spec_no_data.copy()
-    res = hmod.result.last().to_dict()
+    res = hmod.result
     hist = res["array"]
-    # bins = np.linspace(min_, max_, len(hist))
     source = pd.DataFrame({"nbins": range(len(hist)), "level": hist})
     hout.update("data", remove="true", insert=source)
 
@@ -208,16 +206,16 @@ class IScalerOut(ipw.HBox):
 
     def _info_label(self, k: str) -> ipw.Label:
         v = ""
-        if self._module._info:  # type:ignore
-            v = str(self._module._info.get(k, ""))  # type:ignore
+        if self._module.info:  # type:ignore
+            v = str(self._module.info.get(k, ""))  # type:ignore
         lab = ipw.Label(v)
         self.info_labels[k] = lab
         return lab
 
     def refresh_info(self) -> None:
-        if not self._module._info:  # type:ignore
+        if not self._module.info:  # type:ignore
             return
-        for k, v in self._module._info.items():  # type:ignore
+        for k, v in self._module.info.items():  # type:ignore
             lab = self.info_labels[k]
             lab.value = str(v)
         if self._module.result is None:  # type:ignore

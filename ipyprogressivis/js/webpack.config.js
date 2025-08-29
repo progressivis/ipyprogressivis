@@ -1,6 +1,6 @@
 var path = require('path');
 var version = require('./package.json').version;
-
+var webpack = require("webpack");
 // Custom webpack rules are generally the same for all webpack bundles, hence
 // stored in a separate local variable.
 var rules = [
@@ -42,7 +42,13 @@ module.exports = [
             rules: rules
         },
         externals: ['@jupyter-widgets/base'],
-        mode: 'production'
+        mode: 'production',
+	plugins: [ // see: https://github.com/browserify/node-util/issues/43
+	    // TODO: propose a PR for avoiding 'util' pkg use here: https://github.com/e-/Multiclass-Density-Maps/blob/master/src/assembly.ts#L6
+	    new webpack.DefinePlugin({
+		'process.env.NODE_DEBUG': JSON.stringify(process.env.NODE_DEBUG)
+	    })
+	]
     },
     {// Embeddable jupyter-progressivis bundle
      //
@@ -70,6 +76,11 @@ module.exports = [
             rules: rules
         },
         externals: ['@jupyter-widgets/base'],
-        mode: 'production'
+        mode: 'production',
+	plugins: [
+	    new webpack.DefinePlugin({
+		'process.env.NODE_DEBUG': JSON.stringify(process.env.NODE_DEBUG)
+	    })
+	]
     }
 ];
