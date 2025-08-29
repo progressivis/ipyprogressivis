@@ -53,6 +53,7 @@ export class QualityVisualizationView extends widgets.DOMWidgetView {
 
 function quality_pbar(parent, w, h) {
   let n = 0,
+      margin = 5,
       width = w,
       height = h,
       svg = d3.create("svg")
@@ -106,9 +107,9 @@ function quality_pbar(parent, w, h) {
     max_ts = Math.max(max_ts, ts);
     min_ts = Math.min(min_ts, ts);
     const xwidth = max_ts - min_ts,
-          xscale = xwidth == 0 ? 1 : width / xwidth;
+          xscale = xwidth == 0 ? 1 : (width - 2*margin) / xwidth;
     g.attr("transform",
-           `scale(${round3(xscale)}, -1) translate(${round3(-min_ts)}, ${-height})`);
+           `translate(${margin}, ${-margin}) scale(${round3(xscale)}, -1) translate(${round3(-min_ts)}, ${-height})`);
 
     for (const [measure, val] of Object.entries(measures)) {
       var scale;
@@ -140,7 +141,7 @@ function quality_pbar(parent, w, h) {
       }
       const ymin = scale.ymin,
             yheight = scale.ymax - ymin,
-            yscale = yheight === 0 ? 1 : height / yheight;
+            yscale = yheight === 0 ? 1 : (height - 2*margin) / yheight;
       // decimate();
       all_measures[measure].push([ts, val]);
       all_polylines[measure] += ` ${round3(ts)}, ${round3(val)}`;
