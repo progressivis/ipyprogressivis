@@ -18,10 +18,12 @@ def _jupyter_labextension_paths():
         from `src` directory into <jupyter path>/labextensions/<dest> directory
         during widget installation
     """
-    return [{
-        'src': 'labextension',
-        'dest': 'jupyter-progressivis',
-    }]
+    return [
+        {
+            "src": "labextension",
+            "dest": "jupyter-progressivis",
+        }
+    ]
 
 
 def _jupyter_nbextension_paths():
@@ -41,12 +43,14 @@ def _jupyter_nbextension_paths():
     require: Path to importable AMD Javascript module inside the
         <jupyter path>/nbextensions/<dest> directory
     """
-    return [{
-        'section': 'notebook',
-        'src': 'nbextension',
-        'dest': 'jupyter-progressivis',
-        'require': 'jupyter-progressivis/extension'
-    }]
+    return [
+        {
+            "section": "notebook",
+            "src": "nbextension",
+            "dest": "jupyter-progressivis",
+            "require": "jupyter-progressivis/extension",
+        }
+    ]
 
 
 def _jupyter_server_extension_points():
@@ -57,9 +61,10 @@ def _jupyter_server_extension_points():
     return [{"module": "ipyprogressivis.app"}]
 
 
-def pre_save(model, contents_manager,  **kwargs):
+def pre_save(model, contents_manager, **kwargs):
     from .pre_save_md import pre_save_md_impl
     from .pre_save import pre_save_impl
+
     log = contents_manager.log
     log.info("Starting pre_save ...")
     pre_save_md_impl(model, contents_manager, **kwargs)
@@ -67,11 +72,13 @@ def pre_save(model, contents_manager,  **kwargs):
     log.info("... end pre_save")
 
 
-def pre_save_x(model, contents_manager,  **kwargs):
+def pre_save_x(model, contents_manager, **kwargs):
     import nest_asyncio
+
     nest_asyncio.apply()
     from .pre_save_md import pre_save_md_impl
     from .pre_save_x import pre_save_impl
+
     log = contents_manager.log
     log.info("Starting pre_save_x ...")
     try:
@@ -83,11 +90,14 @@ def pre_save_x(model, contents_manager,  **kwargs):
     except Exception as exc:
         log.info(f"Pre-save hook failed: {type(exc)}, {exc.args}")
 
-def pre_save_md(model, contents_manager,  **kwargs):
+
+def pre_save_md(model, contents_manager, **kwargs):
     from .pre_save_md import pre_save_md_impl
+
     log = contents_manager.log
     log.info("Starting pre_save_md ...")
     pre_save_md_impl(model, contents_manager, **kwargs)
     log.info("... end pre_save_md")
+
 
 __all__ = ["__version__"]
