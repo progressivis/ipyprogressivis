@@ -188,7 +188,7 @@ class CsvLoaderW(VBoxTyped):
             value=0, description="Stop after:", disabled=False
         )
         self.child.upload = UploadBar()
-        self.child.upload.child.label = ipw.Label("Upload snippets:")
+        self.child.upload.child.label = ipw.Label("Upload filters:")
         up = self.child.upload.child.files = ipw.FileUpload(
             accept='.py',
             description="",

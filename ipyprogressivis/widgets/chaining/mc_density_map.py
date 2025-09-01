@@ -9,7 +9,9 @@ from .utils import (
     runner,
     GuestWidget,
     Coro,
-    modules_producer
+    modules_producer,
+    is_recording,
+    amend_last_record
 )
 import copy
 import pandas as pd
@@ -114,10 +116,13 @@ class MCDensityMapW(VBoxTyped):
             class_dict[row.Class.value][row.Axis.value] = row.Index.split(":")[0]
             class_dict[row.Class.value]["name"] = row.Class.value
         # TODO: check validity
-        self.init_heatmap(ctx=list(class_dict.values()))
+        if is_recording():
+            ctx = list(class_dict.values())
+            amend_last_record({"frozen": ctx})
+        self.init_map(ctx=ctx)
 
     @modules_producer
-    def init_heatmap(self, ctx: list[dict[str, AnyType]]) -> MCScatterPlot:
+    def init_map(self, ctx: list[dict[str, AnyType]]) -> MCScatterPlot:
         assert isinstance(self.input_module, Module)
         s = self.input_module.scheduler()
         self.child.image = Scatterplot()
@@ -139,7 +144,7 @@ class MCDensityMapW(VBoxTyped):
     @runner
     def run(self) -> AnyType:
         content = self.frozen_kw
-        self.output_module = self.init_heatmap(content)
+        self.output_module = self.init_map(content)
         self.output_slot = "result"
 
     def get_underlying_modules(self) -> list[object]:
