@@ -24,6 +24,21 @@ import {
 
 window.ndarray = ndarray;
 
+function serializeImgURL(imgURL, mgr) {
+  if (mgr.idEnd === undefined) {
+    return imgURL;
+  }
+  let end = mgr.idEnd;
+  let svgStr = $(`#Scatterplot${end} svg`).parent().html();
+  if (svgStr === undefined) {
+    return imgURL;
+  }
+  // make id template compatibles
+  svgStr.replace(`id="gaussianBlur${end}"`, 'id="gaussianBlur"');
+  svgStr.replace(`id="gaussianBlurElement${end}"`, 'id="gaussianBlurElement"');
+  return encodeURIComponent(svgStr);
+}
+
 export class ScatterplotModel extends widgets.DOMWidgetModel {
   defaults() {
     return {
@@ -37,27 +52,46 @@ export class ScatterplotModel extends widgets.DOMWidgetModel {
       hists: ndarray([]),
       samples: ndarray([]),
       data: "Hello Scatterplot!",
+      _img_url: "",
       value: "{0}",
       move_point: "{0}",
       modal: false,
       to_hide: [],
     };
   }
+
   static serializers = {
     ...widgets.DOMWidgetModel.serializers,
+    _img_url: { serialize: serializeImgURL },
     hists: data_union_serialization,
     samples: data_union_serialization,
   };
+  static model_name = "ScatterplotModel";
+  static model_module = "jupyter-progressivis";
+  static model_module_version = "0.1.0";
+  static view_name = "ScatterplotView";
+  static view_module = "jupyter-progressivis";
+  static view_module_version = "0.1.0";
 }
 
 // Custom View. Renders the widget model.
 export class ScatterplotView extends widgets.DOMWidgetView {
   // Defines how the widget gets rendered into the DOM
+
+  viewElement = null; //document.createElement("div");
   render() {
     this.id = "view_" + new_id();
     const scatterplot = Scatterplot(this);
     this.scatterplot = scatterplot;
-    this.scatterplot.template(this.el);
+    const imgURL = this.model.get("_img_url");
+    if (imgURL !== "" && imgURL !== "null") {
+      let svgShot = decodeURIComponent(imgURL);
+      this.scatterplot.template(this.el, svgShot);
+      this.model.set("_img_url", "null");
+    } else {
+      this.scatterplot.template(this.el);
+    }
+    this.model.idEnd = scatterplot.with_id("");
     let that = this;
     elementReady("#" + scatterplot.with_id("prevImages")).then(() =>
       scatterplot.ready(that),
@@ -69,7 +103,6 @@ export class ScatterplotView extends widgets.DOMWidgetView {
     this.model.on("change:data", this.data_changed, this);
   }
   data_changed() {
-    //console.log("data_changed");
     const val = this.model.get("data");
     this.scatterplot.update_vis(JSON.parse(val));
   }
@@ -129,16 +162,8 @@ function Scatterplot(ipyView) {
     d3.select(this).attr("cx", event.x).attr("cy", event.y);
   }
 
-  function template(element) {
-    let temp = document.querySelector("#Scatterplot");
-    if (temp === null) {
-      // Install the template as a dom template node
-      temp = document.createElement("template");
-      temp.setAttribute("id", "Scatterplot");
-      temp.innerHTML = `<!-- Tab panes -->
-  <div class="tab-content">
-    <div >
-      <div id=''>
+  function template(element, svgShot = null) {
+    let defaultSvg = `
         <svg>
           <filter id="gaussianBlur" width="100%" height="100%" x="0" y="0">
             <feGaussianBlur id="gaussianBlurElement" in="SourceGraphic" stdDeviation="0" />
@@ -149,6 +174,18 @@ function Scatterplot(ipyView) {
             </feComponentTransfer>
           </filter>
         </svg>
+    `;
+    let svgStuff = svgShot === null ? defaultSvg : svgShot;
+    let temp = document.querySelector("#Scatterplot");
+    if (temp === null) {
+      // Install the template as a dom template node
+      temp = document.createElement("template");
+      temp.setAttribute("id", "Scatterplot");
+      temp.innerHTML = `<!-- Tab panes -->
+  <div class="tab-content">
+    <div >
+      <div id=''>
+        <div>${svgStuff}</div>
         <br/>
         <div class="form-inline">
           <button class='btn btn-default' id='filter' type="button" aria-label='Filter button'>Filter to viewport</button>

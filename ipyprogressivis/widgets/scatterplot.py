@@ -50,6 +50,7 @@ class Scatterplot(DataWidget, widgets.DOMWidget):  # type: ignore
         sync=True, **_serialization
     )
     data = Unicode("{}").tag(sync=True)
+    _img_url = Unicode('null').tag(sync=True)
     value = Any("{}").tag(sync=True)
     move_point = Any("{}").tag(sync=True)
     modal = Bool(False).tag(sync=True)
