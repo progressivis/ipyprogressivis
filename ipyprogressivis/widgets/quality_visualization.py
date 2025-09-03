@@ -7,6 +7,7 @@ from .. _frontend import NPM_PACKAGE, NPM_PACKAGE_RANGE
 
 # See js/src/quality.js for the frontend counterpart to this file.
 
+
 @widgets.register
 class QualityVisualization(widgets.DOMWidget):
     """Quality visualization widget.
@@ -29,11 +30,12 @@ class QualityVisualization(widgets.DOMWidget):
     _view_module_version = Unicode(NPM_PACKAGE_RANGE).tag(sync=True)
     # Version of the front-end module containing widget model
     _model_module_version = Unicode(NPM_PACKAGE_RANGE).tag(sync=True)
-
     # width = CFloat(300).tag(sync=True)
     width = Any(300).tag(sync=True)
     # height = CFloat(50).tag(sync=True)
     height = Any(50).tag(sync=True)
+    # hack to save image in notebooks
+    _img_url = Unicode('null').tag(sync=True)
 
     def update(self, measures: Dict[str, float], ts: float | None = None) -> None:
         """Update the visualization data.
