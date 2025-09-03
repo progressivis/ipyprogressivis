@@ -8,7 +8,6 @@ from ipytablewidgets import (serialization,
                              SourceAdapter,
                              PandasAdapter,
                              TableType)
-from progressivis.table.api import BasePTable
 
 class ProgressiVisAdapter(SourceAdapter):
     """
@@ -63,6 +62,7 @@ class ContourDensity(widgets.DOMWidget):
     _df = TableType(None).tag(sync=True, **serialization)
 
     def update(self, df, remove=None, resize=True):
+        from progressivis.table.api import BasePTable
         if isinstance(df, BasePTable):
             self._df = ProgressiVisAdapter(df, touch_mode=True)
         else:
