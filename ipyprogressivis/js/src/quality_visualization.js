@@ -6,6 +6,19 @@ import { elementReady } from './es6-element-ready';
 import * as d3 from 'd3';
 import "../css/quality_visualization.css";
 
+
+function serializeImgURL(imgURL, mgr) {
+  if (mgr.idEnd === undefined) {
+    return imgURL;
+  }
+  let id = mgr.idEnd;
+  let svgStr = document.getElementById(id).getHTML();
+  if (svgStr === undefined) {
+    return imgURL;
+  }
+  return encodeURIComponent(svgStr);
+}
+
 export class QualityVisualizationModel extends widgets.DOMWidgetModel {
     defaults() {
       return {
@@ -18,8 +31,14 @@ export class QualityVisualizationModel extends widgets.DOMWidgetModel {
         _view_module_version: '0.1.0',
         width: 300,
         height: 50,
+        _img_url: "",
       };
     }
+
+  static serializers = {
+    ...widgets.DOMWidgetModel.serializers,
+    _img_url: { serialize: serializeImgURL },
+  };
 }
 
 // Custom View. Renders the widget model.
@@ -28,8 +47,16 @@ export class QualityVisualizationView extends widgets.DOMWidgetView {
   render () {
     this.id = 'quality-vis' + new_id();
     this.el.id = this.id;
-    // this.el.innerHTML = '<div class = "quality-vis" style="width: 100%;"></div>';
+    // If we only show a ghost from a saved notebook, insert the svg
+    const imgURL = this.model.get("_img_url");
+    if (imgURL !== "" && imgURL !== "null") {
+      let svgShot = decodeURIComponent(imgURL);
+      this.model.set("_img_url", "null");
+      this.el.innerHTML = svgShot;
+      return;
+    }
     this.pbar = quality_pbar(this.el, this.model.get('width'), this.model.get('height'));
+    this.model.idEnd = this.id;
     // this.data_changed();
     // Observe changes in the value traitlet in Python, and define
     // a custom callback.
