@@ -33,9 +33,6 @@ function serializeImgURL(imgURL, mgr) {
   if (svgStr === undefined) {
     return imgURL;
   }
-  // make id template compatibles
-  svgStr.replace(`id="gaussianBlur${end}"`, 'id="gaussianBlur"');
-  svgStr.replace(`id="gaussianBlurElement${end}"`, 'id="gaussianBlurElement"');
   return encodeURIComponent(svgStr);
 }
 
@@ -163,19 +160,30 @@ function Scatterplot(ipyView) {
   }
 
   function template(element, svgShot = null) {
-    let defaultSvg = `
-        <svg>
+    let defaultFilter = `
           <filter id="gaussianBlur" width="100%" height="100%" x="0" y="0">
-            <feGaussianBlur id="gaussianBlurElement" in="SourceGraphic" stdDeviation="0" />
+            <feGaussianBlur id="gaussianBlurElement" in="SourceGraphic" stdDeviation="0"/>
             <feComponentTransfer id="colorMap">
               <feFuncR type="table" tableValues="1 1 1"/>
               <feFuncG type="table" tableValues="0.93 0.001 0"/>
               <feFuncB type="table" tableValues="0.63 0.001 0"/>
             </feComponentTransfer>
           </filter>
+    `;
+    let svgStuff = `
+        <svg>
+         ${defaultFilter}
         </svg>
     `;
-    let svgStuff = svgShot === null ? defaultSvg : svgShot;
+    if (svgShot !== null) {
+      let f1 = svgShot.search("<filter");
+      let f2 = svgShot.search("<filter");
+      let offset = "<filter".length + 1;
+      svgStuff =
+        svgShot.substring(0, f1) +
+        defaultFilter +
+        svgShot.substring(f2 + offset);
+    }
     let temp = document.querySelector("#Scatterplot");
     if (temp === null) {
       // Install the template as a dom template node

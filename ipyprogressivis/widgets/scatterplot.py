@@ -10,7 +10,7 @@ import progressivis.core.aio as aio
 from .utils import data_union_serialization_compress
 from .. _frontend import NPM_PACKAGE, NPM_PACKAGE_RANGE
 import copy
-from typing import Any as AnyType, Sequence, TYPE_CHECKING, cast
+from typing import Any as AnyType, Sequence, TYPE_CHECKING, cast, Callable
 
 if TYPE_CHECKING:
     from progressivis import Module
@@ -59,7 +59,7 @@ class Scatterplot(DataWidget, widgets.DOMWidget):  # type: ignore
 
     def link_module(
         self, module: MCScatterPlot, refresh: bool = True
-    ) -> None:  # -> List[Coroutine[Any, Any, None]]:
+    ) -> Callable[[], None]:  # -> List[Coroutine[Any, Any, None]]:
         def _feed_widget(wg: WidgetType, m: MCScatterPlot) -> None:
             val = m.to_json()
             data_ = {
@@ -105,6 +105,8 @@ class Scatterplot(DataWidget, widgets.DOMWidget):  # type: ignore
         #     aio.create_task(module.move_point.from_input(self.move_point))
 
         # self.observe(from_input_move_point, "move_point")
+        def feed() -> None:
+            aio.create_task(asynchronize(_feed_widget, self, module))
 
         def awake(_val: Any) -> None:
             if module._json_cache is None or self.modal:
@@ -114,6 +116,7 @@ class Scatterplot(DataWidget, widgets.DOMWidget):  # type: ignore
             aio.create_task(asynchronize(_feed_widget, self, module))  # TODO: improve
 
         self.observe(awake, "modal")
+        return feed
 
     def __init__(self, *, disable: Sequence[Any] = tuple()):
         super().__init__()

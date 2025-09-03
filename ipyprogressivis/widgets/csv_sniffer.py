@@ -440,7 +440,9 @@ class CSVSniffer:
         assert self._df is not None
         names = [self.column[col].rename.value for col in self._df.columns]
         self._rename = names
+        self.params["names"] = names
         # print(f"Renames: {names}")
+        self.set_cmdline()
 
     def usecols_columns(self) -> None:
         assert self._df is not None

@@ -16,6 +16,7 @@ from progressivis.core.api import Sink, Module
 from progressivis.table.api import TableFacade
 from progressivis.core.utils import normalize_columns
 from progressivis.core import aio
+from progressivis.datasets import get_dataset
 from ipyprogressivis.hook_tools import make_css_marker, parse_tag
 import asyncio
 from ..csv_sniffer import CSVSniffer
@@ -238,6 +239,8 @@ def expand_urls(urls: list[str]) -> list[str]:
     for url in exp_urls:
         if url.startswith("http://") or url.startswith("https://"):
             res.extend(glob_url(url))
+        elif url.startswith("progressivis_dataset://"):
+            res.append(get_dataset(url.replace("progressivis_dataset://", "")))
         else:
             res.extend(glob(url))
     return res
@@ -671,6 +674,10 @@ class TreeTab(HandyTab):
         return self.upper.is_visible(self.known_as)
 
 
+def norm_rename_cols(sniffer: Any) -> list[str]:
+    return sniffer._rename or normalize_columns(sniffer._df.columns)
+
+
 def get_schema(sniffer: Sniffer) -> AnyType:
     params = sniffer.params
     usecols = params.get("usecols")
@@ -683,7 +690,7 @@ def get_schema(sniffer: Sniffer) -> AnyType:
 
     assert hasattr(sniffer, "_df")
     assert sniffer._df is not None
-    norm_cols = dict(zip(sniffer._df.columns, normalize_columns(sniffer._df.columns)))
+    norm_cols = dict(zip(sniffer._df.columns, norm_rename_cols(sniffer)))
     dtypes = {col: _ds(col, dt) for (col, dt) in sniffer._df.dtypes.to_dict().items()}
     for col, dt in retype.items():
         dtypes[col] = dt

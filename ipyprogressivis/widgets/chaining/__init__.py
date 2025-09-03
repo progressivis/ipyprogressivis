@@ -18,6 +18,7 @@ from .range_query_2d import RangeQuery2DW
 from .quantiles import QuantilesW
 from .snippet import SnippetW
 from .mc_density_map import MCDensityMapW
+from .mb_kmeans import MBKMeansW
 from .knn_density import KNNDensityW
 from .tsne2d import TSNE2DW
 from .correlation import CorrelationW
@@ -40,6 +41,7 @@ __all__ = [
     "RangeQuery2DW",
     "QuantilesW",
     "MCDensityMapW",
+    "MBKMeansW",
     "KNNDensityW",
     "TSNE2DW",
     "CorrelationW",
