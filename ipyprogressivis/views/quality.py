@@ -14,7 +14,7 @@ def display_quality(
 
     async def _after_run(m: Module, run_number: int) -> None:
         nonlocal last
-        now = m.timer()
+        now = m.last_time()
         if (now - last) < period:
             return
         last = now

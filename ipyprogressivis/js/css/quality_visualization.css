@@ -11,3 +11,13 @@
 .qlabel {
   font-size: 10px;
 }
+
+.qaxis line,
+.qaxis path {
+    stroke: black;
+}
+
+.qaxis text {
+    fill: black;
+    font-size: 8px;
+}

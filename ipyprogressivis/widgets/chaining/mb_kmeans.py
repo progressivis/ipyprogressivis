@@ -30,8 +30,10 @@ _l = ipw.Label
 
 MAX_DIM = 512
 
+
 class AfterRun(Coro):
     widget: Scatterplot | None = None
+
     async def action(self, m: Module, run_number: int) -> None:
         wg = self.widget
         assert wg is not None
@@ -50,7 +52,6 @@ class AfterRun(Coro):
         wg.data = JS.dumps(data_)  # type: ignore
 
 
-
 class MBKMeansW(VBoxTyped):
     class Typed(TypedBase):
         choice_x: ipw.Dropdown
@@ -60,7 +61,6 @@ class MBKMeansW(VBoxTyped):
         awake_btn: ipw.Button
         start_btn: ipw.Button
         image: Scatterplot
-
 
     def __init__(self) -> None:
         super().__init__()
@@ -80,7 +80,8 @@ class MBKMeansW(VBoxTyped):
     def initialize(self) -> None:
         self.output_dtypes = self.dtypes
         self.col_types = {k: str(t) for (k, t) in self.dtypes.items()}
-        self.col_typed_names = {f"{n}:{t}": (n, t) for (n, t) in self.col_types.items()}
+        self.col_typed_names = {f"{n}:{t}": (n, t)
+                                for (n, t) in self.col_types.items()}
         num_cols = [
             col
             for (col, (c, t)) in self.col_typed_names.items()
@@ -147,13 +148,13 @@ class MBKMeansW(VBoxTyped):
                                 batch_size=ctx["batch_size"], is_input=False,
                                 scheduler=s)
             sp = MCScatterPlot(scheduler=s,
-                                    classes=[('Scatterplot', _0, _1, mbkmeans)],  # type: ignore
-                                    approximate=True)
+                               classes=[('Scatterplot', _0, _1, mbkmeans)],  # type: ignore
+                               approximate=True)
             sp.create_dependent_modules(self.input_module, self.input_slot)
             sp['Scatterplot'].min_value.result.update({_0: -np.inf, _1: -np.inf})  # type: ignore
             sp['Scatterplot'].max_value.result.update({_0: np.inf, _1: np.inf})  # type: ignore
             mbkmeans.create_dependent_modules(sp['Scatterplot'].range_query_2d)  # type: ignore
-            sc.move_point = mbkmeans.dep.moved_center # for input management
+            sc.move_point = mbkmeans.dep.moved_center  # for input management
             after_run = AfterRun()
             after_run.widget = self.child.image
             self._awake = self.child.image.link_module(sp, refresh=False)
@@ -175,5 +176,6 @@ class MBKMeansW(VBoxTyped):
 
     def get_underlying_modules(self) -> list[object]:
         return []
+
 
 stage_register["MBKMeans"] = MBKMeansW
