@@ -230,8 +230,8 @@ export function shotCellAtIndex(notebook, cell, i, tag, delay) {
       notebook.model.sharedModel.setMetadata("progressivis_dag_png", png);
     });
   }
-  setTimeout(fun, delay);
-  setTimeout(fun2, delay);
+  //setTimeout(fun, delay);
+  //setTimeout(fun2, delay);
 }
 
 export function shotCell(nbtracker, tag, delay) {

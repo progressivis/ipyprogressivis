@@ -193,6 +193,8 @@ FSSPEC_HTTPS = fsspec.filesystem('https')
 
 LOADERS = {"CSV loader": "csv", "PARQUET loader": "parquet", "CUSTOM loader": "custom"}
 
+DO_SHOT = False
+
 SHOT_LATER: list[str] = []
 
 
@@ -209,9 +211,13 @@ def dot_progressivis() -> str:
     return ""
 
 def shot_later(name: str) -> None:
+    if not DO_SHOT:
+        return
     SHOT_LATER.append(name)
 
 def shot_cell_cmd(tag: str, delay: int = 3000) -> None:
+    if not DO_SHOT:
+        return
     if REPLAY_BATCH:
         return
     for name in SHOT_LATER:
@@ -230,7 +236,9 @@ def shot_cell(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
         assert isinstance(self_, GuestWidget)
         func(*args, **kwargs)
         shot_cell_cmd(tag=self_.carrier.title, delay=3000)
-    return wrapper
+    if DO_SHOT:
+        return wrapper
+    return func
 
 
 def expand_urls(urls: list[str]) -> list[str]:
@@ -573,8 +581,6 @@ def create_root(backup: BackupWidget) -> None:
         )
     loop = asyncio.get_event_loop()
     loop.create_task(_func())
-
-
 
 
 def set_dag(dag: DAGWidget) -> None:

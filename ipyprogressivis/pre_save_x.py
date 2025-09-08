@@ -36,7 +36,7 @@ async def pre_save_impl(model: dict[str, Any], contents_manager: Any, **kwargs: 
     if model['content']['nbformat'] != 4:
         return
     metadata = model["content"]["metadata"]
-    outs = metadata.get("progressivis_outs", [])
+    outs = metadata["progressivis_prev_outs"] = {}
     global _html_exporter
     if _html_exporter is None:
         _html_exporter = HTMLExporter(parent=contents_manager)  # type: ignore
@@ -94,7 +94,7 @@ async def pre_save_impl(model: dict[str, Any], contents_manager: Any, **kwargs: 
                         "image/png": b64_data
                     }
             await browser.close()
-            metadata["progressivis_prev_outs"] = metadata.get("progressivis_outs", [])
+            """
             if not (dag_png := metadata.get("progressivis_dag_png")):
                 return
             _, b64_data = dag_png.split(",", 1)
@@ -113,4 +113,4 @@ async def pre_save_impl(model: dict[str, Any], contents_manager: Any, **kwargs: 
                         "output_type": "display_data",
                         "metadata": {}
                     }
-
+            """
