@@ -29,10 +29,10 @@ MAX_DIM = 512
 class AfterRun(Coro):
     async def action(self, m: Module, run_number: int) -> None:
         assert isinstance(m, Heatmap)
-        image = m.get_image()
+        image = m.get_image_bin()
         assert self.leaf is not None
         if image is not None:
-            self.leaf.child.image.value = f"<img src='{image}'/>"  # type: ignore
+            self.leaf.child.image.value = image
 
 
 def make_float(
@@ -59,7 +59,7 @@ class HeatmapW(VBoxTyped):
         choice_trans: ipw.Dropdown
         gaussian_blur: ipw.IntSlider
         start_btn: ipw.Button
-        image: ipw.HTML
+        image: ipw.Image
 
     def __init__(self) -> None:
         super().__init__()
@@ -177,7 +177,7 @@ class HeatmapW(VBoxTyped):
         print("XY", ctx)
         #DIM = int(self.child.choice_dim.value)
         DIM = ctx["dim"]
-        self.child.image = ipw.HTML(value="")
+        self.child.image = ipw.Image(value=b"\x00")
         s = self.input_module.scheduler()
         query = quantiles = self.input_module
         with s:

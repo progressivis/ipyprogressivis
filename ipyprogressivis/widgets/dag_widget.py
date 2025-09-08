@@ -63,6 +63,7 @@ class DagWidgetController(widgets.DOMWidget):
     dag = Unicode("[]").tag(sync=True)
     attention_requests = Unicode("{}").tag(sync=True)
     summaries = Unicode("{}").tag(sync=True)
+    _img_url = Unicode('null').tag(sync=True)
 
     def __init__(self):
         super().__init__()
