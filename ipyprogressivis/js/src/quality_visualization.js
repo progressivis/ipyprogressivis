@@ -136,12 +136,12 @@ function quality_pbar(parent, w, h) {
           old_min = min_ts;
     max_ts = Math.max(max_ts, ts);
     min_ts = Math.min(min_ts, ts);
-    const x = d3.scalePow([Math.ceil(min_ts), Math.floor(max_ts)],
-                          [leftMargin, width-leftMargin-rightMargin])
+    const x = d3.scalePow([Math.floor(min_ts), Math.ceil(max_ts)],
+                          [leftMargin, width-rightMargin])
           .exponent(2);
     if (old_max != max_ts || old_min != min_ts) {
       const axis = d3.axisBottom(x)
-            .ticks(3)
+            .ticks(4)
             .tickFormat(seconds_formatter)
             .tickSizeInner(4);
       gx.call(axis);
@@ -153,7 +153,7 @@ function quality_pbar(parent, w, h) {
       if (all_measures[measure] === undefined) {
         const scheme = d3.schemeCategory10;
         all_measures[measure] = [];
-        scale = {xmin: ts, xmax: ts, ymin: val, ymax: val};
+        scale = {ymin: val, ymax: val};
         all_scales[measure] = scale;
         all_elements[measure] = g.append("polyline")
           .attr("class", "qline")
@@ -170,15 +170,13 @@ function quality_pbar(parent, w, h) {
       }
       else {
         scale = all_scales[measure];
-        scale.xmin = Math.min(scale.xmin, ts);
-        scale.xmax = Math.max(scale.xmax, ts);
         scale.ymin = Math.min(scale.ymin, val);
         scale.ymax = Math.max(scale.ymax, val);
       }
       const y = d3.scaleLinear([scale.ymin, scale.ymax],
-                               [height-topMargin-bottomMargin, topMargin]);
-      all_measures[measure].push([ts, val]);
+                               [height-bottomMargin, topMargin]);
       const measures = all_measures[measure];
+      measures.push([ts, val]);
       let polyline = "",
           prev_x;
       for (let i = 0; i < measures.length; ) {
