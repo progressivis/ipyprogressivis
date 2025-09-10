@@ -165,6 +165,7 @@ class HeatmapW(VBoxTyped):
         if is_recording():
             amend_last_record({"frozen": xy})
         self.init_heatmap(xy)
+        self.make_leaf_bar(self.after_run)
         btn.disabled = True
         self.child.choice_x.disabled = True
         self.child.choice_y.disabled = True
@@ -201,13 +202,13 @@ class HeatmapW(VBoxTyped):
             heatmap = Heatmap(scheduler=s)
             # Connect it to the histogram2d
             heatmap.input.array = histogram2d.output.result
+            self.histogram = histogram2d
             self._heatmap = heatmap
             self._heatmap.params.transform = int(ctx["trans"])
             self._heatmap.params.gaussian_blur = ctx["blur"]
-            after_run = AfterRun()
-            heatmap.on_after_run(after_run)  # Install the callback
+            self.after_run = AfterRun()
+            heatmap.on_after_run(self.after_run)  # Install the callback
             self.dag_running()
-            self.make_leaf_bar(after_run)
             return heatmap
 
     def provide_surrogate(self, title: str) -> GuestWidget:

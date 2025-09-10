@@ -64,6 +64,9 @@ PARAMS: Dict[str, AnyType] = {}
 HOME = os.getenv("HOME")
 assert HOME is not None
 
+
+QUAL_W = 512
+QUAL_H = 128
 ITRASH = 0
 IGUEST = 1
 BOX_SIZE = 2
@@ -163,7 +166,6 @@ def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
                 del widget_by_key[(obj_.label, obj_.number)]
         if not len(widget_by_key):
             enable_all(PARAMS["header"].constructor)
-    # print(sio.getvalue())
     vbox = ipw.VBox([ipw.HTML(sio.getvalue()),
                      ipw.HBox([make_button("Cancel", cb=_cancel),
                                make_button("Confirm", cb=_confirm, button_style="danger")])])
@@ -961,6 +963,19 @@ class ChainingMixin:
         mod_.on_after_run(_proc)
         return prog_wg
 
+    def _quality_bar(self) -> ipw.IntProgress:
+        from ipyprogressivis.views.quality import display_quality
+        scheduler = self._output_module.scheduler()
+        scheduler._update_modules()
+        modules = scheduler.modules()
+        managed_m = [m for (n, m) in modules.items() if n in self.managed_modules and "quality" in m.tags]
+        if not managed_m:
+            return
+        qv = display_quality(managed_m)
+        qv.width = QUAL_W
+        qv.height = QUAL_H
+        return qv
+
     def _make_progress_bar(self) -> ipw.VBox:
         prog_wg = self._progress_bar()
         return ipw.VBox([prog_wg])
@@ -992,9 +1007,11 @@ class ChainingMixin:
                 btn.disabled = True
 
         prog_wg = self._progress_bar()  # type: ignore
+        qual_wg = self._quality_bar()  # type: ignore
         sel.observe(_on_sel_change, names="value")
         chaining = ipw.HBox([sel, alias, btn])
-        return ipw.VBox([prog_wg, chaining])
+        children_ = [prog_wg, qual_wg, chaining] if qual_wg else [prog_wg, chaining]
+        return ipw.VBox(children_)
 
     def _make_replay_chaining_box(self: ChainingProtocol) -> ipw.Box:
         next_stage = replay_list.pop(0)
@@ -1445,12 +1462,29 @@ class NodeCarrier(NodeVBox):
             return
         self.children = (self.children[ITRASH], self.children[IGUEST], box)
 
+    def make_composed_bar(self, box):
+        from ipyprogressivis.views.quality import display_quality
+        scheduler = self._input_module.scheduler()
+        scheduler._update_modules()
+        modules = scheduler.modules()
+        managed_m = [m for (n, m) in modules.items() if n in self.managed_modules and "quality" in m.tags]
+        composed_bar = box
+        if managed_m:
+            qv = display_quality(managed_m)
+            qv.width = QUAL_W
+            qv.height = QUAL_H
+            wg_list = [box, qv]
+            composed_bar = ipw.VBox(wg_list)
+        self.children = (self.children[ITRASH], self.children[IGUEST], composed_bar)
+
     def make_leaf_bar(self, coro_obj: "Coro") -> None:
-        self.children = (self.children[ITRASH], self.children[IGUEST], coro_obj.bar)
+        self.make_composed_bar(coro_obj.bar)
 
     def make_progress_bar(self) -> None:
+        "used in post_run()"
         box = self._make_progress_bar()
-        self.children = (self.children[ITRASH], self.children[IGUEST], box)
+        self.make_composed_bar(box)
+        #self.children = (self.children[ITRASH], self.children[IGUEST], box)
 
     @property
     def guest(self) -> GuestWidget:

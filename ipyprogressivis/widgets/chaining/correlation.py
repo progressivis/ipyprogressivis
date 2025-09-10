@@ -75,6 +75,7 @@ class CorrelationW(VBoxTyped):
     def run(self) -> AnyType:
         content = self.frozen_kw
         self.output_module = self.init_corr(content)
+        self.make_leaf_bar(self.after_run)
         self.output_slot = "result"
 
     @modules_producer
@@ -91,10 +92,9 @@ class CorrelationW(VBoxTyped):
             self.output_slot = "result"
             self.output_dtypes = None
         self.child.vega = VegaWidget(spec=corr_spec_no_data)
-        after_run = AfterRun()
+        self.after_run = after_run = AfterRun()
         corr.on_after_run(after_run)
         self.dag_running()
-        self.make_leaf_bar(after_run)
         return corr
 
     def _selection_cb(self, change: AnyType) -> None:
@@ -108,6 +108,7 @@ class CorrelationW(VBoxTyped):
         if is_recording():
             amend_last_record({"frozen": content})
         self.output_module = self.init_corr(content)
+        self.make_leaf_bar(self.after_run)
         btn.disabled = True
         self.child.selection.disabled = True
         #self.dag_running()
