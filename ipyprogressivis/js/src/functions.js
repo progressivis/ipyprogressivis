@@ -48,7 +48,8 @@ function installDagCanvas(container, extId) {
         //
         var field = container.append('fieldset').attr("style", "width:300px");
         field.append('legend').text('Widget Dag ');
-        var verticalBar = field.append('div').attr('style', 'margin-inline-start: 1rem;');
+  // var verticalBar =
+        field.append('div').attr('style', 'margin-inline-start: 1rem;');
         //
         field.append('div')
             .html(`
@@ -83,7 +84,8 @@ function installDagCanvas(container, extId) {
         // verticalBar.append('i').attr('class', "fa fa-trash-o").attr('aria-hidden', 'true').attr('style', 'cursor: pointer; ');
         //
         var borderDiv = field.append('div').attr('style', 'border: 1px solid grey;');
-        var svg = borderDiv
+        // var svg =
+        borderDiv
             .append('div')
             .append('svg')
             .attr('id', 'dagCanvas'+extId)

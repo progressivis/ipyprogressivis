@@ -53,11 +53,11 @@ export class ModuleGraphView extends widgets.DOMWidgetView {
   }
 }
 
-function eqSet(as, bs) {
-    if (as.size !== bs.size) return false;
-    for (var a of as) if (!bs.has(a)) return false;
-    return true;
-}
+// function eqSet(as, bs) {
+//     if (as.size !== bs.size) return false;
+//     for (var a of as) if (!bs.has(a)) return false;
+//     return true;
+// }
 
 function module_graph(view) {
   const id = view.id;
@@ -99,7 +99,7 @@ function module_graph(view) {
       .attr('stroke-width', '0px')
       .attr('fill', '#000');
 
-      function zoom(event, d) {
+      function zoom(event) {
       vis.attr('transform', event.transform);
     }
   }
@@ -148,6 +148,7 @@ function module_graph(view) {
   }
 
   function graph_update_vis(modules, firstTime) {
+    firstTime  // to avoid an eslint warning
     const nodes = _.map(modules, (module, index) => ({
       id: index,
       name: module.id,
@@ -256,7 +257,8 @@ function module_graph(view) {
 
         d3cola.prepareEdgeRouting(margin / 3);
 
-        const link = vis.selectAll('.link')
+        // const link =
+        vis.selectAll('.link')
               .data(edges, (d) => d.id)
               .attr('d', (d) => lineFunction(d3cola.routeEdge(d)));
       };

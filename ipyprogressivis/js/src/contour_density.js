@@ -38,6 +38,7 @@ import { new_id } from "./base";
 import { elementReady } from "./es6-element-ready";
 import $ from "jquery";
 import { table_serialization, rowProxy } from "jupyter-tablewidgets";
+const ndarray = require("ndarray");
 
 function translate(x, y) {
   return "translate(" + x + "," + y + ")";

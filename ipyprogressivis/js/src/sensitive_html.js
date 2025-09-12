@@ -2,7 +2,7 @@ import * as widgets from '@jupyter-widgets/base';
 import $ from 'jquery';
 import { elementReady } from './es6-element-ready';
 import { new_id } from './base';
-require('sorttable');
+const sorttable = require('sorttable');
 
 export class SensitiveHTMLModel extends widgets.DOMWidgetModel {
     defaults() {

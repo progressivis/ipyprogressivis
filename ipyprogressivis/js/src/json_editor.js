@@ -41,6 +41,7 @@ export class JsonEditorView extends widgets.DOMWidgetView {
             { contentErrors, patchResult },
           ) => {
             // content is an object { json: unknown } | { text: string }
+            previousContent, contentErrors, patchResult  // ignore
             if (updatedContent.text !== undefined) {
               // seems to be always true
               this.model.set("data", JSON.parse(updatedContent.text));
