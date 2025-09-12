@@ -1,6 +1,5 @@
 //'use strict';
 import * as widgets from "@jupyter-widgets/base";
-import _ from "lodash";
 import $ from "jquery";
 import { new_id } from "./base";
 import { elementReady } from "./es6-element-ready";
@@ -148,7 +147,7 @@ function Scatterplot(ipyView) {
     return s(with_id(id));
   }
 
-  function multiclass2d_dragstart(event, d) {
+  function multiclass2d_dragstart(event) {
     event.sourceEvent.stopPropagation();
     d3.select(this).classed("dragging", true);
   }
@@ -490,7 +489,7 @@ function Scatterplot(ipyView) {
     zoomable.attr("transform", transform);
     svg.selectAll(".dot").attr("r", 3.5 / transform.k);
   }
-  function multiclass2d_zoomed_handler(event, d) {
+  function multiclass2d_zoomed_handler(event) {
     multiclass2d_zoomed_impl(event.transform);
   }
   function delta(d) {

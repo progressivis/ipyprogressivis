@@ -1,9 +1,9 @@
-import { INotebookTracker, NotebookActions } from "@jupyterlab/notebook";
+import { NotebookActions } from "@jupyterlab/notebook";
 import * as htmlToImage from "html-to-image";
 import $ from "jquery";
 
 export function progressivisTemplate(app, res, data, browser) {
-  const content = res.json();
+  // const content = res.json();
   const { path } = browser.tracker.currentWidget.model;
   const ext = "ipynb";
   return new Promise((resolve) => {
@@ -73,7 +73,7 @@ export function progressivisCleanup(app, nbtracker) {
 
 export function removeTaggedCells(nbtracker, tag) {
   // only cells having progressivis_tag === tag are deleted
-  var tag = tag.toString();
+  tag = tag.toString();
   var crtWidget = nbtracker.currentWidget;
   var notebook = crtWidget.content;
   let toDelete = [];
@@ -147,13 +147,13 @@ export function setRootBackup(nbtracker, backupstring) {
 export function createStageCells(nbtracker, tag, tag_class, md, code, rw, run) {
   var crtWidget = nbtracker.currentWidget;
   var notebook = crtWidget.content;
-  var tag = tag.toString();
+  tag = tag.toString();
   let i = -1;
   notebook.widgets.forEach(function (cell) {
     if (cell.model.metadata.progressivis_tag === tag) {
       cell.model.sharedModel.setMetadata("deletable", true);
       cell.model.sharedModel.setMetadata("editable", true);
-      let i = notebook.widgets.findIndex((x) => x == cell);
+      i = notebook.widgets.findIndex((x) => x == cell);
     }
   });
   if (i < 0) {
@@ -179,7 +179,7 @@ export function createStageCells(nbtracker, tag, tag_class, md, code, rw, run) {
     source: code,
   });
   notebook.activeCellIndex = i + 1;
-  var cell = notebook.widgets[i + 1];
+  cell = notebook.widgets[i + 1];
   if (run) {
     NotebookActions.run(notebook, crtWidget.sessionContext);
   }
@@ -213,26 +213,29 @@ export function runCellAt(nbtracker, ix) {
   NotebookActions.run(notebook, crtWidget.sessionContext);
 }
 
+/* eslint-disable no-unused-vars */
 export function shotCellAtIndex(notebook, cell, i, tag, delay) {
+  
   let prevOuts = notebook.model.metadata.progressivis_outs || {};
-  function fun() {
-    let pvWidget = $(cell.outputArea.node)
-      .find($(".progressivis_guest_widget"))
-      .first()[0];
-    if (pvWidget === undefined) return; // already an image
-    htmlToImage.toPng(pvWidget).then((png) => {
-      prevOuts[tag] = png;
-      notebook.model.sharedModel.setMetadata("progressivis_outs", prevOuts);
-    });
-  }
-  function fun2() {
-    htmlToImage.toPng($("[id^='dag_widget_']")[0]).then((png) => {
-      notebook.model.sharedModel.setMetadata("progressivis_dag_png", png);
-    });
-  }
+  // function fun() {
+  //   let pvWidget = $(cell.outputArea.node)
+  //     .find($(".progressivis_guest_widget"))
+  //     .first()[0];
+  //   if (pvWidget === undefined) return; // already an image
+  //   htmlToImage.toPng(pvWidget).then((png) => {
+  //     prevOuts[tag] = png;
+  //     notebook.model.sharedModel.setMetadata("progressivis_outs", prevOuts);
+  //   });
+  // }
+  // function fun2() {
+  //   htmlToImage.toPng($("[id^='dag_widget_']")[0]).then((png) => {
+  //     notebook.model.sharedModel.setMetadata("progressivis_dag_png", png);
+  //   });
+  // }
   //setTimeout(fun, delay);
   //setTimeout(fun2, delay);
 }
+/* eslint-enable no-unused-vars */
 
 export function shotCell(nbtracker, tag, delay) {
   var crtWidget = nbtracker.currentWidget;

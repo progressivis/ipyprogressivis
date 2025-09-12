@@ -1,12 +1,12 @@
 //'use strict';
 import * as widgets from "@jupyter-widgets/base";
-import _ from "lodash";
 import $ from "jquery";
 import { new_id } from "./base";
 import { elementReady } from "./es6-element-ready";
 import * as colormaps from "./colormaps";
 import * as d3 from "d3";
 import History from "./history";
+const ndarray = require("ndarray");
 import "../css/scatterplot.css";
 
 const DEFAULT_SIGMA = 0;
@@ -71,7 +71,6 @@ function PrevImages(ipyView) {
   let firstTime = true;
   let zoomable;
   let svg;
-  let bounds = null;
   const imageHistory = new History(MAX_PREV_IMAGES);
   function with_id(prefix) {
     return prefix + "_" + id;
@@ -152,7 +151,7 @@ function PrevImages(ipyView) {
   function _update_vis(target) {
     let targetP = "." + target;
     let targetCanvas = targetP + " canvas";
-    let targetSvg = targetP + " svg";
+    // let targetSvg = targetP + " svg";
     elementReady(targetCanvas).then((that) => {
       if (firstTime) {
         let w = $(targetCanvas).first().attr("width");
@@ -273,7 +272,7 @@ function PrevImages(ipyView) {
     makeOptions(colorMapSelect.get(0), colormaps.getTableNames());
     colormaps.makeTableFilter(colorMap, "Default");
   }
-  function _ready(t) {}
+  function _ready() {}
   return {
     ready: _ready,
     update_vis: _update_vis,

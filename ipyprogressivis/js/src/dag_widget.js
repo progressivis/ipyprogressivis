@@ -28,6 +28,7 @@ import "../css/main.css";
 //import { DOMWidgetModel, DOMWidgetView } from '@jupyter-widgets/base';
 import * as widgets from "@jupyter-widgets/base";
 import * as d3 from "d3";
+import $ from 'jquery';
 import { installInterface } from "./functions";
 import { elementReady } from "./es6-element-ready";
 import { new_id } from "./base";
@@ -89,13 +90,10 @@ export class DagWidgetView extends widgets.DOMWidgetView {
     this.id = "dag_widget_" + new_id();
     this.model.dagId = this.id;
     this.el.innerHTML = `<div id="${this.id}" width="960" height="500"></div>`;
-    const that = this;
     elementReady("#" + this.id).then(() => {
       var mainDiv = d3.select("#" + this.id);
       installInterface(mainDiv, "_" + this.id);
-      try {
-        d3.select("#" + this.id).show();
-      } catch (err) {}
+      d3.select("#" + this.id).show();
     });
     this.value_changed();
 
@@ -170,7 +168,8 @@ export class DagWidgetView extends widgets.DOMWidgetView {
       internalBody.append("label").text("Operation");
       internalBody.append("label").text("Value");
       //
-      var variableSelect = internalBody
+      // var variableSelect =
+      internalBody
         .append("select")
         .attr("id", "dialogSelectVariable" + extId)
         .html(`<option value="">Variable</option>
@@ -181,7 +180,8 @@ export class DagWidgetView extends widgets.DOMWidgetView {
             <option value="spider" class="varOption">Spider</option>
             <option value="goldfish" class="varOption">Goldfish</option>`);
 
-      var opSelect = internalBody
+      // var opSelect =
+      internalBody
         .append("select")
         .attr("id", "dialogSelectOperation" + extId)
         .html(`<option value="">Operation</option>
@@ -189,7 +189,8 @@ export class DagWidgetView extends widgets.DOMWidgetView {
 <option value="lt"> <  </option>
 <option value="gt"> > </option>`);
 
-      var valueInput = internalBody
+      // var valueInput =
+      internalBody
         .append("input")
         .attr("id", "dialogValueInput" + extId)
         .attr("type", "number")
@@ -285,11 +286,11 @@ export class DagWidgetView extends widgets.DOMWidgetView {
     //if there is at least one attention request for _id
     if (_id in attentionRequests) {
       var attRequests = attentionRequests[_id];
-      for (var key in mapTypeID) {
+      for (const key in mapTypeID) {
         var description = "";
         if (key in attRequests && "description" in attRequests[key])
           description = attRequests[key]["description"];
-        var labelID = mapTypeID[key];
+        const labelID = mapTypeID[key];
         d3.select("#" + labelID).text(description);
       }
     }
@@ -297,8 +298,8 @@ export class DagWidgetView extends widgets.DOMWidgetView {
     //this means that there is no attention request left
     //and so we need to update the interface
     else if (this.selectedWidget == _id) {
-      for (var key in mapTypeID) {
-        var labelID = mapTypeID[key];
+      for (const key in mapTypeID) {
+        const labelID = mapTypeID[key];
         d3.select("#" + labelID).text("");
       }
     }
@@ -312,7 +313,7 @@ export class DagWidgetView extends widgets.DOMWidgetView {
     }
 
     //show status
-    // var summaries = JSON.parse(this.model.get('summaries'));
+     var summaries = JSON.parse(this.model.get('summaries'));
     // for (var key in summaries) {
     //     d3.select('#dagCanvas')
     //         .select('#nD' + key)
@@ -334,10 +335,12 @@ export class DagWidgetView extends widgets.DOMWidgetView {
         var currentValue = summaries[widgetID][safeguard["var"]];
         if (eval(`${currentValue} ${safeguard["opr"]} ${safeguard["thr"]}`)) {
           //safeguard satisfied
-          var circle = d3.select("#nD" + widgetID);
-          var x = circle.attr("cx");
-          var y = circle.attr("cy");
-          var r = circle.attr("r");
+          // var circle = d3.select("#nD" + widgetID);
+          // var x = circle.attr("cx");
+          // var y = circle.attr("cy");
+          // var r = circle.attr("r");
+          // TODO do something
+          
         }
       }
     }
@@ -391,7 +394,7 @@ export class DagWidgetView extends widgets.DOMWidgetView {
     }
     //
     const dag = d3.dagStratify()(_dag);
-    const nodeRadius = 15;
+    // const nodeRadius = 15;
     const rectW = 70;
     const rectH = 15;
     //
@@ -405,7 +408,8 @@ export class DagWidgetView extends widgets.DOMWidgetView {
       });
 
     //(node) => [(node ? 3.6 : 0.25) * nodeRadius, 3 * nodeRadius]); // set node size instead of constraining to fit
-    const { width, height } = layout(dag);
+    // const { width, height } =
+    layout(dag);
 
     const line = d3
       .line()
@@ -434,7 +438,7 @@ export class DagWidgetView extends widgets.DOMWidgetView {
       .append("g")
       .attr("id", (d) => "gnD" + d.data.id)
       .attr("transform", ({ x, y }) => `translate(${x}, ${y})`)
-      .on("mouseover", function (e) {
+      .on("mouseover", function () {
         d3.select(this).select("rect").attr("stroke-width", 5);
         console.log("hover");
         //
@@ -489,7 +493,8 @@ export class DagWidgetView extends widgets.DOMWidgetView {
             .text((d) => d);
 
           //
-          var menu = d3
+          // var menu =
+          d3
             .select("#safeGuardMenu" + extId)
             .style("visibility", "visible")
             .style("left", e.pageX + "px")
@@ -614,14 +619,14 @@ export class DagWidgetView extends widgets.DOMWidgetView {
           if (numRequests > 1) {
             return colorScale("MULTIPLE");
           } else {
-            var attentionRequests = that._attRqs;
+            attentionRequests = that._attRqs;
 
             if (that.selectedWidget == _id) {
               that.fillDetails(_id);
             }
 
             if (_id in attentionRequests) {
-              var attRequests = attentionRequests[_id];
+              attRequests = attentionRequests[_id];
               //
               var attRequest = undefined;
               var requestTypes = colorScale.domain();
@@ -674,5 +679,6 @@ export class DagWidgetView extends widgets.DOMWidgetView {
 }
 
 function importDag() {
+  // eslint-disable-next-line no-import-assign
   d3 = Object.assign(d3 || {}, d3_dag);
 }

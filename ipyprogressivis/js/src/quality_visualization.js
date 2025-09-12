@@ -12,7 +12,7 @@ function serializeImgURL(imgURL, mgr) {
     return imgURL;
   }
   let id = mgr.idEnd;
-  let svgStr = document.getElementById(id).getHTML();
+  let svgStr = document.getElementById(id).parentElement.getHTML();
   if (svgStr === undefined) {
     return imgURL;
   }
@@ -45,18 +45,20 @@ export class QualityVisualizationModel extends widgets.DOMWidgetModel {
 export class QualityVisualizationView extends widgets.DOMWidgetView {
   // Defines how the widget gets rendered into the DOM
   render () {
-    this.id = 'quality-vis' + new_id();
-    this.el.id = this.id;
+    this.id = "quality_vis_" + new_id();
     // If we only show a ghost from a saved notebook, insert the svg
     const imgURL = this.model.get("_img_url");
     if (imgURL !== "" && imgURL !== "null") {
       let svgShot = decodeURIComponent(imgURL);
       this.model.set("_img_url", "null");
       this.el.innerHTML = svgShot;
+      // Maybe remove the svg id to avoid clashes.
+      // d3.select(this.el).select("svg").attr("id", null);
       return;
     }
-    this.pbar = quality_pbar(this.el, this.model.get('width'), this.model.get('height'));
+    this.pbar = quality_pbar(this, this.model.get('width'), this.model.get('height'));
     this.model.idEnd = this.id;
+    this.el.append(this.pbar.svg());
     // this.data_changed();
     // Observe changes in the value traitlet in Python, and define
     // a custom callback.
@@ -87,51 +89,52 @@ function _format_seconds(ts, formater) {
   });
 }
 
-function quality_pbar(parent, w, h) {
+function quality_pbar(view, w, h) {
   let n = 0,
       topMargin = 5,
       bottomMargin = 20,
       leftMargin = 5,
       rightMargin = 5,
-      width = w,
-      height = h,
       decimate_threshold = 2, // min distance between two visible points
       min_ts = Number.POSITIVE_INFINITY,
       max_ts = Number.NEGATIVE_INFINITY;
-  const svg = d3.create("svg")
-        .classed("quality-vis", true)
-        .attr("width", width)
-        .attr("height", height),
-      g = svg.append("g"),
-      gx = svg.append("g")
-        .attr("transform", `translate(0, ${height-bottomMargin})`),
+  const id = view.id,
+        svg = d3.create("svg")
+          .attr("id", id)
+          .classed("quality-vis", true)
+          .attr("width", w)
+          .attr("height", h),
+        g = svg.append("g"),
+        gx = svg.append("g")
+          .classed("qaxis", true),
       all_measures = {},
       all_scales = {},
       all_elements = {},
       durationFormat = new Intl.DurationFormat("en", {style: "digital"}),
       seconds_formatter = ((ts) => _format_seconds(ts - min_ts, durationFormat));
 
-  parent.append(svg.node());
 
-   quality_pbar.max_ts = function(_) {
+  function _svg() { return svg.node(); }
+
+  function _max_ts(_) {
      return arguments.length ? max_ts = +_ : max_ts;
-   };
+  }
 
-  quality_pbar.width = function(_) {
-    return arguments.length ? width = _ & svg.attr("width", width) : width;
-  };
-  quality_pbar.height = function(_) {
-    return arguments.length ? height = _ & svg.attr("height", height) : height;
-  };
-  quality_pbar.decimate_threshold = function(_) {
+  function _width(_) {
+    return arguments.length ? svg.attr("width", _) : parseInt(svg.style("width"), 10);
+  }
+  function _height(_) {
+    return arguments.length ? svg.attr("height", _) : parseInt(svg.style("height"), 10);
+  }
+  
+  function _decimate_threshold(_) {
     return arguments.length ? decimate_threshold = +_ : decimate_threshold;
   }
 
-  // function round3(x) {
-  //   return Math.round(x * 1000) / 1000;
-  // }
-
   function add(ts, measures) {
+    const width = _width(),
+          height = _height();
+
     const old_max = max_ts,
           old_min = min_ts;
     max_ts = Math.max(max_ts, ts);
@@ -144,8 +147,8 @@ function quality_pbar(parent, w, h) {
             .ticks(4)
             .tickFormat(seconds_formatter)
             .tickSizeInner(4);
-      gx.call(axis);
-      gx.classed("qaxis");
+      gx.call(axis)
+        .attr("transform", `translate(0, ${height-bottomMargin})`);
     }
 
     for (const [measure, val] of Object.entries(measures)) {
@@ -195,7 +198,13 @@ function quality_pbar(parent, w, h) {
       all_elements[measure].attr("points", polyline);
     }
   }
-  quality_pbar.add = add;
 
-  return quality_pbar;
+  return {
+    add: add,
+    svg: _svg,
+    decimate_threshold: _decimate_threshold,
+    height: _height,
+    width: _width,
+    max_ts: _max_ts,
+  };
 }

@@ -153,6 +153,7 @@ export const progressivisPlugin = {
       },
     });
     NotebookActions.executed.connect((_, args) => {
+      // eslint-disable-next-line no-unused-vars
       let { cell, notebook, success } = args;
       let i = notebook.widgets.findIndex((x) => x == cell);
       if (cell.model.metadata.progressivis_tag === undefined) return;
@@ -188,7 +189,7 @@ export const progressivisPlugin = {
         this.touch();
       }
 
-      load_backup(ev) {
+      load_backup(/* ev */) {
         var crtWidget = nbtracker.currentWidget;
         var notebook = crtWidget.content;
         var backupCell = notebook.widgets[0];

@@ -1,6 +1,5 @@
 'use strict';
 import * as widgets from '@jupyter-widgets/base';
-import _ from 'lodash';
 import $ from 'jquery';
 import { new_id } from './base';
 import { elementReady } from './es6-element-ready';
