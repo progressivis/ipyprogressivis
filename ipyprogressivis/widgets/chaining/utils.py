@@ -968,7 +968,7 @@ class ChainingMixin:
         scheduler = self._output_module.scheduler()
         scheduler._update_modules()
         modules = scheduler.modules()
-        managed_m = [m for (n, m) in modules.items() if n in self.managed_modules and "quality" in m.tags]
+        managed_m = [m for (n, m) in modules.items() if n in self.managed_modules and Module.TAG_QUALITY in m.tags]
         if not managed_m:
             return
         qv = display_quality(managed_m)
@@ -1463,19 +1463,10 @@ class NodeCarrier(NodeVBox):
         self.children = (self.children[ITRASH], self.children[IGUEST], box)
 
     def make_composed_bar(self, box):
-        from ipyprogressivis.views.quality import display_quality
-        scheduler = self._input_module.scheduler()
-        scheduler._update_modules()
-        modules = scheduler.modules()
-        managed_m = [m for (n, m) in modules.items() if n in self.managed_modules and "quality" in m.tags]
-        composed_bar = box
-        if managed_m:
-            qv = display_quality(managed_m)
-            qv.width = QUAL_W
-            qv.height = QUAL_H
-            wg_list = [box, qv]
-            composed_bar = ipw.VBox(wg_list)
-        self.children = (self.children[ITRASH], self.children[IGUEST], composed_bar)
+        qual_wg = self._quality_bar()  # type: ignore
+        self.children = ([self.children[ITRASH], self.children[IGUEST], box] if qual_wg is None
+                         else [self.children[ITRASH], self.children[IGUEST], box, qual_wg]
+                         )
 
     def make_leaf_bar(self, coro_obj: "Coro") -> None:
         self.make_composed_bar(coro_obj.bar)
