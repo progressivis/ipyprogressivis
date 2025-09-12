@@ -2,7 +2,6 @@
 import $ from 'jquery';
 import 'jquery-sparkline';
 import * as widgets from '@jupyter-widgets/base';
-import _ from 'lodash';
 import { new_id } from './base';
 import { elementReady } from './es6-element-ready';
 

@@ -1,4 +1,5 @@
-import { DOMWidgetModel, DOMWidgetView } from "@jupyter-widgets/base";
+
+import { DOMWidgetModel } from "@jupyter-widgets/base";
 
 export class CellOutModel extends DOMWidgetModel {
   defaults() {

@@ -1,5 +1,4 @@
 import * as widgets from '@jupyter-widgets/base';
-import _ from 'lodash';
 import $ from 'jquery';
 import 'datatables';
 import { elementReady } from './es6-element-ready';

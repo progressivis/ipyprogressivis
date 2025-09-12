@@ -95,8 +95,6 @@ function quality_pbar(view, w, h) {
       bottomMargin = 20,
       leftMargin = 5,
       rightMargin = 5,
-      width = w,
-      height = h,
       decimate_threshold = 2, // min distance between two visible points
       min_ts = Number.POSITIVE_INFINITY,
       max_ts = Number.NEGATIVE_INFINITY;
@@ -104,12 +102,11 @@ function quality_pbar(view, w, h) {
         svg = d3.create("svg")
           .attr("id", id)
           .classed("quality-vis", true)
-          .attr("width", width)
-          .attr("height", height),
+          .attr("width", w)
+          .attr("height", h),
         g = svg.append("g"),
         gx = svg.append("g")
-          .classed("qaxis", true)
-          .attr("transform", `translate(0, ${height-bottomMargin})`),
+          .classed("qaxis", true),
       all_measures = {},
       all_scales = {},
       all_elements = {},
@@ -124,10 +121,10 @@ function quality_pbar(view, w, h) {
   }
 
   function _width(_) {
-    return arguments.length ? width = _ & svg.attr("width", width) : width;
+    return arguments.length ? svg.attr("width", _) : parseInt(svg.style("width"), 10);
   }
   function _height(_) {
-    return arguments.length ? height = _ & svg.attr("height", height) : height;
+    return arguments.length ? svg.attr("height", _) : parseInt(svg.style("height"), 10);
   }
   
   function _decimate_threshold(_) {
@@ -135,6 +132,9 @@ function quality_pbar(view, w, h) {
   }
 
   function add(ts, measures) {
+    const width = _width(),
+          height = _height();
+
     const old_max = max_ts,
           old_min = min_ts;
     max_ts = Math.max(max_ts, ts);
@@ -147,7 +147,8 @@ function quality_pbar(view, w, h) {
             .ticks(4)
             .tickFormat(seconds_formatter)
             .tickSizeInner(4);
-      gx.call(axis);
+      gx.call(axis)
+        .attr("transform", `translate(0, ${height-bottomMargin})`);
     }
 
     for (const [measure, val] of Object.entries(measures)) {

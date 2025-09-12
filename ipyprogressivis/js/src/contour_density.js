@@ -85,14 +85,14 @@ function draw(svgId) {
     let margin = 15;
     let width = svg.attr("width");
     let height = svg.attr("height");
-    let te = svg
+    svg
       .append("text")
       .attr("text-anchor", "middle")
       .attr("dy", "-0.6em")
       .attr("transform", translate(width / 2, height + label - 10))
       .text("Iteration #" + +iter);
 
-    let te2 = svg
+    svg
       .append("text")
       .attr("text-anchor", "middle")
       .attr("dy", "-0.6em")
@@ -148,7 +148,7 @@ function draw(svgId) {
       .attr("cx", (d) => x(data[d][0]))
       .attr("cy", (d) => y(data[d][1]))
       .attr("r", 1.5)
-      .style("fill", (d, i) => (labels ? categorical(labels[d]) : "#aaa"));
+      .style("fill", (d) => (labels ? categorical(labels[d]) : "#aaa"));
   };
 }
 

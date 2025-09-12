@@ -1,4 +1,4 @@
-import { DOMWidgetModel, DOMWidgetView } from "@jupyter-widgets/base";
+import { DOMWidgetModel } from "@jupyter-widgets/base";
 
 // See example.py for the kernel counterpart to this file.
 
@@ -17,10 +17,6 @@ import { DOMWidgetModel, DOMWidgetView } from "@jupyter-widgets/base";
 
 // When serialiazing the entire widget state for embedding, only values that
 // differ from the defaults will be serialized.
-
-function emptyStr(w, m) {
-  return "";
-}
 
 export class BackupModel extends DOMWidgetModel {
   defaults() {
