@@ -1,5 +1,5 @@
 import { NotebookActions } from "@jupyterlab/notebook";
-import * as htmlToImage from "html-to-image";
+//import * as htmlToImage from "html-to-image";
 import $ from "jquery";
 
 export function progressivisTemplate(app, res, data, browser) {
@@ -31,9 +31,6 @@ export function progressivisTemplate(app, res, data, browser) {
 }
 
 window.$ = $; // for debug purposes
-window.html_to_image = htmlToImage; // idem
-// https://discourse.jupyter.org/t/how-to-listen-to-cell-execution/14714
-// https://jupyterlab.readthedocs.io/en/latest/api/classes/notebook.NotebookActions-1.html
 
 export function progressivisCleanup(app, nbtracker) {
   // cleanup sidecars
@@ -55,16 +52,26 @@ export function progressivisCleanup(app, nbtracker) {
   var notebook = crtWidget.content;
   let toDelete = [];
   // NB: all cells having progressivis_tag (with any value) are deleted
+  crtWidget.onloading_cells_content = {};
   notebook.widgets.forEach(function (cell) {
     console.log("meta", cell.model.sharedModel.metadata);
     console.log("ptag", cell.model.sharedModel.metadata.progressivis_tag);
-    if (cell.model.sharedModel.metadata.progressivis_tag != undefined) {
+    let pv_tag = cell.model.sharedModel.metadata.progressivis_tag;
+    if (pv_tag != undefined) {
       cell.model.sharedModel.setMetadata("deletable", true);
       cell.model.sharedModel.setMetadata("editable", true);
       toDelete.push(cell);
+      if (cell.model.sharedModel.cell_type === "code") {
+        try {
+          crtWidget.onloading_cells_content[pv_tag] = $(cell.node)
+            .find($(".progressivis_guest_widget"))
+            .first()[0].innerHTML;
+        } catch (e) {
+          crtWidget.onloading_cells_content[pv_tag] = "?";
+        }
+      }
     }
   });
-  console.log("toDelete", toDelete);
   for (let c of toDelete) {
     let i = notebook.widgets.findIndex((x) => x == c);
     notebook.model.sharedModel.deleteCell(i);
@@ -215,7 +222,6 @@ export function runCellAt(nbtracker, ix) {
 
 /* eslint-disable no-unused-vars */
 export function shotCellAtIndex(notebook, cell, i, tag, delay) {
-  
   let prevOuts = notebook.model.metadata.progressivis_outs || {};
   // function fun() {
   //   let pvWidget = $(cell.outputArea.node)

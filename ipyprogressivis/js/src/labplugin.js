@@ -217,8 +217,12 @@ export const progressivisPlugin = {
         let tag = this.model.get("tag");
         var crtWidget = nbtracker.currentWidget;
         var notebook = crtWidget.content;
-        let imgSrc = notebook.model.metadata.progressivis_prev_outs[tag];
-        this.el.innerHTML = "<img src='" + imgSrc + "'></img>";
+        try {
+          let inner_html = crtWidget.onloading_cells_content[tag];
+          this.el.innerHTML = inner_html;
+        } catch (e) {
+          this.el.innerHTML = "X?";
+        }
         this.touch();
       }
     };
