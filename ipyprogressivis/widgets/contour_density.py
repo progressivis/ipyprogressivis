@@ -60,6 +60,8 @@ class ContourDensity(widgets.DOMWidget):
     #data = Any("{}").tag(sync=True)
     compression = None
     _df = TableType(None).tag(sync=True, **serialization)
+    # hack to save image in notebooks
+    _img_url = Unicode('null').tag(sync=True)
 
     def update(self, df, remove=None, resize=True):
         from progressivis.table.api import BasePTable

@@ -153,6 +153,18 @@ function draw(svgId) {
   };
 }
 
+function serializeImgURL(imgURL, mgr) {
+  if (mgr.idEnd === undefined) {
+    return imgURL;
+  }
+  let id = mgr.idEnd;
+  let svgStr = document.getElementById(id).parentElement.getHTML();
+  if (svgStr === undefined) {
+    return imgURL;
+  }
+  return encodeURIComponent(svgStr);
+}
+
 export class ContourDensityModel extends widgets.DOMWidgetModel {
   defaults() {
     return {
@@ -164,11 +176,13 @@ export class ContourDensityModel extends widgets.DOMWidgetModel {
       _model_module_version: "0.1.0",
       _view_module_version: "0.1.0",
       _df: ndarray([]),
+      _img_url: "",
     };
   }
   static serializers = {
     ...widgets.DOMWidgetModel.serializers,
     _df: table_serialization,
+    _img_url: { serialize: serializeImgURL },
   };
 }
 
@@ -177,6 +191,16 @@ export class ContourDensityView extends widgets.DOMWidgetView {
   // Defines how the widget gets rendered into the DOM
   render() {
     this.id = `contour_density_${new_id()}`;
+    const imgURL = this.model.get("_img_url");
+    if (imgURL !== "" && imgURL !== "null") {
+      let svgShot = decodeURIComponent(imgURL);
+      this.model.set("_img_url", "null");
+      this.el.innerHTML = svgShot;
+      // Maybe remove the svg id to avoid clashes.
+      // d3.select(this.el).select("svg").attr("id", null);
+      return;
+    }
+    this.model.idEnd = this.id;
     console.log("this id", this.id);
     this.el.innerHTML =
       "<svg width='400' height='400' id='" + this.id + "'></svg>";
