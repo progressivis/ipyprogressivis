@@ -9,11 +9,13 @@ on:
     - main
 
 jobs:
-  eslint:
+  build:
+
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
+    - name: Eslint JS
       uses: actions/setup-node@v4
       with:
         node-version: 24
