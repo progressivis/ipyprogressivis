@@ -216,11 +216,11 @@ export const progressivisPlugin = {
       tag_changed() {
         let tag = this.model.get("tag");
         var crtWidget = nbtracker.currentWidget;
-        var notebook = crtWidget.content;
+        // var notebook = crtWidget.content;
         try {
           let inner_html = crtWidget.onloading_cells_content[tag];
           this.el.innerHTML = inner_html;
-        } catch (e) {
+        } catch {
           this.el.innerHTML = "X?";
         }
         this.touch();
