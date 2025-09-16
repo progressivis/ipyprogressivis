@@ -108,6 +108,7 @@ class TSNE2DW(VBoxTyped):
         if is_recording():
             amend_last_record({"frozen": params})
         self.init_module(params)
+        self.make_leaf_bar(self.after_run)
         btn.disabled = True
         self.manage_replay()
     @modules_producer
@@ -131,11 +132,10 @@ class TSNE2DW(VBoxTyped):
             tsne.input.table = self.input_module.output[self.input_slot]
             sink = Sink(scheduler=s)
             sink.input.inp = tsne.output.result
-            after_run = AfterRun()
-            after_run.widget = self
-            tsne.on_after_run(after_run)  # Install the callback
+            self.after_run = AfterRun()
+            self.after_run.widget = self
+            tsne.on_after_run(self.after_run)  # Install the callback
             self.dag_running()
-            self.make_leaf_bar(after_run)
         return tsne
 
     def provide_surrogate(self, title: str) -> GuestWidget:
