@@ -1,0 +1,25 @@
+name: Test JS with Eslint
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+    branches:
+    - main
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Eslint JS
+      uses: actions/setup-node@v4
+      with:
+        node-version: 24
+    - run: |
+        cd ipyprogressivis/js
+        yarn install --ignore-scripts
+        yarn run eslint

@@ -66,7 +66,7 @@ export function progressivisCleanup(app, nbtracker) {
           crtWidget.onloading_cells_content[pv_tag] = $(cell.node)
             .find($(".progressivis_guest_widget"))
             .first()[0].innerHTML;
-        } catch (e) {
+        } catch {
           crtWidget.onloading_cells_content[pv_tag] = "?";
         }
       }
