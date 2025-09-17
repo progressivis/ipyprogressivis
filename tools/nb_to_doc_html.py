@@ -37,15 +37,23 @@ def main(progressibook: str, overwrite: bool, output: str) -> None:
         sys.exit(1)
     cell_1 = cells[1]
     cell_1["source"] = ["..."]
-    if dag_png := pb.get("metadata", {}).get("progressivis_dag_png"):
-        prefix, b64_data = dag_png.split(",", 1)
-        cell_1["outputs"] = [{"data": {"image/png": b64_data},
-                              "output_type": "display_data", "metadata": {}}]
-    else:
+    try:
+        wgs_state = pb["metadata"]["widgets"][
+            "application/vnd.jupyter.widget-state+json"]["state"]
+        for k, v in  wgs_state.items():
+            if v.get( "model_name") == "DagWidgetModel":
+                cell_1["outputs"] =  [{"data": {"application/vnd.jupyter.widget-view+json": {
+                    "model_id": k,
+                    "version_major": 2,
+                    "version_minor": 0
+                }}, "output_type": "display_data", "metadata": {}}]
+                break
+        else:
+            print("DAG widget not found")
+            cell_1["outputs"] = []
+    except KeyError as e:
+        print("DAG widget not found", e.args)
         cell_1["outputs"] = []
-    #root_cell = cells[3]
-    #root_cell["source"] = ["..."]
-    #root_cell["outputs"] = []
     for cell in cells:
         if cell.get("source") and cell["source"][-1].startswith("header.talker.labcommand('notebook:hide-cell-code')"):
             cell["source"] = ["..."]
