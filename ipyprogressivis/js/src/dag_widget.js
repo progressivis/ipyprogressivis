@@ -28,7 +28,7 @@ import "../css/main.css";
 //import { DOMWidgetModel, DOMWidgetView } from '@jupyter-widgets/base';
 import * as widgets from "@jupyter-widgets/base";
 import * as d3 from "d3";
-import $ from 'jquery';
+import $ from "jquery";
 import { installInterface } from "./functions";
 import { elementReady } from "./es6-element-ready";
 import { new_id } from "./base";
@@ -111,8 +111,10 @@ export class DagWidgetView extends widgets.DOMWidgetView {
   }
 
   initialize() {
-    console.log("INITIALIZE");
-    if (d3_dag === null) {
+    console.log("INITIALIZE DAG");
+    if (d3_dag === null && typeof define !== "function") {
+      //the last clause is a hack to avoid problem when the widget
+      // is loaded via require.js (in the doc, after nbconvert)
       d3_dag = require("d3-dag");
     }
 
@@ -169,9 +171,7 @@ export class DagWidgetView extends widgets.DOMWidgetView {
       internalBody.append("label").text("Value");
       //
       // var variableSelect =
-      internalBody
-        .append("select")
-        .attr("id", "dialogSelectVariable" + extId)
+      internalBody.append("select").attr("id", "dialogSelectVariable" + extId)
         .html(`<option value="">Variable</option>
             <option value="dog" class="varOption">Dog</option>
             <option value="cat" class="varOption">Cat</option>
@@ -181,9 +181,7 @@ export class DagWidgetView extends widgets.DOMWidgetView {
             <option value="goldfish" class="varOption">Goldfish</option>`);
 
       // var opSelect =
-      internalBody
-        .append("select")
-        .attr("id", "dialogSelectOperation" + extId)
+      internalBody.append("select").attr("id", "dialogSelectOperation" + extId)
         .html(`<option value="">Operation</option>
 <option value="eq"> == </option>
 <option value="lt"> <  </option>
@@ -313,7 +311,7 @@ export class DagWidgetView extends widgets.DOMWidgetView {
     }
 
     //show status
-     var summaries = JSON.parse(this.model.get('summaries'));
+    var summaries = JSON.parse(this.model.get("summaries"));
     // for (var key in summaries) {
     //     d3.select('#dagCanvas')
     //         .select('#nD' + key)
@@ -340,7 +338,6 @@ export class DagWidgetView extends widgets.DOMWidgetView {
           // var y = circle.attr("cy");
           // var r = circle.attr("r");
           // TODO do something
-          
         }
       }
     }
@@ -494,8 +491,7 @@ export class DagWidgetView extends widgets.DOMWidgetView {
 
           //
           // var menu =
-          d3
-            .select("#safeGuardMenu" + extId)
+          d3.select("#safeGuardMenu" + extId)
             .style("visibility", "visible")
             .style("left", e.pageX + "px")
             .style("top", e.pageY + "px")
