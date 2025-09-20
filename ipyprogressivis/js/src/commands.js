@@ -2,8 +2,7 @@ import { NotebookActions } from "@jupyterlab/notebook";
 //import * as htmlToImage from "html-to-image";
 import $ from "jquery";
 
-export function progressivisTemplate(app, res, data, browser) {
-  // const content = res.json();
+export function progressivisTemplate(app, data, browser) {
   const { path } = browser.tracker.currentWidget.model;
   const ext = "ipynb";
   return new Promise((resolve) => {
@@ -22,7 +21,7 @@ export function progressivisTemplate(app, res, data, browser) {
           .then((widget) => {
             widget.isUntitled = true;
             widget.context.ready.then(() => {
-              widget.model.fromString(data.payload);
+              widget.model.fromJSON(data);
               resolve(widget);
             });
           });

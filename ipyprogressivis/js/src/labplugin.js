@@ -4,8 +4,8 @@ import { PageConfig } from "@jupyterlab/coreutils";
 import { IJupyterWidgetRegistry, DOMWidgetView } from "@jupyter-widgets/base";
 import { INotebookTracker, NotebookActions } from "@jupyterlab/notebook";
 import { IFileBrowserFactory } from "@jupyterlab/filebrowser";
-import { request } from "requests-helper";
 import $ from "jquery";
+import * as pb from "./progressibook";
 
 export const progressivisPlugin = {
   id: "jupyter-progressivis:plugin",
@@ -20,21 +20,13 @@ export const progressivisPlugin = {
       },
       nbactions: NotebookActions,
     };
-    request("get", `${PageConfig.getBaseUrl()}progressivis/template`).then(
-      (res) => {
-        if (res.ok) {
-          const data = res.json();
-          app.commands.addCommand("progressivis:templ", {
-            label: "New ProgressiBook",
-            caption:
-              "Initialize a notebook for progressivis chaining widgets usage",
-            execute: () => {
-              cmds.progressivisTemplate(app, res, data, browser);
-            },
-          });
-        }
+    app.commands.addCommand("progressivis:templ", {
+      label: "New ProgressiBook",
+      caption: "Initialize a notebook for progressivis chaining widgets usage",
+      execute: () => {
+        cmds.progressivisTemplate(app, pb.progressibook(), browser);
       },
-    );
+    });
     app.commands.addCommand("progressivis:pass", {
       label: "Progressivis pass",
       caption: "Progressivis pass",
