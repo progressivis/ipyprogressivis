@@ -71,12 +71,15 @@ ITRASH = 0
 IGUEST = 1
 BOX_SIZE = 2
 
+
 def dongle_widget(v: str = "") -> ipw.HTML:
     return ipw.HTML(v)
+
 
 def get_dag() -> DAGWidget:
     assert "dag_widget" in PARAMS
     return PARAMS["dag_widget"]
+
 
 def make_button(
         label: str,
@@ -99,6 +102,7 @@ def make_button(
         btn.on_click(cb)
     return btn
 
+
 BTN_DEL = ipw.HBox([make_button("", icon="trash", button_style="danger", disabled=True)])
 BTN_DEL.display = 'flex'
 BTN_DEL.layout.justify_content = 'flex-end'
@@ -116,6 +120,7 @@ def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
     guest_backup = cast(ipw.Box, obj.children[IGUEST]).children
     cast(ipw.Box, obj.children[IGUEST]).children = [dongle_widget()]
     objects = [obj]
+
     def _aux(obj_: "NodeCarrier") -> None:
         for sw in obj_.subwidgets:
             objects.append(sw)  # type: ignore
@@ -124,7 +129,7 @@ def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
     modules: list[str] = []
     for obj_ in objects:
         modules.extend(obj_.managed_modules)
-    with obj._input_module.scheduler() as dataflow:
+    with obj._input_module.scheduler as dataflow:
         deps = dataflow.collateral_damage(*modules)
     others = set()
     m_set = set(modules)
@@ -145,6 +150,7 @@ def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
         sio.write(" ,".join(others))
         sio.write("</li>\n")
     sio.write(end)
+
     def _cancel(b: AnyType) -> None:
         make_trash_box(obj, box)
         cast(ipw.Box, obj.children[IGUEST]).children = guest_backup
@@ -156,7 +162,7 @@ def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
         assert i is not None
         amend_nth_record(i, {"deleted": True})
         tags = [obj_.title for obj_ in objects]
-        with obj._input_module.scheduler() as dataflow:
+        with obj._input_module.scheduler as dataflow:
             dataflow.delete_modules(*deps)
         for tag in tags:
             labcommand("progressivis:remove_tagged_cells", tag=tag)
@@ -171,7 +177,8 @@ def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
                                make_button("Confirm", cb=_confirm, button_style="danger")])])
     box.children = [vbox]
     box.display = None
-    box.layout.justify_content = None # 'flex-start'
+    box.layout.justify_content = None  # 'flex-start'
+
 
 def make_trash_box(obj: "NodeCarrier", box: ipw.HBox | None = None) -> ipw.HBox:
     trash_btn = make_button("", icon="trash", button_style="danger")
@@ -212,10 +219,12 @@ def dot_progressivis() -> str:
         return str(pv_dir)
     return ""
 
+
 def shot_later(name: str) -> None:
     if not DO_SHOT:
         return
     SHOT_LATER.append(name)
+
 
 def shot_cell_cmd(tag: str, delay: int = 3000) -> None:
     if not DO_SHOT:
@@ -271,6 +280,7 @@ def shuffle_urls(urls: list[str]) -> list[str]:
     shuffled_urls = random.sample(urls, k=len(urls))
     assert sorted(urls) == sorted(shuffled_urls)
     return shuffled_urls
+
 
 def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
     def wrapper(*args: Any, **kwargs: Any) -> "NodeCarrier":
@@ -963,9 +973,9 @@ class ChainingMixin:
         mod_.on_after_run(_proc)
         return prog_wg
 
-    def _quality_bar(self) -> ipw.IntProgress:
+    def _quality_bar(self) -> Any:
         from ipyprogressivis.views.quality import display_quality
-        scheduler = self._output_module.scheduler()
+        scheduler = self._output_module.scheduler
         scheduler._update_modules()
         modules = scheduler.modules()
         managed_m = [m for (n, m) in modules.items() if n in self.managed_modules and Module.TAG_QUALITY in m.tags]
@@ -1342,7 +1352,7 @@ class GuestWidget:
                 self_ = args[0]  # type: ignore
             self_.carrier._dtypes = self.output_dtypes
             fun(*args, **kw)
-            with m.scheduler() as dataflow:
+            with m.scheduler as dataflow:
                 deps = dataflow.collateral_damage(m.name)
                 dataflow.delete_modules(*deps)
 
@@ -1357,7 +1367,7 @@ class GuestWidget:
         if is_replay_batch():
             self.output_dtypes = {}
             return
-        s = self.output_module.scheduler()
+        s = self.output_module.scheduler
         with s:
             ds = DataShape(scheduler=s)
             ds.input.table = self.output_module.output.result
@@ -1602,7 +1612,7 @@ def modules_producer(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyTy
         """
         Get a trace of modules created by to_decorate() method
         """
-        s = self_.input_module.scheduler()
+        s = self_.input_module.scheduler
         mods_before = set(s.modules().keys())
         ret = to_decorate(self_, *args, **kwargs)
         assert s.dataflow is not None
@@ -1610,5 +1620,3 @@ def modules_producer(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyTy
         self_.carrier.managed_modules = mods_after.difference(mods_before)
         return ret
     return _wrapper
-
-

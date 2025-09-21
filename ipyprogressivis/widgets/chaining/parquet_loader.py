@@ -400,7 +400,7 @@ class ParquetLoaderW(VBoxTyped):
             urls = shuffle_urls(urls)
         imodule = self.input_module
         assert isinstance(imodule, Module)
-        s = imodule.scheduler()
+        s = imodule.scheduler
         with s:
             filenames = pd.DataFrame({"filename": urls})
             cst = Constant(PTable("filenames", data=filenames), scheduler=s)

@@ -178,7 +178,7 @@ class RangeQuery2DW(VBoxTyped):
     def init_min_max(self, ctx) -> None:
         col_x = ctx["X"]
         col_y = ctx["Y"]
-        s = self.input_module.scheduler()
+        s = self.input_module.scheduler
         with s:
             index = BinningIndexND(scheduler=s)
             # Creates one index per numeric column

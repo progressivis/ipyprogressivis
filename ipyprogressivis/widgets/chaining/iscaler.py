@@ -309,7 +309,7 @@ class ScalerW(VBoxTyped):
             self.child.start_btn.disabled = True
 
     def init_scaler(self) -> MinMaxScaler:
-        s = self.input_module.scheduler()
+        s = self.input_module.scheduler
         with s:
             inp = self.child.inp
             dvar = Variable(

@@ -124,7 +124,7 @@ class MCDensityMapW(VBoxTyped):
     @modules_producer
     def init_map(self, ctx: list[dict[str, AnyType]]) -> MCScatterPlot:
         assert isinstance(self.input_module, Module)
-        s = self.input_module.scheduler()
+        s = self.input_module.scheduler
         self.child.image = Scatterplot()
         with s:
             heatmap = MCScatterPlot(scheduler=s, classes=ctx, approximate=True)

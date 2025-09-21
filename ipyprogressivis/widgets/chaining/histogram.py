@@ -114,7 +114,7 @@ class HistogramW(VBoxTyped):
         sc_json["encoding"]["x"] = {"field": self._x_sym, **x_kw}
         sc_json["encoding"]["y"] = {"field": self._y_sym, **y_kw}
         self.child.vega = HVegaWidget(spec=sc_json)
-        self.input_module.scheduler().on_tick(self._update_vw)
+        self.input_module.scheduler.on_tick(self._update_vw)
         self.dag_running()
 
 
