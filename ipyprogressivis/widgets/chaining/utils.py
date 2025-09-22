@@ -973,7 +973,7 @@ class ChainingMixin:
         mod_.on_after_run(_proc)
         return prog_wg
 
-    def _quality_bar(self) -> Any:
+    def _quality_bar(self) -> ipw.IntProgress:
         from ipyprogressivis.views.quality import display_quality
         scheduler = self._output_module.scheduler
         scheduler._update_modules()
