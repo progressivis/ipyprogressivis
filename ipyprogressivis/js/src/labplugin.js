@@ -1,6 +1,6 @@
 import * as pwidgets from "./index";
 import * as cmds from "./commands";
-import { PageConfig } from "@jupyterlab/coreutils";
+//import { PageConfig } from "@jupyterlab/coreutils";
 import { IJupyterWidgetRegistry, DOMWidgetView } from "@jupyter-widgets/base";
 import { INotebookTracker, NotebookActions } from "@jupyterlab/notebook";
 import { IFileBrowserFactory } from "@jupyterlab/filebrowser";
