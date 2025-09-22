@@ -114,7 +114,8 @@ export class DagWidgetView extends widgets.DOMWidgetView {
     console.log("INITIALIZE DAG");
     if (d3_dag === null && typeof define !== "function") {
       //the last clause is a hack to avoid problem when the widget
-      // is loaded via require.js (in the doc, after nbconvert)
+	// is loaded via require.js (in the doc, after nbconvert)
+	console.log("INIT d3-dag");
       d3_dag = require("d3-dag");
     }
 

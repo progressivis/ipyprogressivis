@@ -249,7 +249,7 @@ class AnyVegaW(VBoxTyped):
         self, mapping_dict: dict[str, dict[str, str]], vega_schema: AnyType
     ) -> None:
         facade = self.input_module
-        scheduler = facade.scheduler()
+        scheduler = facade.scheduler
         out_m = None
         if isinstance(self.input_module, Module):
             out_m = self.input_module

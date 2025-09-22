@@ -179,7 +179,7 @@ class HeatmapW(VBoxTyped):
         #DIM = int(self.child.choice_dim.value)
         DIM = ctx["dim"]
         self.child.image = ipw.Image(value=b"\x00")
-        s = self.input_module.scheduler()
+        s = self.input_module.scheduler
         query = quantiles = self.input_module
         with s:
             histogram2d = Histogram2D(col_x, col_y, xbins=DIM, ybins=DIM, scheduler=s)

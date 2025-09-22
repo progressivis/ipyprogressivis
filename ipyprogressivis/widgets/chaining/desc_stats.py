@@ -402,14 +402,14 @@ class DynViewer(TreeTab):
         self.range_widgets: Dict[str, ipw.IntRangeSlider] = {}
         self.updated_once = False
         self._selection_event = True
-        self._registry_mod.scheduler().on_change(self.set_selection_event())
+        self._registry_mod.scheduler.on_change(self.set_selection_event())
         self.observe(
-            make_tab_observer_2l(self, self.get_scheduler()), names="selected_index"
+            make_tab_observer_2l(self, self.get_scheduler), names="selected_index"
         )
-        input_module.scheduler().on_tick(DynViewer.refresh_info(self))
+        input_module.scheduler.on_tick(DynViewer.refresh_info(self))
 
     def init_factory(self, input_module: Module, input_slot: str) -> StatsFactory:
-        s = input_module.scheduler()
+        s = input_module.scheduler
         with s:
             factory = StatsFactory(input_module=input_module, scheduler=s)
             factory.create_dependent_modules()
@@ -419,7 +419,7 @@ class DynViewer(TreeTab):
             return factory
 
     def get_scheduler(self) -> Scheduler:
-        return self._registry_mod.scheduler()
+        return self._registry_mod.scheduler
 
     def draw_matrix(self, ext_df: Optional[pd.DataFrame] = None) -> ipw.GridBox:
         lst: List[WidgetType] = [ipw.Label("")] + [
@@ -584,7 +584,7 @@ class DynViewer(TreeTab):
         self._hist_tab.mod_dict[name] = selection
 
     def set_module_selection(self, sel: Optional[Set[str]]) -> None:
-        self._registry_mod.scheduler()._module_selection = sel
+        self._registry_mod.scheduler._module_selection = sel
 
     def set_h2d_widget(self, name: str, h2d_mod: Histogram2DPattern) -> None:
         if name in self._h2d_dict and self._h2d_dict[name][0] is h2d_mod:
@@ -671,7 +671,7 @@ class DynViewer(TreeTab):
             if self._hist_tab is None:
                 self._hist_tab = TreeTab(upper=self, known_as=HIST1D_TAB_TITLE)
                 self._hist_tab.observe(
-                    make_tab_observer(self._hist_tab, self.get_scheduler()),
+                    make_tab_observer(self._hist_tab, self.get_scheduler),
                     names="selected_index",
                 )
             self.set_tab(HIST1D_TAB_TITLE, self._hist_tab, overwrite=False)
@@ -700,7 +700,7 @@ class DynViewer(TreeTab):
             if self._h2d_tab is None:
                 self._h2d_tab = TreeTab(upper=self, known_as=HIST2D_TAB_TITLE)
                 self._h2d_tab.observe(
-                    make_tab_observer(self._h2d_tab, self.get_scheduler()),
+                    make_tab_observer(self._h2d_tab, self.get_scheduler),
                     names="selected_index",
                 )
             self.set_tab(HIST2D_TAB_TITLE, self._h2d_tab, overwrite=False)
@@ -763,7 +763,7 @@ class DynViewer(TreeTab):
         return wgt
 
     def get_underlying_modules(self) -> List[str]:
-        s = self._registry_mod.scheduler()
+        s = self._registry_mod.scheduler
         modules = s.group_modules(self._registry_mod.name)
         print("to delete", modules)
         return modules

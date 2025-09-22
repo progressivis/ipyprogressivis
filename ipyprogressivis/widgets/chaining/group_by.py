@@ -43,7 +43,7 @@ class GroupByW(VBoxTyped):
     def init_group_by(self, by: AnyType) -> GroupBy:
         if isinstance(by, dict):
             by = SC(by["col"]).dt[by["subcols"]]
-        s = self.input_module.scheduler()
+        s = self.input_module.scheduler
         with s:
             grby = GroupBy(by=by, keepdims=True, scheduler=s)
             grby.input.table = self.input_module.output[self.input_slot]

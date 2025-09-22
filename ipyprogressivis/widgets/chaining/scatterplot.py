@@ -97,7 +97,7 @@ class ScatterplotW(VBoxTyped):
             self._shape_sym = shape_sym or self._shape_col
             sc_json["encoding"]["shape"] = {"field": self._shape_sym, "type": "nominal"}
         self.child.vega = HVegaWidget(spec=sc_json)
-        self.input_module.scheduler().on_tick(self._update_vw)
+        self.input_module.scheduler.on_tick(self._update_vw)
         self.dag_running()
 
 

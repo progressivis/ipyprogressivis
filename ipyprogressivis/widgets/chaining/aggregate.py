@@ -52,7 +52,7 @@ class AggregateW(VBoxTyped):
 
     @modules_producer
     def init_aggregate(self, compute: AnyType) -> Aggregate:
-        s = self.input_module.scheduler()
+        s = self.input_module.scheduler
         with s:
             aggr = Aggregate(compute=compute, scheduler=s)
             aggr.input.table = self.input_module.output[self.input_slot]

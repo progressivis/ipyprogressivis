@@ -119,7 +119,7 @@ class KNNDensityW(VBoxTyped):
         norm = n_bins / 10
         offset = norm / 2
         samples = np.indices((n_bins + 1, n_bins + 1)).reshape(2, -1).T / n_bins * norm - offset
-        s = self.input_module.scheduler()
+        s = self.input_module.scheduler
         with s:
             knn = KernelDensity(scheduler=s, samples=samples, bins=n_bins)
             knn.input.table = self.input_module.output[self.input_slot][dict(x=col_x, y=col_y)]

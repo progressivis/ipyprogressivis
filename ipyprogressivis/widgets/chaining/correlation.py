@@ -80,7 +80,7 @@ class CorrelationW(VBoxTyped):
 
     @modules_producer
     def init_corr(self, content: dict[str, AnyType]) -> None:
-        s = self.input_module.scheduler()
+        s = self.input_module.scheduler
         mode = content["mode"]
         selection = content["selection"]
         with s:

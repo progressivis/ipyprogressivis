@@ -122,7 +122,7 @@ class TSNE2DW(VBoxTyped):
         self.child.info.child.iteration = ipw.IntText(description="Iteration:")
         self.child.info.child.quality = ipw.FloatText(description="Error:")
 
-        s = self.input_module.scheduler()
+        s = self.input_module.scheduler
         with s:
             tsne = TSNE(array_col=array,
                         output_cols=["x", "y"],

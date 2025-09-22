@@ -55,7 +55,7 @@ class QuantilesW(VBoxTyped):
 
     @modules_producer
     def init_quantiles(self, content: list[str]) -> None:
-        s = self.input_module.scheduler()
+        s = self.input_module.scheduler
         with s:
             quantiles = Quantiles(scheduler=s)
             quantiles.input.table = self.input_module.output.result[tuple(content)]

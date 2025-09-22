@@ -124,7 +124,7 @@ def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
     modules: list[str] = []
     for obj_ in objects:
         modules.extend(obj_.managed_modules)
-    with obj._input_module.scheduler() as dataflow:
+    with obj._input_module.scheduler as dataflow:
         deps = dataflow.collateral_damage(*modules)
     others = set()
     m_set = set(modules)
@@ -156,7 +156,7 @@ def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
         assert i is not None
         amend_nth_record(i, {"deleted": True})
         tags = [obj_.title for obj_ in objects]
-        with obj._input_module.scheduler() as dataflow:
+        with obj._input_module.scheduler as dataflow:
             dataflow.delete_modules(*deps)
         for tag in tags:
             labcommand("progressivis:remove_tagged_cells", tag=tag)
@@ -965,7 +965,7 @@ class ChainingMixin:
 
     def _quality_bar(self) -> ipw.IntProgress:
         from ipyprogressivis.views.quality import display_quality
-        scheduler = self._output_module.scheduler()
+        scheduler = self._output_module.scheduler
         scheduler._update_modules()
         modules = scheduler.modules()
         managed_m = [m for (n, m) in modules.items() if n in self.managed_modules and Module.TAG_QUALITY in m.tags]
@@ -1342,7 +1342,7 @@ class GuestWidget:
                 self_ = args[0]  # type: ignore
             self_.carrier._dtypes = self.output_dtypes
             fun(*args, **kw)
-            with m.scheduler() as dataflow:
+            with m.scheduler as dataflow:
                 deps = dataflow.collateral_damage(m.name)
                 dataflow.delete_modules(*deps)
 
@@ -1357,7 +1357,7 @@ class GuestWidget:
         if is_replay_batch():
             self.output_dtypes = {}
             return
-        s = self.output_module.scheduler()
+        s = self.output_module.scheduler
         with s:
             ds = DataShape(scheduler=s)
             ds.input.table = self.output_module.output.result
@@ -1602,7 +1602,7 @@ def modules_producer(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyTy
         """
         Get a trace of modules created by to_decorate() method
         """
-        s = self_.input_module.scheduler()
+        s = self_.input_module.scheduler
         mods_before = set(s.modules().keys())
         ret = to_decorate(self_, *args, **kwargs)
         assert s.dataflow is not None

@@ -588,7 +588,7 @@ class DynViewer(TreeTab):
              min_num_cols: list[str],
              hist1d_cols: list[str],
              hist2d_cols: list[tuple[str, str]]) -> None:
-        s = carrier.input_module.scheduler()
+        s = carrier.input_module.scheduler
         with s:
             inp = carrier.input_module
             assert isinstance(inp, Module)

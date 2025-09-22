@@ -448,7 +448,7 @@ class ComputedViewW(VBoxTyped):
                     dtype=np.dtype(d_["wg_dtype"]),
 
                 )
-        s = self.input_module.scheduler()
+        s = self.input_module.scheduler
         with s:
             rep = Repeater(computed=comp, scheduler=s)
             rep.input.table = self.input_module.output[self.input_slot][tuple(columns)]

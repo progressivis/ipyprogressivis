@@ -177,7 +177,7 @@ class JoinW(VBox):
         else:
             primary_wg = self.get_widget_by_key(tuple(primary_inp))  # type: ignore
             related_wg = self.parent
-        s = self.input_module.scheduler()
+        s = self.input_module.scheduler
         with s:
             assert primary_wg is not None
             assert related_wg is not None
