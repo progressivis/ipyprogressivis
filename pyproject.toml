@@ -188,6 +188,10 @@ npm = [
 
 [tool.ruff]
 exclude = [
-    "ipyprogressivis/notebook_templates/",
+    ".ipynb",
+    "ui-tests/",
+    "snippets/",
+    "ipyprogressivis/js/nb/",
     "notebooks/"
 ]
+

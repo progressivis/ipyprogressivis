@@ -404,7 +404,7 @@ class DynViewer(TreeTab):
         self._selection_event = True
         self._registry_mod.scheduler.on_change(self.set_selection_event())
         self.observe(
-            make_tab_observer_2l(self, self.get_scheduler), names="selected_index"
+            make_tab_observer_2l(self, self.get_scheduler()), names="selected_index"
         )
         input_module.scheduler.on_tick(DynViewer.refresh_info(self))
 
@@ -671,7 +671,7 @@ class DynViewer(TreeTab):
             if self._hist_tab is None:
                 self._hist_tab = TreeTab(upper=self, known_as=HIST1D_TAB_TITLE)
                 self._hist_tab.observe(
-                    make_tab_observer(self._hist_tab, self.get_scheduler),
+                    make_tab_observer(self._hist_tab, self.get_scheduler()),
                     names="selected_index",
                 )
             self.set_tab(HIST1D_TAB_TITLE, self._hist_tab, overwrite=False)
@@ -700,7 +700,7 @@ class DynViewer(TreeTab):
             if self._h2d_tab is None:
                 self._h2d_tab = TreeTab(upper=self, known_as=HIST2D_TAB_TITLE)
                 self._h2d_tab.observe(
-                    make_tab_observer(self._h2d_tab, self.get_scheduler),
+                    make_tab_observer(self._h2d_tab, self.get_scheduler()),
                     names="selected_index",
                 )
             self.set_tab(HIST2D_TAB_TITLE, self._h2d_tab, overwrite=False)

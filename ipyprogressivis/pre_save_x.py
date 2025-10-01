@@ -36,7 +36,7 @@ async def pre_save_impl(model: dict[str, Any], contents_manager: Any, **kwargs: 
     if model['content']['nbformat'] != 4:
         return
     metadata = model["content"]["metadata"]
-    outs = metadata["progressivis_prev_outs"] = {}
+    outs = metadata["progressivis_prev_outs"] = {}  # type: ignore
     global _html_exporter
     if _html_exporter is None:
         _html_exporter = HTMLExporter(parent=contents_manager)  # type: ignore

@@ -32,7 +32,7 @@ class AfterRun(Coro):
         image = m.get_image_bin()
         assert self.leaf is not None
         if image is not None:
-            self.leaf.child.image.value = image
+            self.leaf.child.image.value = image  # type: ignore
 
 
 def make_float(

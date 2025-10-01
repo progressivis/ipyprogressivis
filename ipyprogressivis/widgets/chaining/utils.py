@@ -22,6 +22,7 @@ import asyncio
 from ..csv_sniffer import CSVSniffer
 from collections import defaultdict
 from .. import DagWidgetController  # type: ignore
+from ..quality_visualization import QualityVisualization
 from ..psboard import PsBoard
 from ..cell_out import CellOut
 from pathlib import Path
@@ -935,6 +936,7 @@ class ChainingProtocol(Protocol):
 
 class ChainingMixin:
     _output_module: ModuleOrFacade
+    managed_modules: set[str]
 
     def _make_btn_chain_it_cb(
         self: ChainingProtocol,
@@ -973,17 +975,17 @@ class ChainingMixin:
         mod_.on_after_run(_proc)
         return prog_wg
 
-    def _quality_bar(self) -> ipw.IntProgress:
+    def _quality_bar(self) -> QualityVisualization | None:
         from ipyprogressivis.views.quality import display_quality
         scheduler = self._output_module.scheduler
         scheduler._update_modules()
         modules = scheduler.modules()
         managed_m = [m for (n, m) in modules.items() if n in self.managed_modules and Module.TAG_QUALITY in m.tags]
         if not managed_m:
-            return
+            return None
         qv = display_quality(managed_m)
-        qv.width = QUAL_W
-        qv.height = QUAL_H
+        qv.width = QUAL_W  # type: ignore
+        qv.height = QUAL_H  # type: ignore
         return qv
 
     def _make_progress_bar(self) -> ipw.VBox:
@@ -1472,8 +1474,8 @@ class NodeCarrier(NodeVBox):
             return
         self.children = (self.children[ITRASH], self.children[IGUEST], box)
 
-    def make_composed_bar(self, box):
-        qual_wg = self._quality_bar()  # type: ignore
+    def make_composed_bar(self, box: ipw.Box) -> None:
+        qual_wg = self._quality_bar()
         self.children = ([self.children[ITRASH], self.children[IGUEST], box] if qual_wg is None
                          else [self.children[ITRASH], self.children[IGUEST], box, qual_wg]
                          )
