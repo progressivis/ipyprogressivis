@@ -1617,8 +1617,10 @@ def modules_producer(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyTy
         s = self_.input_module.scheduler
         mods_before = set(s.modules().keys())
         ret = to_decorate(self_, *args, **kwargs)
-        assert s.dataflow is not None
-        mods_after = set(s.dataflow.modules().keys())
+        if s.dataflow:
+            mods_after = set(s.dataflow.modules().keys())
+        else:
+            mods_after = set(s.modules().keys())
         self_.carrier.managed_modules = mods_after.difference(mods_before)
         return ret
     return _wrapper

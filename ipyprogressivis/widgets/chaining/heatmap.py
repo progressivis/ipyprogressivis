@@ -34,7 +34,6 @@ class AfterRun(Coro):
         if image is not None:
             self.leaf.child.image.value = image  # type: ignore
 
-
 def make_float(
     description: str = "", disabled: bool = False, value: float = 0.0
 ) -> ipw.BoundedFloatText:
@@ -178,7 +177,7 @@ class HeatmapW(VBoxTyped):
         print("XY", ctx)
         #DIM = int(self.child.choice_dim.value)
         DIM = ctx["dim"]
-        self.child.image = ipw.Image(value=b"\x00")
+        self.child.image = ipw.Image(value=b"\x00", width=512, height=512)
         s = self.input_module.scheduler
         query = quantiles = self.input_module
         with s:
@@ -219,6 +218,7 @@ class HeatmapW(VBoxTyped):
     def run(self) -> AnyType:
         content = self.frozen_kw
         self.output_module = self.init_heatmap(content)
+        self.make_leaf_bar(self.after_run)
         self.output_slot = "result"
 
     def get_underlying_modules(self) -> list[object]:
