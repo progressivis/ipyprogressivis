@@ -26,13 +26,19 @@ _l = ipw.Label
 
 MAX_DIM = 512
 
+
 class AfterRun(Coro):
     async def action(self, m: Module, run_number: int) -> None:
+        if self.leaf is None:
+            return
         assert isinstance(m, Heatmap)
-        image = m.get_image_bin()
-        assert self.leaf is not None
-        if image is not None:
-            self.leaf.child.image.value = image  # type: ignore
+        try:
+            image = m.get_image_bin()
+            if image is not None:
+                self.leaf.child.image.value = image  # type: ignore
+        except Exception:
+            import traceback
+            print(traceback.format_exc())
 
 def make_float(
     description: str = "", disabled: bool = False, value: float = 0.0
