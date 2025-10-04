@@ -140,7 +140,7 @@ class MBKMeansW(VBoxTyped):
     def init_map(self, ctx: dict[str, AnyType]) -> MCScatterPlot:
         assert isinstance(self.input_module, Module)
         s = self.input_module.scheduler
-        self.child.image = sc = Scatterplot()
+        self.child.image = Scatterplot()
         _0 = ctx["col_x"]
         _1 = ctx["col_y"]
         with s:
@@ -154,7 +154,7 @@ class MBKMeansW(VBoxTyped):
             sp['Scatterplot'].min_value.result.update({_0: -np.inf, _1: -np.inf})  # type: ignore
             sp['Scatterplot'].max_value.result.update({_0: np.inf, _1: np.inf})  # type: ignore
             mbkmeans.create_dependent_modules(sp['Scatterplot'].range_query_2d)  # type: ignore
-            sc.move_point = mbkmeans.dep.moved_center  # for input management
+            sp.move_point = mbkmeans.dep.moved_center  # type: ignore
             after_run = AfterRun()
             after_run.widget = self.child.image
             self._awake = self.child.image.link_module(sp, refresh=False)

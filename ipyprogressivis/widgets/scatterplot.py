@@ -101,10 +101,10 @@ class Scatterplot(DataWidget, widgets.DOMWidget):  # type: ignore
 
         self.observe(from_input_value, "value")
 
-        # def from_input_move_point(_val: Any) -> None:
-        #     aio.create_task(module.move_point.from_input(self.move_point))
+        def from_input_move_point(_val: Any) -> None:
+            aio.create_task(module.move_point.from_input(self.move_point))  # type: ignore
 
-        # self.observe(from_input_move_point, "move_point")
+        self.observe(from_input_move_point, "move_point")
         def feed() -> None:
             aio.create_task(asynchronize(_feed_widget, self, module))
 
