@@ -188,7 +188,8 @@ function Scatterplot(ipyView) {
       // Install the template as a dom template node
       temp = document.createElement("template");
       temp.setAttribute("id", "Scatterplot");
-      temp.innerHTML = `<!-- Tab panes -->
+    }
+    temp.innerHTML = `<!-- Tab panes -->
   <div class="tab-content">
     <div >
       <div id=''>
@@ -240,8 +241,7 @@ function Scatterplot(ipyView) {
   </div>
   <script>
   </script>`;
-      document.body.appendChild(temp);
-    }
+    document.body.appendChild(temp);
     const templateClone = temp.content.cloneNode(true);
     // Rename all the ids to be unique
     const with_ids = templateClone.querySelectorAll("[id]");
@@ -260,9 +260,10 @@ function Scatterplot(ipyView) {
     this.cedit = register_config_editor(id);
   }
 
-  function multiclass2d_dragend(event, d, i) {
+  function multiclass2d_dragend(event, d) {
     const msg = {};
     d3.select(this).classed("dragging", false);
+    let i = d3.select(this).text();
     if (collection_in_progress) {
       d3.select(this).style("fill", "green");
       centroid_selection[i] = d;
@@ -625,7 +626,7 @@ function Scatterplot(ipyView) {
       .hide();
     let mode = ipyView.model.get("modal");
     let to_hide = ipyView.model.get("to_hide");
-    for (const i in to_hide) $(s(to_hide[i])).hide();
+    for (const i in to_hide) $(`[id^='${to_hide[i]}']`).hide();
     ipyView.model.set("modal", !mode);
     ipyView.touch();
     ipyView.model.set("modal", mode);
