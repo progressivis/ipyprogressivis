@@ -83,12 +83,8 @@ function PrevImages(ipyView) {
   }
 
   function template(element) {
-    let temp = document.querySelector("#PrevImages");
-    if (temp === null) {
-      // Install the template as a dom template node
-      temp = document.createElement("template");
-      temp.setAttribute("id", "PrevImages");
-      temp.innerHTML = `<div class="tab-content">
+    let temp = document.createElement("template");
+    temp.innerHTML = `<div class="tab-content">
     <div >
       <div id=''>
         <svg>
@@ -129,23 +125,20 @@ function PrevImages(ipyView) {
   </div>
 
 `;
-      document.body.appendChild(temp);
-    }
-    const templateClone = temp.content.cloneNode(true);
     // Rename all the ids to be unique
-    const with_ids = templateClone.querySelectorAll("[id]");
+    const with_ids = temp.content.querySelectorAll("[id]");
     const ids = new Set();
 
-    for (const element of with_ids) {
-      const eid = element.id ? with_id(element.id) : with_id("PrevImages");
+    for (const elem of with_ids) {
+      const eid = elem.id ? with_id(elem.id) : with_id("PrevImages");
       if (ids.has(eid)) {
         console.log(`Error in PrevImages.template(), duplicate id '${eid}'`);
         // TODO fix it
       }
-      element.id = eid;
+      elem.id = eid;
     }
 
-    element.appendChild(templateClone);
+    element.appendChild(temp.content);
   }
   //https://github.com/jupyter-widgets/ipywidgets/issues/1840
   function _update_vis(target) {

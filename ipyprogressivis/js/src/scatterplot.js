@@ -183,12 +183,7 @@ function Scatterplot(ipyView) {
         defaultFilter +
         svgShot.substring(f2 + offset);
     }
-    let temp = document.querySelector("#Scatterplot");
-    if (temp === null) {
-      // Install the template as a dom template node
-      temp = document.createElement("template");
-      temp.setAttribute("id", "Scatterplot");
-    }
+    let temp = document.createElement("template");
     temp.innerHTML = `<!-- Tab panes -->
   <div class="tab-content">
     <div >
@@ -241,22 +236,20 @@ function Scatterplot(ipyView) {
   </div>
   <script>
   </script>`;
-    document.body.appendChild(temp);
-    const templateClone = temp.content.cloneNode(true);
     // Rename all the ids to be unique
-    const with_ids = templateClone.querySelectorAll("[id]");
+    const with_ids = temp.content.querySelectorAll("[id]");
     const ids = new Set();
 
-    for (const element of with_ids) {
-      const eid = element.id ? with_id(element.id) : with_id("Scatterplot");
+    for (const elem of with_ids) {
+      const eid = elem.id ? with_id(elem.id) : with_id("Scatterplot");
       if (ids.has(eid)) {
         console.log(`Error in Scatterplot.template(), duplicate id '${eid}'`);
         // TODO fix it
       }
-      element.id = eid;
+      elem.id = eid;
     }
 
-    element.appendChild(templateClone);
+    element.appendChild(temp.content);
     this.cedit = register_config_editor(id);
   }
 
