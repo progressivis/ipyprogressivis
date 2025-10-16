@@ -18,6 +18,7 @@ repos:
       - id: mypy
         language_version: python3.13
         args: [--strict, --explicit-package-bases]
+        exclude: snippets/
         additional_dependencies:
           - 'numpy'
           - 'ipython'
