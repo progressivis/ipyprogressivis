@@ -16,7 +16,7 @@ from .utils import (
 import copy
 import numpy as np
 import ipywidgets as ipw
-from progressivis.core.api import Module
+from progressivis.core.api import Module, asynchronize
 from progressivis.vis import MCScatterPlot
 from progressivis.cluster import MBKMeans
 from progressivis.core.api import JSONEncoderNp as JS
@@ -43,14 +43,15 @@ class AfterRun(Coro):
             for (k, v) in val.items()
             if k not in ("hist_tensor", "sample_tensor")
         }
-        ht = val.get("hist_tensor", None)
-        if ht is not None:
-            wg.hists = copy.copy(ht)  # TODO: avoid copy when possible
-        st = val.get("sample_tensor", None)
-        if st is not None:
-            wg.samples = copy.copy(st)
-        wg.data = JS.dumps(data_)  # type: ignore
-
+        def _func() -> None:
+            ht = val.get("hist_tensor", None)
+            if ht is not None:
+                wg.hists = copy.copy(ht)  # TODO: avoid copy when possible
+            st = val.get("sample_tensor", None)
+            if st is not None:
+                wg.samples = copy.copy(st)
+            wg.data = JS.dumps(data_)  # type: ignore
+        await asynchronize(_func)
 
 class MBKMeansW(VBoxTyped):
     class Typed(TypedBase):

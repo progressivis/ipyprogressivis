@@ -21,7 +21,7 @@ from ..json_editor import JsonEditor
 from ..df_grid import DataFrameGrid
 import pandas as pd
 import numpy as np
-from progressivis.core.api import Module, Sink, notNone
+from progressivis.core.api import Module, Sink, notNone, asynchronize
 from progressivis.table.api import PTable
 from progressivis.table.table_facade import TableFacade
 from typing import Any as AnyType, Dict, cast, Type, Tuple, TypeAlias
@@ -40,7 +40,9 @@ HVegaWidget: TypeAlias = cast(
 class AfterRun(Coro):
     async def action(self, m: Module, run_number: int) -> None:
         data = m.result.to_df()  # type: ignore
-        self.leaf.child.vega.update("data", remove="true", insert=data)  # type: ignore
+        def _func() -> None:
+            self.leaf.child.vega.update("data", remove="true", insert=data)  # type: ignore
+        await asynchronize(_func)
 
 
 class AnyVegaW(VBoxTyped):

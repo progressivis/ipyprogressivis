@@ -15,7 +15,7 @@ from .utils import (
 )
 import ipywidgets as ipw
 from ..contour_density import ContourDensity  # type: ignore
-from progressivis.core.api import Module, Sink
+from progressivis.core.api import Module, Sink, asynchronize
 from progressivis.stats.tsne import TSNE
 from typing import Any as AnyType
 
@@ -27,24 +27,28 @@ class InfoBar(IpyHBoxTyped):
         iteration: ipw.IntText
         quality: ipw.FloatText
 
+
 class AfterRun(Coro):
     widget: ContourDensity | None = None
     async def action(self, m: Module, run_number: int) -> None:
-        #print(f"{m.name} {self.widget}", flush=True)
         try:
             assert isinstance(m, TSNE)
-            assert self.widget is not None
             if m.result is None:
                 return
-            #self.widget.child.image.data = m.result.to_array().tolist()  # type: ignore
-            self.widget.child.image.update(m.result)
-            info = self.widget.child.info
-            info.child.rows.value = len(self.widget.input_module.result)
-            info.child.iteration.value = self.widget._init_max_iter - m._max_iter
-            info.child.quality.value = m.tsne.get_error()  # type: ignore
+            def _func() -> None:
+                assert self.widget is not None
+                self.widget.child.image.update(m.result)
+                info = self.widget.child.info
+                assert info is not None
+                info.child.rows.value = len(self.widget.input_module.result)
+                info.child.iteration.value = self.widget._init_max_iter - m._max_iter
+                info.child.quality.value = m.tsne.get_error()  # type: ignore
+            await asynchronize(_func)
         except Exception as exc:
             print("ERRR", type(exc), exc, exc.args)
             raise
+
+
 class TSNE2DW(VBoxTyped):
     class Typed(TypedBase):
         col_choice: ipw.Dropdown
@@ -61,7 +65,6 @@ class TSNE2DW(VBoxTyped):
 
     @needs_dtypes
     def initialize(self) -> None:
-        print("BEGIN ini")
         self.col_types = {k: str(t) for (k, t) in self.dtypes.items()}
         self.col_typed_names = {f"{n}:{t}": (n, t) for (n, t) in self.col_types.items()}
         arr_cols = [
@@ -90,7 +93,6 @@ class TSNE2DW(VBoxTyped):
         self.child.start_btn = make_button(
             "Start", cb=self._start_btn_cb, disabled=True
         )
-        print("END ini")
         replay_next()
 
     def obs_columns(self, change: dict[str, AnyType]) -> None:

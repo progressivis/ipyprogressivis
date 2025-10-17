@@ -15,7 +15,7 @@ from .utils import (
     modules_producer
 )
 import ipywidgets as ipw
-from progressivis.core.api import Module
+from progressivis.core.api import Module, asynchronize
 from progressivis.vis.heatmap import Heatmap
 from progressivis.stats.api import Histogram2D, Min, Max
 from progressivis import Quantiles
@@ -32,13 +32,15 @@ class AfterRun(Coro):
         if self.leaf is None:
             return
         assert isinstance(m, Heatmap)
-        try:
-            image = m.get_image_bin()
-            if image is not None:
-                self.leaf.child.image.value = image  # type: ignore
-        except Exception:
-            import traceback
-            print(traceback.format_exc())
+        def _func() -> None:
+            try:
+                image = m.get_image_bin()
+                if image is not None:
+                    self.leaf.child.image.value = image  # type: ignore
+            except Exception:
+                import traceback
+                print(traceback.format_exc())
+        await asynchronize(_func)
 
 def make_float(
     description: str = "", disabled: bool = False, value: float = 0.0

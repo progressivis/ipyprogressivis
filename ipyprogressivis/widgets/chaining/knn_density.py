@@ -16,7 +16,7 @@ from .utils import (
 import numpy as np
 import ipywidgets as ipw
 from ..knn_kernel import KNNDensity
-from progressivis.core.api import Module
+from progressivis.core.api import Module, asynchronize
 from progressivis.stats.kernel_density import KernelDensity
 from typing import Any as AnyType
 
@@ -29,7 +29,9 @@ class AfterRun(Coro):
     async def action(self, m: Module, run_number: int) -> None:
         assert isinstance(m, KernelDensity)
         assert self.widget is not None
-        self.widget.data = m.to_json()  # type: ignore
+        def _func() -> None:
+            self.widget.data = m.to_json()  # type: ignore
+        await asynchronize(_func)
 
 class KNNDensityW(VBoxTyped):
     class Typed(TypedBase):

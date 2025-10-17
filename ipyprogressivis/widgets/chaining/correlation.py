@@ -15,7 +15,7 @@ from .utils import (
 )
 import ipywidgets as ipw
 from progressivis.stats.api import Corr
-from progressivis.core.api import Sink, Module
+from progressivis.core.api import Sink, Module, asynchronize
 from .._corr_schema import corr_spec_no_data
 from ..vega import VegaWidget
 from .desc_stats import corr_as_vega_dataset
@@ -29,8 +29,9 @@ class AfterRun(Coro):
         assert isinstance(m, Corr)
         cols = m.columns
         dataset = corr_as_vega_dataset(m, cols)
-        self.leaf.child.vega.update("data", remove="true", insert=dataset)  # type: ignore
-
+        def _func():
+            self.leaf.child.vega.update("data", remove="true", insert=dataset)  # type: ignore
+        await asynchronize(_func)
 
 
 class CorrelationW(VBoxTyped):
