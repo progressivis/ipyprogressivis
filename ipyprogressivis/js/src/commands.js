@@ -65,14 +65,14 @@ export function progressivisCleanup(app, nbtracker) {
           crtWidget.onloading_cells_content[pv_tag] = $(cell.node)
             .find($(".progressivis_guest_widget"))
             .first()[0].innerHTML;
-        } catch {
+        } catch(e) {
           // useful only for older notebooks. TODO: remove ASAP
           try {
             crtWidget.onloading_cells_content[pv_tag] =
               "<img src='" +
               $(cell.node).find($("img")).first()[0].src +
               "'</img>";
-          } catch {}
+          } catch(e) {console.log(e);}
         }
       }
     }
