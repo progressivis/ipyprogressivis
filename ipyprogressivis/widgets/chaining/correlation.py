@@ -13,6 +13,7 @@ from .utils import (
     disable_all,
     Coro,
 )
+from ..utils import sanitize
 import ipywidgets as ipw
 from progressivis.stats.api import Corr
 from progressivis.core.api import Sink, Module, asynchronize
@@ -28,7 +29,7 @@ class AfterRun(Coro):
     async def action(self, m: Module, run_number: int) -> None:
         assert isinstance(m, Corr)
         cols = m.columns
-        dataset = corr_as_vega_dataset(m, cols)
+        dataset = sanitize(corr_as_vega_dataset(m, cols))
         def _func():
             self.leaf.child.vega.update("data", remove="true", insert=dataset)  # type: ignore
         await asynchronize(_func)
@@ -76,7 +77,6 @@ class CorrelationW(VBoxTyped):
     def run(self) -> AnyType:
         content = self.frozen_kw
         self.output_module = self.init_corr(content)
-        self.make_leaf_bar(self.after_run)
         self.output_slot = "result"
 
     @modules_producer

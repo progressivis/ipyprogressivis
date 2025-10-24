@@ -1401,6 +1401,8 @@ class GuestWidget:
 
         if PARAMS["replay_before_resume"]:
             self.make_chaining_box()
+        elif hasattr(self, "after_run"):
+            self.make_leaf_bar(self.after_run)
         else:
             self.carrier.make_progress_bar()
         replay_next_if(self.carrier)
@@ -1562,6 +1564,7 @@ class CoroBar(IpyHBoxTyped):
     class Typed(TypedBase):
         display_t: ipw.IntSlider
         is_active: ipw.Checkbox
+        message: ipw.HTML
 
 
 class Coro:
@@ -1589,6 +1592,7 @@ class Coro:
         self.bar.c_.is_active = ipw.Checkbox(
             description="Active", value=True, disabled=False
         )
+        self.bar.c_.message = ipw.HTML()
 
     async def action(self, m: Module, run_n: int) -> None:
         raise ValueError("'action' method must be defined in a 'Coro' subclass")

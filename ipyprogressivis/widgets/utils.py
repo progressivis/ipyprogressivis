@@ -1,5 +1,6 @@
 from __future__ import annotations
 import time
+import numpy as np
 import ipywidgets as widgets
 from ipydatawidgets.ndarray.serializers import (  # type: ignore
     array_to_compressed_json,
@@ -91,3 +92,12 @@ def data_union_from_json_compress(value: Any, widget: Any) -> Any:
 data_union_serialization_compress: Dict[str, Callable[[Any, Any], Any]] = dict(
     to_json=data_union_to_json_compress, from_json=data_union_from_json_compress
 )
+
+def sanitize(x: Any) -> Any:
+    if isinstance(x, dict):
+        return {k: sanitize(v) for (k, v) in x.items()}
+    if isinstance(x, list):
+        return [sanitize(elt) for elt in x]
+    if isinstance(x, float) and np.isnan(x):
+        return None
+    return x

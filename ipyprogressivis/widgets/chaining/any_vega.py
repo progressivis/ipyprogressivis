@@ -22,24 +22,65 @@ from ..df_grid import DataFrameGrid
 import pandas as pd
 import numpy as np
 from progressivis.core.api import Module, Sink, notNone, asynchronize
-from progressivis.table.api import PTable
 from progressivis.table.table_facade import TableFacade
+from progressivis.table.api import BasePTable
 from typing import Any as AnyType, Dict, cast, Type, Tuple, TypeAlias
 import json
 import time
 import os
+from ipytablewidgets.source_adapter import SourceAdapter  # type: ignore
+
+
+class ProgressivisAdapter(SourceAdapter):  # type: ignore
+    """
+    Actually this adapter requires a dict of ndarrays
+    """
+
+    def __init__(self, source: BasePTable, *args: AnyType, **kw: AnyType) -> None:
+        assert source is None or isinstance(
+            source, BasePTable
+        )
+        super().__init__(source, *args, **kw)
+
+    @property
+    def columns(self) -> AnyType:
+        return self._columns or self._source.columns
+
+    def to_array(self, col: str) -> AnyType:
+        return self._source[col].values
+
+    def equals(self, other: SourceAdapter | BasePTable) -> AnyType:
+        if isinstance(other, SourceAdapter):
+            other = other._source
+        assert isinstance(other, BasePTable)
+        return self._source.equals(other)
 
 NdArray: TypeAlias = np.ndarray[AnyType, AnyType]
 
 WidgetType = AnyType
+
+MAX_SIZE = 10_000
 
 HVegaWidget: TypeAlias = cast(
     Type[AnyType], historized_widget(VegaWidget, "update")  # noqa: F821
 )
 
 class AfterRun(Coro):
+    columns: list[str] = []
     async def action(self, m: Module, run_number: int) -> None:
-        data = m.result.to_df()  # type: ignore
+        tbl = m.result  # type: ignore
+        if tbl is None:
+            return
+        len_tbl = len(tbl)
+        max_size = MAX_SIZE
+        start_sl = len_tbl - max_size if len_tbl > max_size else 0
+        if start_sl:
+            messg = ("<spread style='color: red;'>WARNING:</spread>"
+                     f" The data to be displayed contains more than {max_size} rows."
+                     f"Only the last {max_size} rows will be used.")
+            self.bar.c_.message.value = messg
+        # indices = np.random.randint(0, len_tbl, max_size)
+        data = ProgressivisAdapter(m.result.loc[start_sl:, self.columns])  # type: ignore
         def _func() -> None:
             self.leaf.child.vega.update("data", remove="true", insert=data)  # type: ignore
         await asynchronize(_func)
@@ -52,8 +93,7 @@ class AnyVegaW(VBoxTyped):
         save_schema: ipw.HBox | None
         grid: DataFrameGrid | None
         btn_apply: ipw.Button | None
-        refresh_ratio: ipw.IntSlider | None
-        vega: HVegaWidget | None
+        vega: VegaWidget | None
 
     def __init__(self, *args: AnyType, **kw: AnyType) -> None:
         super().__init__(*args, **kw)
@@ -174,52 +214,6 @@ class AnyVegaW(VBoxTyped):
         with open(file_name) as f:
             self.c_.editor.data = json.load(f)
 
-    def _update_vw_facade(self, _: Module, run_number: int) -> None:  # TODO: replace
-        slider = self.c_.refresh_ratio
-        ratio = max(slider.max - slider.value, 1)
-        self._updates_count += 1
-        if self._updates_count % ratio:
-            return
-
-        def _processing(fnc: str, arr: NdArray) -> NdArray:
-            if fnc == "enumerate":
-                return range(len(arr))  # type: ignore
-            elif fnc == "cbrt":
-                maxa = arr.max()
-                if maxa != 0:
-                    return cast(NdArray, np.cbrt(arr / maxa))
-                else:
-                    return arr
-            assert not fnc
-            return arr
-
-        def _as_dict(res: dict[str, AnyType] | PTable) -> dict[str, AnyType]:
-            if isinstance(res, dict):
-                return res
-            return notNone(notNone(res).last()).to_dict()
-
-        df_dict = {
-            col: _processing(proc, res[sl])
-            for (col, (m, attr, sl, proc)) in self.cols_mapping.items()
-            if sl in (res := _as_dict(getattr(m, attr)))
-        }
-
-        def _first_val(d: dict[str, NdArray]) -> NdArray | None:
-            for _, val in d.items():
-                return val
-            return None
-
-        if not df_dict:
-            print("nothing to do")
-            return
-        first_val = notNone(_first_val(df_dict))
-        data: NdArray | pd.DataFrame
-        if len(df_dict) == 1 and len(first_val.shape) > 1:
-            data = first_val
-        else:
-            data = pd.DataFrame(df_dict)
-        self.child.vega.update("data", remove="true", insert=data)
-
     def _btn_apply_cb(self, btn: ipw.Button) -> None:
         df_dict = self.c_.grid.df.to_dict(orient="index")
         for i, row in df_dict.items():
@@ -232,19 +226,8 @@ class AnyVegaW(VBoxTyped):
             )
         self.init_modules(mapping_dict=df_dict, vega_schema=js_val)
         disable_all(self)
-        self.c_.refresh_ratio = ipw.IntSlider(
-            value=100,
-            min=1,
-            max=100,
-            step=5,
-            description="Refresh ratio:",
-            style={"description_width": "initial"},
-            disabled=False,
-            continuous_update=False,
-            orientation="horizontal",
-            readout=True,
-            readout_format="d",
-        )
+        self.make_leaf_bar(self.after_run)
+        self.manage_replay()
 
     @modules_producer
     def init_modules(
@@ -274,8 +257,9 @@ class AnyVegaW(VBoxTyped):
                 self.cols_mapping[i] = out_m, out_n, slot, proc  # type: ignore
         if out_m is not None:  # i.e. the last out_m in the previous 'for'
             after_run = AfterRun()
+            after_run.columns = list({elt["Mapping"]: None for elt in mapping_dict.values()}.keys())
             out_m.on_after_run(after_run)
-            self.make_leaf_bar(after_run)
+            self.after_run = after_run
         vega_schema["data"] = {"name": "data"}
         if isinstance(self.input_module, Module):
             for (col, (m, attr, sl, proc)) in self.cols_mapping.items():

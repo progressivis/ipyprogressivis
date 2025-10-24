@@ -4,6 +4,7 @@ from typing import Dict
 import ipywidgets as widgets
 from traitlets import Unicode, Any
 from .. _frontend import NPM_PACKAGE, NPM_PACKAGE_RANGE
+from .utils import sanitize
 
 # See js/src/quality.js for the frontend counterpart to this file.
 
@@ -44,4 +45,4 @@ class QualityVisualization(widgets.DOMWidget):
         """
         if ts is None:
             ts = time.perf_counter()
-        self.send(dict(type="update", timestamp=ts, measures=measures))
+        self.send(dict(type="update", timestamp=ts, measures=sanitize(measures)))

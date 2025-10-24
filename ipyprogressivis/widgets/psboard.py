@@ -6,7 +6,7 @@ from jinja2 import Template
 from progressivis.core.api import JSONEncoderNp
 from .control_panel import ControlPanel
 from .sensitive_html import SensitiveHTML
-from .utils import update_widget
+from .utils import update_widget, sanitize
 from .module_graph import ModuleGraph
 from .module_wg import ModuleWg
 
@@ -121,7 +121,7 @@ class PsBoard(ipw.VBox):
         if self.last_refresh < self.refresh_rate:
             return
         self.last_refresh = 0
-        json_ = self.scheduler.to_json(short=False)
+        json_ = sanitize(self.scheduler.to_json(short=False))
         self._cache = JSONEncoderNp.dumps(json_, skipkeys=True)
         self._cache_js = None
         await self.refresh()
@@ -133,7 +133,7 @@ class PsBoard(ipw.VBox):
         # print("Dataflow changed")
         self.modules_changed = True
         self.mgraph_changed = True
-        json_ = self.scheduler.to_json(short=False)
+        json_ = sanitize(self.scheduler.to_json(short=False))
         self._cache = JSONEncoderNp.dumps(json_, skipkeys=True)
         self._cache_js = None
         await self.refresh()
@@ -200,10 +200,9 @@ class PsBoard(ipw.VBox):
         await update_widget(self.cpanel.run_nb, "value", str(json_["run_number"]))
         if self.tab.selected_index == 0:
             await self.make_table_index(json_["modules"])
-        elif self.tab.selected_index == 1 and self.mgraph_changed:
+        elif self.tab.selected_index == 1:
             # self.mgraph.data = self._cache
             await update_widget(self.mgraph, "data", self._cache)
-            self.mgraph_changed = False
         else:
             assert len(self.tab.children) > 2
             # FIXME fix when the displayed module is not deleted
