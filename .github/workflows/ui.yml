@@ -40,7 +40,8 @@ jobs:
         popd
         python -m pip install -U ipywidgets
         jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
-        python -m pip install hatch
+        python -m pip install hatch playwright
+        playwright install
         hatch build dist/
         python -m pip install dist/*.gz
 
