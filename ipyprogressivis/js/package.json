@@ -27,7 +27,7 @@
     "prepublish": "yarn run clean && yarn run build:prod",
     "build:pbook": "f=lib/progressibook.js&&echo -n 'export function progressibook(){return ' > $f && cat nb/ProgressiBook.ipynb>>$f&&echo '};'>>$f",
     "build:cp": "cp src/*.js lib&&yarn run build:pbook",
-    "build:babel": "babel src/*.jsx --out-dir lib",
+    "build:babel": "yarn run babel src/*.jsx --out-dir lib",
     "build": "rm -rf lib/*.js && yarn run build:cp && yarn run build:babel && webpack --mode=development && yarn run build:labextension:dev",
     "build:prod": "rm -rf ./lib/*.js && yarn run build:cp && yarn run build:babel && webpack --mode=production && yarn run build:labextension",
     "build:labextension": "jupyter labextension build .",
