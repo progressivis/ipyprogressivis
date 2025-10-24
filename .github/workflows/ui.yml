@@ -34,9 +34,9 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install jupyterlab==4.0.0
-        echo "HERE $(pwd)"
-        echo "LS $(ls)"
-        pushd ls
+        echo "HERE $(/bin/pwd)"
+        echo "LS $(ls .)"
+        pushd js
         yarn --frozen-lockfile
         yarn run build
         popd
