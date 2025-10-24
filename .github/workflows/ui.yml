@@ -40,8 +40,7 @@ jobs:
         popd
         python -m pip install -U ipywidgets
         jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
-        python -m pip install hatch playwright
-        playwright install
+        python -m pip install hatch
         hatch build dist/
         python -m pip install dist/*.gz
 
@@ -49,6 +48,7 @@ jobs:
       run: |
         cd ui-tests/
         yarn --frozen-lockfile
+        yarn add playwright
         yarn playwright install chromium
         yarn run start:detached
     - name: Wait for JupyterLab
