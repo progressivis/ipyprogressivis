@@ -10,7 +10,7 @@ import progressivis.core.aio as aio
 from .utils import data_union_serialization_compress
 from .. _frontend import NPM_PACKAGE, NPM_PACKAGE_RANGE
 import copy
-from typing import Any as AnyType, Sequence, TYPE_CHECKING, cast, Callable
+from typing import Any as AnyType, TYPE_CHECKING, cast, Callable
 
 if TYPE_CHECKING:
     from progressivis import Module
@@ -56,6 +56,12 @@ class Scatterplot(DataWidget, widgets.DOMWidget):  # type: ignore
     modal = Bool(False).tag(sync=True)
     to_hide = Any([]).tag(sync=True)
     display_counter = 0
+
+    def __init__(self, *, enable_centroids: bool = False, **kw: AnyType) -> None:
+        super().__init__(**kw)
+        if not enable_centroids:
+            self.to_hide = cast(Any, ["init_centroids_view_"])
+
 
     def link_module(
         self, module: MCScatterPlot, refresh: bool = True
@@ -117,7 +123,3 @@ class Scatterplot(DataWidget, widgets.DOMWidget):  # type: ignore
 
         self.observe(awake, "modal")
         return feed
-
-    def __init__(self, *, disable: Sequence[Any] = tuple()):
-        super().__init__()
-        self.to_hide = cast(Any, list(disable))

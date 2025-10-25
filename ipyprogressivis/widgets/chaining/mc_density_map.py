@@ -128,7 +128,6 @@ class MCDensityMapW(VBoxTyped):
         assert isinstance(self.input_module, Module)
         s = self.input_module.scheduler
         self.child.image = Scatterplot()
-        self.child.image.to_hide = ["init_centroids_view_"]
         with s:
             heatmap = MCScatterPlot(scheduler=s, classes=ctx, approximate=True)
             heatmap.create_dependent_modules(self.input_module, self.input_slot)

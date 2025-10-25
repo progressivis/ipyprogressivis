@@ -141,7 +141,7 @@ class MBKMeansW(VBoxTyped):
     def init_map(self, ctx: dict[str, AnyType]) -> MCScatterPlot:
         assert isinstance(self.input_module, Module)
         s = self.input_module.scheduler
-        self.child.image = Scatterplot()
+        self.child.image = Scatterplot(enable_centroids=True)
         _0 = ctx["col_x"]
         _1 = ctx["col_y"]
         with s:
