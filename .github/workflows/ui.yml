@@ -33,11 +33,7 @@ jobs:
       uses: actions/setup-node@v3
     - name: Install dependencies
       run: |
-        python -m pip install jupyterlab==4.0.0
-        cd ipyprogressivis/js
-        yarn --frozen-lockfile
-        yarn run build
-        cd ../../
+        python -m pip install jupyterlab==4.4.9
         python -m pip install -U ipywidgets
         jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
         python -m pip install hatch
