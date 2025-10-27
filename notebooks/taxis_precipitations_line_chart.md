@@ -159,7 +159,7 @@ The displayed matrix maps columns (vertically) to operations (horizontally) with
 
 The only possible operation on rows is their count. We count rows sharing the same pair (`pickup_hour`, `rain_level`), which will produce the `_count` column in the output table.
 <pre></pre>
-A second necessary aggregation is the `uniq` operation on the `pickup_year_day` column, which will count the distinct values of days sharing the same pair (`pickup_hour`, `rain_level`).
+A second necessary aggregation is the `nunique` operation on the `pickup_year_day` column, which will count the distinct values of days sharing the same pair (`pickup_hour`, `rain_level`).
 <pre></pre>
 The output will be a table containing 24 time intervals * 3 rain levels = 92 rows
 <pre></pre>
@@ -176,10 +176,10 @@ As it stands, this value cannot be used to measure cab activity, as it depends o
 <pre></pre>
 It therefore needs to be normalized by dividing this value (`_count`) by the total number of distinct days in each pair (`pickup_hour`, `rain_level`).
 <pre></pre>
-In the interface, we now select the two columns `_count` and `pickup_year_day_uniq` and the function `//`. We'll associate each function parameter with a column as follows:
+In the interface, we now select the two columns `_count` and `pickup_year_day_nunique` and the function `//`. We'll associate each function parameter with a column as follows:
 
 * numerator `num` with column `_count`
-* the denominator `den` with the column `pickup_year_day_uniq`.
+* the denominator `den` with the column `pickup_year_day_nunique`.
 <pre></pre>
 Rename the new column `trips_per_day` and check the `Use` checkbox.
 <pre></pre>
