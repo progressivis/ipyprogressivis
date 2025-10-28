@@ -8,7 +8,7 @@ import progressivis.core.aio as aio
 from progressivis.table.api import RangeQuery, TableFacade
 from progressivis.stats.api import Histogram1D, KLLSketch
 from ..df_grid import DataFrameGrid
-from .utils import (TreeTab, make_button, stage_register, VBox, TypedBase, IpyVBoxTyped,
+from .utils import (TreeTab, make_button, VBox, TypedBase, IpyVBoxTyped,
                     amend_last_record, is_recording, disable_all, runner, needs_dtypes,
                     modules_producer)
 from progressivis.io.api import Variable
@@ -689,4 +689,4 @@ class FacadeCreatorW(VBox):
         self._dyn_viewer.run_batch(self)
 
 
-stage_register["Facade"] = FacadeCreatorW
+# stage_register["Facade"] = FacadeCreatorW

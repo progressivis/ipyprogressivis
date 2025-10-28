@@ -1,6 +1,5 @@
 from .utils import (
     make_button,
-    stage_register,
     disable_all,
     VBoxTyped,
     TypedBase,
@@ -145,4 +144,4 @@ class KNNDensityW(VBoxTyped):
     def get_underlying_modules(self) -> list[object]:
         return []
 
-stage_register["KNN Density"] = KNNDensityW
+# stage_register["KNN Density"] = KNNDensityW

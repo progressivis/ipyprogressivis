@@ -1,4 +1,4 @@
-from .utils import (make_button, stage_register, dongle_widget, VBoxTyped,
+from .utils import (make_button, dongle_widget, VBoxTyped,
                     TypedBase, needs_dtypes)
 from ..utils import historized_widget
 from ._multi_series import multi_series_no_data
@@ -122,4 +122,4 @@ class MultiSeriesW(VBoxTyped):
         return []
 
 
-stage_register["MultiSeries"] = MultiSeriesW
+# stage_register["MultiSeries"] = MultiSeriesW
