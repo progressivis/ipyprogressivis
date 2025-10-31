@@ -6,7 +6,7 @@ This **ProgressiBook** demonstrates the use of chaining widgets to implement the
 
 ## Taxis
 
-This first widget handles the configuration and progressive loading of CSV files. It utilizes settings previously created and saved in a file named `taxis`(see [CSV loader](https://progressivis.readthedocs.io/en/latest/notebooks.html#csv-loader) for more details).
+This first widget handles the configuration and progressive loading of CSV files. It utilizes the sniffer available in the [CSV loader](https://progressivis.readthedocs.io/en/latest/notebooks.html#csv-loader) for more details.
 
 ## Quantiles
 
