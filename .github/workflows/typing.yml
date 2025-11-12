@@ -24,7 +24,7 @@ jobs:
     - name: Set up Python 3.13
       uses: actions/setup-python@v4
       with:
-        python-version: '3.13'
+        python-version: '3.14'
     - name: Run mypy
       run: |
         git clone https://github.com/progressivis/progressivis.git
