@@ -34,13 +34,7 @@ from typing import (
     Any as AnyType,
     Sequence,
     cast,
-    Optional,
-    Dict,
-    Set,
     Type,
-    Union,
-    List,
-    Tuple,
     Callable,
     Coroutine,
 )
@@ -113,8 +107,8 @@ def make_observer(
 
 
 def corr_as_vega_dataset(
-    mod: Corr, columns: Optional[Sequence[str]] = None
-) -> Sequence[Dict[str, AnyType]]:
+    mod: Corr, columns: Sequence[str] | None = None
+) -> Sequence[dict[str, AnyType]]:
     """ """
     if columns is None:
         columns = mod.columns
@@ -122,7 +116,7 @@ def corr_as_vega_dataset(
 
     def _c(kx: str, ky: str) -> float:
         assert mod.result is not None
-        res: Dict[AnyType, float] = cast(Dict[AnyType, float], mod.result)
+        res: dict[AnyType, float] = cast(dict[AnyType, float], mod.result)
         try:
             return res[(kx, ky)]
         except KeyError:
@@ -138,7 +132,7 @@ def corr_as_vega_dataset(
     ]
 
 
-def categ_as_vega_dataset(categs: PDict) -> List[Dict[str, AnyType]]:
+def categ_as_vega_dataset(categs: PDict) -> list[dict[str, AnyType]]:
     return [{"category": k, "count": v} for (k, v) in categs.items()]
 
 
@@ -316,7 +310,7 @@ def refresh_info_corr(cout: WidgetType, cmod: Corr, name: str, tab: "TreeTab") -
     cmod.updated_once = True  # type: ignore
 
 
-type_op_mismatches: Dict[str, Set[str]] = dict(
+type_op_mismatches: dict[str, set[str]] = dict(
     string=set(["min", "max", "var", "corr", "hist2d"])
 )
 
@@ -358,11 +352,11 @@ def _get_func_name(func: str) -> str:
 
 
 class DynViewer(TreeTab):
-    save_for_cancel: Tuple[AnyType, ...]
+    save_for_cancel: tuple[AnyType, ...]
 
     def __init__(
         self,
-        dtypes: Dict[str, AnyType],
+        dtypes: dict[str, AnyType],
         input_module: Module,
         input_slot: str = "result",
     ):
@@ -371,24 +365,24 @@ class DynViewer(TreeTab):
         self._input_module = input_module
         self._input_slot = input_slot
         self._modgroup = f"group_{id(self)}"
-        self.hidden_cols: List[str] = []
-        self._hidden_sel_wg: Optional[ipw.SelectMultiple] = None
-        self.visible_cols: List[str] = []
-        self._last_df: Optional[pd.DataFrame] = None
-        self._last_h2d_df: Optional[pd.DataFrame] = None
-        self.previous_visible_cols: List[str] = []
-        self.info_labels: Dict[Tuple[str, str], ipw.Label] = {}
-        self.info_cbx: Dict[Tuple[str, str], ipw.Checkbox] = {}
-        self.h2d_cbx: Dict[Tuple[str, str], ipw.Checkbox] = {}
-        self._hdict: Dict[
-            str, Tuple[Union[Histogram1DPattern, Histogram1DCategorical], WidgetType]
+        self.hidden_cols: list[str] = []
+        self._hidden_sel_wg: ipw.SelectMultiple | None = None
+        self.visible_cols: list[str] = []
+        self._last_df: pd.DataFrame | None = None
+        self._last_h2d_df: pd.DataFrame | None = None
+        self.previous_visible_cols: list[str] = []
+        self.info_labels: dict[tuple[str, str], ipw.Label] = {}
+        self.info_cbx: dict[tuple[str, str], ipw.Checkbox] = {}
+        self.h2d_cbx: dict[tuple[str, str], ipw.Checkbox] = {}
+        self._hdict: dict[
+            str, tuple[Histogram1DPattern | Histogram1DCategorical, WidgetType]
         ] = {}
-        self._h2d_dict: Dict[str, Tuple[Histogram2DPattern, WidgetType]] = {}
-        self._hist_tab: Optional[TreeTab] = None
-        self._hist_sel: Set[AnyType] = set()
-        self._h2d_tab: Optional[TreeTab] = None
-        self._h2d_sel: Set[AnyType] = set()
-        self._corr_sel: List[str] = []
+        self._h2d_dict: dict[str, tuple[Histogram2DPattern, WidgetType]] = {}
+        self._hist_tab: TreeTab | None = None
+        self._hist_sel: set[AnyType] = set()
+        self._h2d_tab: TreeTab | None = None
+        self._h2d_sel: set[AnyType] = set()
+        self._corr_sel: list[str] = []
         self._registry_mod = self.init_factory(input_module, input_slot)
         self.all_functions = {
             dec: _get_func_name(dec) for dec in self._registry_mod.func_dict.keys()
@@ -399,7 +393,7 @@ class DynViewer(TreeTab):
             if k not in ("hide", "hist", "corr")
         }
         self.obs_flag = False
-        self.range_widgets: Dict[str, ipw.IntRangeSlider] = {}
+        self.range_widgets: dict[str, ipw.IntRangeSlider] = {}
         self.updated_once = False
         self._selection_event = True
         self._registry_mod.scheduler.on_change(self.set_selection_event())
@@ -421,8 +415,8 @@ class DynViewer(TreeTab):
     def get_scheduler(self) -> Scheduler:
         return self._registry_mod.scheduler
 
-    def draw_matrix(self, ext_df: Optional[pd.DataFrame] = None) -> ipw.GridBox:
-        lst: List[WidgetType] = [ipw.Label("")] + [
+    def draw_matrix(self, ext_df: pd.DataFrame | None = None) -> ipw.GridBox:
+        lst: list[WidgetType] = [ipw.Label("")] + [
             ipw.Label(s) for s in self.all_functions.values()
         ]
         width_ = len(lst)
@@ -442,11 +436,11 @@ class DynViewer(TreeTab):
                     self.info_cbx[(i, c)].value = bool(df.loc[i, c])
         return gb
 
-    def draw_h2d_matrix(self, ext_df: Optional[pd.DataFrame] = None) -> ipw.GridBox:
+    def draw_h2d_matrix(self, ext_df: pd.DataFrame | None = None) -> ipw.GridBox:
         num_cols = sorted(
             [col for col in self.visible_cols if self.col_types[col] != "string"]
         )
-        lst: List[WidgetType] = [narrow_label("", 150)] + [
+        lst: list[WidgetType] = [narrow_label("", 150)] + [
             narrow_label(s) for s in num_cols
         ]
         width_ = len(lst)
@@ -467,8 +461,8 @@ class DynViewer(TreeTab):
 
     def draw_matrices(
         self,
-        ext_df: Optional[pd.DataFrame] = None,
-        ext_h2d_df: Optional[pd.DataFrame] = None,
+        ext_df: pd.DataFrame | None = None,
+        ext_h2d_df: pd.DataFrame | None = None,
     ) -> TreeTab:
         gb = self.draw_matrix(ext_df)
         h2d_gb = self.draw_h2d_matrix(ext_h2d_df)
@@ -494,7 +488,7 @@ class DynViewer(TreeTab):
         for (i, j), cbx in self.h2d_cbx.items():
             cbx.disabled = i == j
 
-    def matrix_to_df(self) -> Optional[pd.DataFrame]:
+    def matrix_to_df(self) -> pd.DataFrame | None:
         if not self.info_cbx:
             return None
         cols = self.visible_cols
@@ -506,7 +500,7 @@ class DynViewer(TreeTab):
         df = pd.DataFrame(arr, index=cols, columns=funcs)
         return df
 
-    def matrix_to_h2d_df(self) -> Optional[pd.DataFrame]:
+    def matrix_to_h2d_df(self) -> pd.DataFrame | None:
         if not self.h2d_cbx:
             return None
         cols = [col for col in self.visible_cols if self.col_types[col] != "string"]
@@ -527,7 +521,7 @@ class DynViewer(TreeTab):
         return self._btn_bar
 
     def set_histogram_widget(
-        self, name: str, hist_mod: Union[Histogram1DPattern, Histogram1DCategorical]
+        self, name: str, hist_mod: Histogram1DPattern | Histogram1DCategorical
     ) -> None:
         if name in self._hdict and self._hdict[name][0] is hist_mod:
             return  # self._hdict[name][1], None # None means selection unchanged
@@ -583,7 +577,7 @@ class DynViewer(TreeTab):
         self._hist_tab.set_tab(name, hout, overwrite=False)
         self._hist_tab.mod_dict[name] = selection
 
-    def set_module_selection(self, sel: Optional[Set[str]]) -> None:
+    def set_module_selection(self, sel: set[str] | None) -> None:
         self._registry_mod.scheduler._module_selection = sel
 
     def set_h2d_widget(self, name: str, h2d_mod: Histogram2DPattern) -> None:
@@ -599,7 +593,7 @@ class DynViewer(TreeTab):
         self._h2d_tab.set_tab(name, hout, overwrite=False)
         self._h2d_tab.mod_dict[name] = selection
 
-    def get_selection_set(self, func: str) -> Set[str]:
+    def get_selection_set(self, func: str) -> set[str]:
         assert self._last_df is not None
         return set(self._last_df.index[self._last_df.loc[:, func] != 0])
 
@@ -684,7 +678,7 @@ class DynViewer(TreeTab):
                     self.set_histogram_widget(
                         attr,
                         cast(
-                            Union[Histogram1DPattern, Histogram1DCategorical], hist_mod
+                            Histogram1DPattern | Histogram1DCategorical, hist_mod
                         ),
                     )
                 self._hist_sel = hist_sel
@@ -745,7 +739,7 @@ class DynViewer(TreeTab):
             self.remove_tab(CORR_MX_TAB_TITLE)
             self._corr_sel = []
 
-    def _info_label(self, k: Tuple[str, str]) -> ipw.Label:
+    def _info_label(self, k: tuple[str, str]) -> ipw.Label:
         lab = ipw.Label()
         self.info_labels[k] = lab
         return lab
@@ -762,7 +756,7 @@ class DynViewer(TreeTab):
         wgt.observe(self._h2d_cbx_obs_cb, "value")
         return wgt
 
-    def get_underlying_modules(self) -> List[str]:
+    def get_underlying_modules(self) -> list[str]:
         s = self._registry_mod.scheduler
         modules = s.group_modules(self._registry_mod.name)
         print("to delete", modules)
@@ -863,7 +857,7 @@ class DynViewer(TreeTab):
     def set_selection_event(
         self,
     ) -> Callable[
-        [Scheduler, Set[Module], Set[Module]], Coroutine[AnyType, AnyType, None]
+        [Scheduler, set[Module], set[Module]], Coroutine[AnyType, AnyType, None]
     ]:
         async def fun(a: AnyType, b: AnyType, c: AnyType) -> None:
             if not self._selection_event:
@@ -883,7 +877,7 @@ class DescStatsW(VBox):
         self.dag.request_attention(self.title, "widget", "PROGRESS_NOTIFICATION", "0")
         self.children = (self._dyn_viewer,)
 
-    def get_underlying_modules(self) -> List[str]:
+    def get_underlying_modules(self) -> list[str]:
         return self._dyn_viewer.get_underlying_modules()
 
 
