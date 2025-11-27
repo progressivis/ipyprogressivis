@@ -1,6 +1,6 @@
 from .utils import (
     make_button,
-    stage_register,
+    chaining_widget,
     disable_all,
     VBoxTyped,
     TypedBase,
@@ -56,6 +56,7 @@ def make_float(
     )
 
 
+@chaining_widget(label="Heatmap")
 class HeatmapW(VBoxTyped):
     class Typed(TypedBase):
         choice_dim: ipw.Dropdown
@@ -229,7 +230,3 @@ class HeatmapW(VBoxTyped):
         self.make_leaf_bar(self.after_run)
         self.output_slot = "result"
 
-    def get_underlying_modules(self) -> list[object]:
-        return []
-
-stage_register["Heatmap"] = HeatmapW

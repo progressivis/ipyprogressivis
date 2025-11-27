@@ -1,7 +1,7 @@
 # type: ignore
 from .utils import (
     make_button,
-    stage_register,
+    chaining_widget,
     VBoxTyped,
     TypedBase,
     amend_last_record,
@@ -34,7 +34,7 @@ class AfterRun(Coro):
             self.leaf.child.vega.update("data", remove="true", insert=dataset)  # type: ignore
         await asynchronize(_func)
 
-
+@chaining_widget(label="Corr")
 class CorrelationW(VBoxTyped):
     class Typed(TypedBase):
         selection: ipw.SelectMultiple
@@ -119,5 +119,3 @@ class CorrelationW(VBoxTyped):
     def provide_surrogate(self, title: str) -> GuestWidget:
         disable_all(self)
         return self
-
-stage_register["Corr"] = CorrelationW

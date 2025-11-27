@@ -1,4 +1,4 @@
-from .utils import stage_register, VBox, make_replay_next_btn, is_step, Coro
+from .utils import VBox, make_replay_next_btn, is_step, Coro, chaining_widget
 from ..slot_wg import SlotWg
 from typing import List, cast
 from progressivis.core.api import Module
@@ -10,7 +10,7 @@ class AfterRun(Coro):
         assert self.leaf is not None
         await cast(SlotWg, self.leaf.children[0]).refresh()  # type: ignore
 
-
+@chaining_widget(label="Dump table")
 class DumpPTableW(VBox):
     def __init__(self) -> None:
         super().__init__()
@@ -37,6 +37,3 @@ class DumpPTableW(VBox):
 
     def get_underlying_modules(self) -> List[str]:
         return []
-
-
-stage_register["Dump_table"] = DumpPTableW

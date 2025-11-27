@@ -1,12 +1,12 @@
-from .utils import (make_button, stage_register, VBoxTyped, TypedBase,
+from .utils import (make_button, VBoxTyped, TypedBase, chaining_widget,
                     amend_last_record, is_recording, disable_all, runner,
                     needs_dtypes, modules_producer)
 import ipywidgets as ipw
 import pandas as pd
 from progressivis.table.api import Aggregate
-from progressivis.core.api import Sink, Module
+from progressivis.core.api import Sink
 
-from typing import Any as AnyType, Optional, List, Tuple, Dict, Callable, cast
+from typing import Any as AnyType, Optional, List, Tuple, Dict, Callable
 
 WidgetType = AnyType
 
@@ -23,6 +23,7 @@ def is_disabled(dt: str, op: str) -> bool:
     # return dt in ("", "string", "datetime64")  # op in type_op_mismatches.get(dt, set())
     return op in type_op_mismatches.get(dt, {"count"})
 
+@chaining_widget(label="Aggregate")
 class AggregateW(VBoxTyped):
     class Typed(TypedBase):
         hidden_sel: ipw.SelectMultiple
@@ -128,9 +129,3 @@ class AggregateW(VBoxTyped):
                 self.child.start_btn.disabled = False
 
         return _cbk
-
-    def get_underlying_modules(self) -> List[Module]:
-        return [cast(Module, self.output_module)]
-
-
-stage_register["Aggregate"] = AggregateW

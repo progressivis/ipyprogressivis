@@ -1,7 +1,7 @@
 # type: ignore
 from .utils import (
     make_button,
-    stage_register,
+    chaining_widget,
     VBoxTyped,
     TypedBase,
     amend_last_record,
@@ -19,7 +19,7 @@ from typing import Any as AnyType
 
 WidgetType = AnyType
 
-
+@chaining_widget(label="Quantiles")
 class QuantilesW(VBoxTyped):
     class Typed(TypedBase):
         selection: ipw.SelectMultiple
@@ -81,6 +81,3 @@ class QuantilesW(VBoxTyped):
         self.dag_running()
         self.make_chaining_box()
         self.manage_replay()
-
-
-stage_register["Quantiles"] = QuantilesW

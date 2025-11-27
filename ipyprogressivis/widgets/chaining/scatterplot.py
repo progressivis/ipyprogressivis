@@ -1,4 +1,4 @@
-from .utils import make_button, stage_register, VBoxTyped, TypedBase, needs_dtypes
+from .utils import make_button, VBoxTyped, TypedBase, needs_dtypes, chaining_widget
 from ..utils import historized_widget
 from ._multi_series import scatterplot_no_data
 import ipywidgets as ipw
@@ -18,7 +18,7 @@ N = 4  # 1X + 3Y
 HVegaWidget: TypeAlias = cast(Type[AnyType],
                               historized_widget(VegaWidget, "update"))  # noqa: F821
 
-
+@chaining_widget(label="Scatterplot")
 class ScatterplotW(VBoxTyped):
     class Typed(TypedBase):
         grid: ipw.GridBox
@@ -99,6 +99,3 @@ class ScatterplotW(VBoxTyped):
         self.child.vega = HVegaWidget(spec=sc_json)
         self.input_module.scheduler.on_tick(self._update_vw)
         self.dag_running()
-
-
-stage_register["Scatterplot"] = ScatterplotW

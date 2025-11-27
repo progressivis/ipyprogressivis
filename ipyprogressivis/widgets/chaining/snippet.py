@@ -1,4 +1,4 @@
-from .utils import (make_button, stage_register, dongle_widget, VBoxTyped,
+from .utils import (make_button, dongle_widget, VBoxTyped, chaining_widget,
                     TypedBase, amend_last_record, GuestWidget, IpyHBoxTyped,
                     is_recording, disable_all, runner, needs_dtypes, labcommand, modules_producer)
 from ..df_grid import DataFrameGrid
@@ -22,7 +22,7 @@ class UploadBar(IpyHBoxTyped):
         files: ipw.FileUpload
         # run_cells: ipw.Checkbox
 
-
+@chaining_widget(label="Snippet")
 class SnippetW(VBoxTyped):
     class Typed(TypedBase):
         upload: UploadBar
@@ -162,5 +162,3 @@ class SnippetW(VBoxTyped):
     @modules_producer
     def eval_snippet(self, snippet: Callable[..., AnyType], columns: list[str]) -> AnyType:
         return snippet(self.input_module, self.input_slot, columns)
-
-stage_register["Snippet"] = SnippetW

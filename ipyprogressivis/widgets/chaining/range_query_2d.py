@@ -1,7 +1,7 @@
 # type: ignore
 from .utils import (
     make_button,
-    stage_register,
+    chaining_widget,
     VBoxTyped,
     TypedBase,
     amend_nth_record,
@@ -25,7 +25,7 @@ from typing import Any as AnyType
 
 WidgetType = AnyType
 
-
+@chaining_widget(label="RangeQuery2D")
 class RangeQuery2DW(VBoxTyped):
     class Typed(TypedBase):
         grid: DataFrameGrid
@@ -268,6 +268,3 @@ class RangeQuery2DW(VBoxTyped):
         max_y = slider_y.max
         slider_y.value = min_y, max_y
         slider_y.step = (max_y - min_y) / 10
-
-
-stage_register["RangeQuery2D"] = RangeQuery2DW

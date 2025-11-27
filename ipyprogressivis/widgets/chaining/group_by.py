@@ -1,4 +1,4 @@
-from .utils import (make_button, stage_register, dongle_widget, VBoxTyped,
+from .utils import (make_button, dongle_widget, VBoxTyped, chaining_widget,
                     TypedBase, amend_last_record,
                     is_recording, disable_all, runner, needs_dtypes,
                     modules_producer)
@@ -24,7 +24,7 @@ def make_sel_multiple_dt(disabled: bool = True) -> ipw.SelectMultiple:
         disabled=disabled,
     )
 
-
+@chaining_widget(label="Group by")
 class GroupByW(VBoxTyped):
     class Typed(TypedBase):
         grouping_mode: Union[ipw.HTML, ipw.RadioButtons]
@@ -154,6 +154,3 @@ class GroupByW(VBoxTyped):
         dd.observe(_f, names="value")
         dt_sel.observe(_f_sel, names="value")
         return ipw.HBox([dd, dt_sel])
-
-
-stage_register["Group by"] = GroupByW

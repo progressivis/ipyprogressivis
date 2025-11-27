@@ -1,6 +1,6 @@
 from .utils import (
     make_button,
-    stage_register,
+    chaining_widget,
     VBoxTyped,
     TypedBase,
     ModuleOrFacade,
@@ -85,7 +85,7 @@ class AfterRun(Coro):
             self.leaf.child.vega.update("data", remove="true", insert=data)  # type: ignore
         await asynchronize(_func)
 
-
+@chaining_widget(label="Any Vega")
 class AnyVegaW(VBoxTyped):
     class Typed(TypedBase):
         schemas: ipw.Dropdown | None
@@ -278,6 +278,3 @@ class AnyVegaW(VBoxTyped):
         content = self.frozen_kw
         self.init_modules(**content)
         return self.child.vega
-
-
-stage_register["Any Vega"] = AnyVegaW

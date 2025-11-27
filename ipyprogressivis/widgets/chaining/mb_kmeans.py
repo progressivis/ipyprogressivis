@@ -1,6 +1,6 @@
 from .utils import (
     make_button,
-    stage_register,
+    chaining_widget,
     disable_all,
     VBoxTyped,
     TypedBase,
@@ -53,6 +53,7 @@ class AfterRun(Coro):
             wg.data = JS.dumps(data_)  # type: ignore
         await asynchronize(_func)
 
+@chaining_widget(label="MBKMeans")
 class MBKMeansW(VBoxTyped):
     class Typed(TypedBase):
         choice_x: ipw.Dropdown
@@ -174,9 +175,3 @@ class MBKMeansW(VBoxTyped):
         content = self.frozen_kw
         self.output_module = self.init_map(content)
         self.output_slot = "result"
-
-    def get_underlying_modules(self) -> list[object]:
-        return []
-
-
-stage_register["MBKMeans"] = MBKMeansW

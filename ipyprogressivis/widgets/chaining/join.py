@@ -1,6 +1,6 @@
 from .utils import (
     make_button,
-    stage_register,
+    chaining_widget,
     append_child, VBox, amend_last_record, is_recording, disable_all, runner, needs_dtypes,
     modules_producer
 )
@@ -57,7 +57,7 @@ class MaskWidget(ipw.HBox):
     def get_dt(self) -> str:
         return "".join([sym*ck.value for (sym, ck) in zip(UTIME_SHORT_D, self._ck_tpl)])
 
-
+@chaining_widget(label="Join")
 class JoinW(VBox):
     def __init__(self) -> None:
         super().__init__()
@@ -310,6 +310,3 @@ class JoinW(VBox):
                 if not j:
                     self._btn_start.disabled = True
         return _cbk
-
-
-stage_register["Join"] = JoinW

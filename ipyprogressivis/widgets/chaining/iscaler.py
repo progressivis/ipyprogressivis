@@ -7,7 +7,7 @@ import progressivis.core.aio as aio
 from progressivis.io.api import Variable
 from progressivis.stats.scaling import MinMaxScaler
 from typing import Any, Dict, List, Callable, cast
-from .utils import make_button, stage_register, VBoxTyped, TypedBase, needs_dtypes
+from .utils import make_button, VBoxTyped, TypedBase, needs_dtypes
 
 spec_no_data = {
     "data": {"name": "data"},
@@ -326,4 +326,4 @@ class ScalerW(VBoxTyped):
         return sc
 
 
-stage_register["Scaler"] = ScalerW
+# stage_register["Scaler"] = ScalerW

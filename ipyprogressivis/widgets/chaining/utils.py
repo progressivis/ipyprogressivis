@@ -1628,3 +1628,8 @@ def modules_producer(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyTy
         self_.carrier.managed_modules = mods_after.difference(mods_before)
         return ret
     return _wrapper
+
+def chaining_widget(label: str) -> Callable[..., AnyType]:
+    def decorator(cls: AnyType) -> AnyType:
+        stage_register[label] = cls
+    return decorator

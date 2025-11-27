@@ -1,6 +1,6 @@
 from .utils import (
     make_button,
-    stage_register,
+    chaining_widget,
     disable_all,
     VBoxTyped,
     TypedBase,
@@ -48,7 +48,7 @@ class AfterRun(Coro):
             print("ERRR", type(exc), exc, exc.args)
             raise
 
-
+@chaining_widget(label="T-SNE 2D")
 class TSNE2DW(VBoxTyped):
     class Typed(TypedBase):
         col_choice: ipw.Dropdown
@@ -149,8 +149,3 @@ class TSNE2DW(VBoxTyped):
         content = self.frozen_kw
         self.output_module = self.init_module(content)
         self.output_slot = "result"
-
-    def get_underlying_modules(self) -> list[object]:
-        return []
-
-stage_register["T-SNE 2D"] = TSNE2DW

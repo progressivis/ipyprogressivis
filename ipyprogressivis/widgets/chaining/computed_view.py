@@ -1,6 +1,6 @@
 from .utils import (
     make_button,
-    stage_register,
+    chaining_widget,
     dongle_widget,
     VBoxTyped,
     IpyHBoxTyped,
@@ -17,7 +17,7 @@ from inspect import signature
 from ..df_grid import DataFrameGrid
 import pandas as pd
 from progressivis.table.repeater import Repeater, Computed
-from progressivis.core.api import Sink, Module
+from progressivis.core.api import Sink
 from progressivis.table.compute import (
     week_day,
     # UNCHANGED,
@@ -37,7 +37,7 @@ from progressivis.table.compute import (
 
 )
 
-from typing import Any as AnyType, Optional, Tuple, List, Dict, Callable, Union, cast
+from typing import Any as AnyType, Callable
 
 WidgetType = AnyType
 
@@ -54,7 +54,7 @@ DTYPES = [
 ] + [
     "datetime64"
 ]
-UFUNCS: Dict[str, Callable[..., AnyType]] = {
+UFUNCS: dict[str, Callable[..., AnyType]] = {
     k: v for (k, v) in np.__dict__.items() if isinstance(v, np.ufunc) and v.nin == 1
 }
 
@@ -142,141 +142,6 @@ class FuncW(ipw.VBox):
         return {row["Variable"].value: cname for (cname, row) in
                        self._col_var_map.df.iterrows()
                        if row["Variable"].value}
-"""
-class IfElseW(ipw.VBox):
-    def __init__(self, main: "ComputedViewW") -> None:
-        self._main = weakref.ref(main)
-        self._name = ipw.Text(
-            value="", placeholder="mandatory", description="Name:", disabled=False
-        )
-        self._name.observe(self._name_cb, names="value")
-        self._type = ipw.Dropdown(
-            options=[("object", lambda x: x), ("integer", int), ("floating", float)],
-            description="Type:",
-            ensure_option=True,
-            disabled=False,
-        )
-        self._name_box = ipw.HBox([self._name, self._type])
-        self._is = ipw.Dropdown(
-            options=[
-                ("", None),
-                (">", op.gt),
-                ("<", op.lt),
-                (">=", op.ge),
-                ("<=", op.le),
-                ("==", op.eq),
-                ("NaN", np.isnan),
-            ],
-            description="Is",
-            ensure_option=True,
-            disabled=False,
-        )
-        self._is.observe(self._is_cb, names="value")
-        self._than = ipw.Text(
-            value="", placeholder="", description="Than:", disabled=False
-        )
-        self._than.observe(self._name_cb, names="value")
-        self._cond_box = ipw.HBox([self._is, self._than])
-
-        self._if_true_val = ipw.Text(
-            value="", placeholder="mandatory", description="If True:", disabled=False
-        )
-        self._if_true_val.observe(self._name_cb, names="value")
-        self._if_true_ck = ipw.Checkbox(
-            value=False, description="Unchanged", disabled=False
-        )
-        self._if_true_ck.observe(self._if_true_ck_cb, names="value")
-        self._if_true_box = ipw.HBox([self._if_true_val, self._if_true_ck])
-        self._if_false_val = ipw.Text(
-            value="", placeholder="mandatory", description="If False:", disabled=False
-        )
-        self._if_false_val.observe(self._name_cb, names="value")
-        self._if_false_ck = ipw.Checkbox(
-            value=False, description="Unchanged", disabled=False
-        )
-        self._if_false_ck.observe(self._if_false_ck_cb, names="value")
-        self._if_false_box = ipw.HBox([self._if_false_val, self._if_false_ck])
-        self._create_fnc = make_button("Create", disabled=True, cb=self._create_fnc_cb)
-        super().__init__(
-            [
-                self._name_box,
-                self._cond_box,
-                self._if_true_box,
-                self._if_false_box,
-                self._create_fnc,
-            ]
-        )
-
-    @property
-    def main(self) -> Optional["ComputedViewW"]:
-        return self._main()
-
-    def _name_cb(self, change: AnyType) -> None:
-        self._check_all()
-
-    def _is_cb(self, change: AnyType) -> None:
-        if change["new"] is np.isnan:
-            self._than.value = ""
-            self._than.disabled = True
-        else:
-            self._than.disabled = False
-        self._check_all()
-
-    def _if_true_ck_cb(self, change: AnyType) -> None:
-        if change["new"]:
-            self._if_true_val.value = ""
-            self._if_true_val.disabled = True
-        else:
-            self._if_true_val.disabled = False
-        self._check_all()
-
-    def _if_false_ck_cb(self, change: AnyType) -> None:
-        if change["new"]:
-            self._if_false_val.value = ""
-            self._if_false_val.disabled = True
-        else:
-            self._if_false_val.disabled = False
-        self._check_all()
-
-    def _check_all(self) -> None:
-        if not self._name.value:
-            self._create_fnc.disabled = True
-            return
-        if not self._is.value:
-            self._create_fnc.disabled = True
-            return
-        if not (self._if_true_val.value or self._if_true_ck.value):
-            self._create_fnc.disabled = True
-            return
-        if not (self._if_false_val.value or self._if_false_ck.value):
-            self._create_fnc.disabled = True
-            return
-        if self._if_true_ck.value and self._if_false_ck.value:
-            self._create_fnc.disabled = True
-            return
-        if self._is.value is not np.isnan and not self._than.value:
-            self._create_fnc.disabled = True
-            return
-        self._create_fnc.disabled = False
-
-    def _create_fnc_cb(self, btn: AnyType) -> None:
-        name = self._name.value
-        assert name
-        op_ = self._is.value
-        assert op_ is not None
-        conv_ = self._type.value
-        than_ = None if op_ is np.isnan else conv_(self._than.value)
-        if_true = (
-            UNCHANGED if self._if_true_ck.value else conv_(self._if_true_val.value)
-        )
-        if_false = (
-            UNCHANGED if self._if_false_ck.value else conv_(self._if_false_val.value)
-        )
-        func = make_if_else(op_=op_, test_val=than_, if_true=if_true, if_false=if_false)
-        ALL_FUNCS.update({name: np.vectorize(func)})
-        assert self.main is not None
-        self.main.c_.cols_funcs.c_.funcs.options = [""] + list(ALL_FUNCS.keys())
-"""
 
 layout_refresh = ipw.Layout(width='30px', height='30px')
 
@@ -284,7 +149,7 @@ class ColsFuncs(IpyHBoxTyped):
     class Typed(TypedBase):
         cols: ipw.SelectMultiple
         funcs: ipw.Select
-        computed: Optional[FuncW]
+        computed: FuncW | None
 
 
 class KeepStored(IpyHBoxTyped):
@@ -298,19 +163,20 @@ class OptsBar(IpyHBoxTyped):
         refresh_btn: ipw.Button
         label: ipw.Label
 
+@chaining_widget(label="Computed view")
 class ComputedViewW(VBoxTyped):
     class Typed(TypedBase):
         opts: OptsBar
         # custom_funcs: ipw.Accordion
         cols_funcs: ColsFuncs
-        func_table: Optional[Union[ipw.Label, ipw.GridBox]]
+        func_table: ipw.Label | ipw.GridBox | None
         keep_stored: KeepStored
         btn_apply: ipw.Button
 
     @needs_dtypes
     def initialize(self) -> None:
-        self._col_widgets: Dict[Tuple[str, str], FuncW] = {}
-        self._computed: List[Optional[FuncW]] = []
+        self._col_widgets: dict[tuple[str, str], FuncW] = {}
+        self._computed: list[FuncW | None] = []
         self.c_.opts = OptsBar()
         wg: AnyType
         wg = self.c_.opts.c_.numpy_ufuncs = ipw.Checkbox(
@@ -323,11 +189,6 @@ class ComputedViewW(VBoxTyped):
         )
         wg.observe(self._refresh_funcs_cb, names="value")
         self.c_.opts.c_.label = ipw.Label("Refresh custom function list")
-        # self._if_else = IfElseW(self)
-        # self.c_.custom_funcs = ipw.Accordion(
-        #     children=[self._if_else], selected_index=None
-        # )
-        # self.c_.custom_funcs.set_title(0, "Add If-Else expressions")
         cols_t = [f"{c}:{t}" for (c, t) in self.dtypes.items()]
         col_list = list(zip(cols_t, self.dtypes.keys()))
         cols_funcs = ColsFuncs()
@@ -429,7 +290,7 @@ class ComputedViewW(VBoxTyped):
 
     @modules_producer
     def init_module(self, comp_list: list[dict[str, list[str]]],
-                    columns: List[str]) -> Repeater:
+                    columns: list[str]) -> Repeater:
         comp = Computed()
         from .custom import CUSTOMER_FNC
         ALL_FUNCS.update(CUSTOMER_FNC)
@@ -456,7 +317,7 @@ class ComputedViewW(VBoxTyped):
             sink.input.inp = rep.output.result
             return rep
 
-    def make_func_button(self, key: Tuple[str, str], wg: FuncW) -> ipw.Button:
+    def make_func_button(self, key: tuple[str, str], wg: FuncW) -> ipw.Button:
         kcol, kfun = key
 
         def _cb(btn: AnyType) -> None:
@@ -480,9 +341,3 @@ class ComputedViewW(VBoxTyped):
             lst + lst2,
             layout=ipw.Layout(grid_template_columns=f"repeat({table_width}, 200px)"),
         )
-
-    def get_underlying_modules(self) -> List[Module]:
-        return [cast(Module, self.output_module)]
-
-
-stage_register["Computed view"] = ComputedViewW
