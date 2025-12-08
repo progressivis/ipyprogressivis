@@ -1633,3 +1633,37 @@ def chaining_widget(label: str) -> Callable[..., AnyType]:
     def decorator(cls: AnyType) -> AnyType:
         stage_register[label] = cls
     return decorator
+
+def starter_callback(func: Callable[..., AnyType] | None = None,
+                *,
+                disable_btn: bool = True,
+                disable_ui: bool = True,
+                chaining: bool = True,
+                dag_running: bool = True,
+                manage_display: bool = True,
+
+
+                ) -> Callable[..., AnyType]:
+    def decorator(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
+        @wraps(func)
+        def wrapper(self_: GuestWidget, btn: ipw.Button, *args: AnyType, **kw: AnyType) -> AnyType:
+            ret = func(self_, btn, *args, **kw)
+            if disable_btn:
+                btn.disabled = True
+            if disable_ui:
+                disable_all(self_)
+            if chaining:
+                self_.make_chaining_box()
+            if dag_running:
+                self_.dag_running()
+            if hasattr(self_, "after_run"):
+                self_.make_leaf_bar(self_.after_run)
+
+            if manage_display:
+                self_.manage_replay()
+            return ret
+
+        return wrapper
+    if func is None:
+        return decorator
+    return decorator(func)
