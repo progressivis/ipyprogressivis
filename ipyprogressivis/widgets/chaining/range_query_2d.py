@@ -1,6 +1,7 @@
 # type: ignore
 from .utils import (
     make_button,
+    starter_callback,
     chaining_widget,
     VBoxTyped,
     TypedBase,
@@ -242,6 +243,7 @@ class RangeQuery2DW(VBoxTyped):
         self._saved_settings = {}
         self.child.buttons.children[1].disabled = True
 
+    @starter_callback
     def _start_btn_cb(self, btn: ipw.Button) -> None:
         assert self.column_x and self.column_y
         content = dict(X=self.column_x, Y=self.column_y)
@@ -251,10 +253,6 @@ class RangeQuery2DW(VBoxTyped):
             assert i is not None
             amend_nth_record(i, {"frozen": content})
         self.init_min_max(content)
-        btn.disabled = True
-        self.dag_running()
-        self.make_chaining_box()
-        self.manage_replay()
 
     def _unfilter_btn_cb(self, btn: ipw.Button) -> None:
         df = self.child.grid.df

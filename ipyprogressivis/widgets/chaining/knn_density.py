@@ -1,5 +1,6 @@
 from .utils import (
     make_button,
+    starter_callback,
     disable_all,
     VBoxTyped,
     TypedBase,
@@ -101,6 +102,7 @@ class KNNDensityW(VBoxTyped):
         else:
             self.child.start_btn.disabled = True
 
+    @starter_callback
     def _start_btn_cb(self, btn: ipw.Button) -> None:
         assert self.column_x and self.column_y
         params = dict(X=self.column_x, Y=self.column_y,
@@ -110,7 +112,7 @@ class KNNDensityW(VBoxTyped):
         if is_recording():
             amend_last_record({"frozen": params})
         self.init_knn(params)
-        btn.disabled = True
+
 
     @modules_producer
     def init_knn(self, ctx: dict[str, AnyType]) -> KernelDensity:
@@ -127,8 +129,6 @@ class KNNDensityW(VBoxTyped):
             after_run = AfterRun()
             after_run.widget = self.child.image
             knn.on_after_run(after_run)  # Install the callback
-            self.dag_running()
-            self.make_leaf_bar(after_run)
         return knn
 
     def provide_surrogate(self, title: str) -> GuestWidget:
@@ -140,8 +140,5 @@ class KNNDensityW(VBoxTyped):
         content = self.frozen_kw
         self.output_module = self.init_knn(content)
         self.output_slot = "result"
-
-    def get_underlying_modules(self) -> list[object]:
-        return []
 
 # stage_register["KNN Density"] = KNNDensityW

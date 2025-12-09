@@ -1,9 +1,9 @@
 from .utils import (make_button, dongle_widget, VBoxTyped, chaining_widget,
-                    TypedBase, amend_last_record,
-                    is_recording, disable_all, runner, needs_dtypes,
+                    TypedBase, amend_last_record, starter_callback,
+                    is_recording, runner, needs_dtypes,
                     modules_producer)
 import ipywidgets as ipw
-from progressivis.core.api import Module, Sink
+from progressivis.core.api import Sink
 from progressivis.table.group_by import (
     GroupBy,
     UTIME,
@@ -12,7 +12,7 @@ from progressivis.table.group_by import (
     UTIME_SHORT_D,
 )
 
-from typing import Any as AnyType, Union, List, cast
+from typing import Any as AnyType, Union, cast
 
 
 def make_sel_multiple_dt(disabled: bool = True) -> ipw.SelectMultiple:
@@ -51,10 +51,7 @@ class GroupByW(VBoxTyped):
             sink.input.inp = grby.output.result
             return grby
 
-    def get_underlying_modules(self) -> List[str]:
-        assert isinstance(self.output_module, Module)
-        return [self.output_module.name]
-
+    @starter_callback
     def _add_group_by_cb(self, btn: ipw.Button) -> None:
         self.child.grouping_mode.disabled = True
         self.child.by_box.disabled = True
@@ -76,11 +73,6 @@ class GroupByW(VBoxTyped):
             amend_last_record({'frozen': dict(by=by)})
         self.output_module = self.init_group_by(by)
         self.output_slot = "result"
-        btn.disabled = True
-        self.make_chaining_box()
-        self.dag_running()
-        disable_all(self)
-        self.manage_replay()
 
     @runner
     def run(self) -> AnyType:

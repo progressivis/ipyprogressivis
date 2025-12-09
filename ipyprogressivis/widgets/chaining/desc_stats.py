@@ -756,12 +756,6 @@ class DynViewer(TreeTab):
         wgt.observe(self._h2d_cbx_obs_cb, "value")
         return wgt
 
-    def get_underlying_modules(self) -> list[str]:
-        s = self._registry_mod.scheduler
-        modules = s.group_modules(self._registry_mod.name)
-        print("to delete", modules)
-        return modules
-
     def _make_cbx_obs(self, col: str, func: str) -> Callable[..., None]:
         def _cbk(change: AnyType) -> None:
             self._btn_apply.disabled = False
@@ -876,9 +870,6 @@ class DescStatsW(VBox):
         self._dyn_viewer = DynViewer(self.dtypes, self.input_module, self.input_slot)
         self.dag.request_attention(self.title, "widget", "PROGRESS_NOTIFICATION", "0")
         self.children = (self._dyn_viewer,)
-
-    def get_underlying_modules(self) -> list[str]:
-        return self._dyn_viewer.get_underlying_modules()
 
 
 # stage_register["Descriptive_statistics"] = DescStatsW

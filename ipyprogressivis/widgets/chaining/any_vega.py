@@ -1,5 +1,8 @@
 from .utils import (
     make_button,
+    starter_callback,
+    is_leaf,
+    no_progress_bar,
     chaining_widget,
     VBoxTyped,
     TypedBase,
@@ -35,7 +38,6 @@ class ProgressivisAdapter(SourceAdapter):  # type: ignore
     """
     Actually this adapter requires a dict of ndarrays
     """
-
     def __init__(self, source: BasePTable, *args: AnyType, **kw: AnyType) -> None:
         assert source is None or isinstance(
             source, BasePTable
@@ -85,6 +87,8 @@ class AfterRun(Coro):
             self.leaf.child.vega.update("data", remove="true", insert=data)  # type: ignore
         await asynchronize(_func)
 
+@is_leaf
+@no_progress_bar
 @chaining_widget(label="Any Vega")
 class AnyVegaW(VBoxTyped):
     class Typed(TypedBase):
@@ -214,6 +218,7 @@ class AnyVegaW(VBoxTyped):
         with open(file_name) as f:
             self.c_.editor.data = json.load(f)
 
+    @starter_callback
     def _btn_apply_cb(self, btn: ipw.Button) -> None:
         df_dict = self.c_.grid.df.to_dict(orient="index")
         for i, row in df_dict.items():
@@ -225,9 +230,6 @@ class AnyVegaW(VBoxTyped):
                 {"frozen": dict(mapping_dict=df_dict, vega_schema=js_val)}
             )
         self.init_modules(mapping_dict=df_dict, vega_schema=js_val)
-        disable_all(self)
-        self.make_leaf_bar(self.after_run)
-        self.manage_replay()
 
     @modules_producer
     def init_modules(
@@ -267,7 +269,7 @@ class AnyVegaW(VBoxTyped):
                     vega_schema["encoding"][col]["field"] = sl
         self.vega_schema = vega_schema
         self.child.vega = VegaWidget(spec=vega_schema)
-        self.dag_running()
+
 
     def provide_surrogate(self, title: str) -> GuestWidget:
         disable_all(self)

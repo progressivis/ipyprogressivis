@@ -1,6 +1,6 @@
 from .utils import (make_button, VBoxTyped, TypedBase, chaining_widget,
-                    amend_last_record, is_recording, disable_all, runner,
-                    needs_dtypes, modules_producer)
+                    amend_last_record, is_recording, runner,
+                    needs_dtypes, modules_producer, starter_callback)
 import ipywidgets as ipw
 import pandas as pd
 from progressivis.table.api import Aggregate
@@ -52,7 +52,7 @@ class AggregateW(VBoxTyped):
         )
 
     @modules_producer
-    def init_aggregate(self, compute: AnyType) -> Aggregate:
+    def init_modules(self, compute: AnyType) -> Aggregate:
         s = self.input_module.scheduler
         with s:
             aggr = Aggregate(compute=compute, scheduler=s)
@@ -86,6 +86,7 @@ class AggregateW(VBoxTyped):
         wgt.observe(self._make_cbx_obs(col, func), "value")
         return wgt
 
+    @starter_callback
     def _start_btn_cb(self, btn: ipw.Button) -> None:
         compute = [
             ("" if col == ALL_COLS else col, fnc)
@@ -94,18 +95,13 @@ class AggregateW(VBoxTyped):
         ]
         if is_recording():
             amend_last_record({'frozen': dict(compute=compute)})
-        self.output_module = self.init_aggregate(compute)
+        self.output_module = self.init_modules(compute)
         self.output_slot = "result"
-        btn.disabled = True
-        self.make_chaining_box()
-        self.dag_running()
-        disable_all(self)
-        self.manage_replay()
 
     @runner
     def run(self) -> AnyType:
         content = self.frozen_kw
-        self.output_module = self.init_aggregate(**content)
+        self.output_module = self.init_modules(**content)
         self.output_slot = "result"
 
     def _selm_obs_cb(self, change: AnyType) -> None:

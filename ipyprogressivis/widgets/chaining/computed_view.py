@@ -1,5 +1,6 @@
 from .utils import (
     make_button,
+    starter_callback,
     chaining_widget,
     dongle_widget,
     VBoxTyped,
@@ -273,14 +274,13 @@ class ComputedViewW(VBoxTyped):
             if wg._use.value
         ]
 
+    @starter_callback
     def _btn_apply_cb(self, btn: AnyType) -> None:
         comp_list = self._make_computed_list()
         cols = list(self.c_.keep_stored.c_.stored_cols.value)
         if is_recording():
             amend_last_record({"frozen": dict(comp_list=comp_list, columns=cols)})
         self.output_module = self.init_module(comp_list, columns=cols)
-        self.make_chaining_box()
-        self.dag_running()
 
     @runner
     def run(self) -> None:

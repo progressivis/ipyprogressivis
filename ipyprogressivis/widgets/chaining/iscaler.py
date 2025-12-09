@@ -7,7 +7,7 @@ import progressivis.core.aio as aio
 from progressivis.io.api import Variable
 from progressivis.stats.scaling import MinMaxScaler
 from typing import Any, Dict, List, Callable, cast
-from .utils import make_button, VBoxTyped, TypedBase, needs_dtypes
+from .utils import make_button, VBoxTyped, TypedBase, needs_dtypes, starter_callback
 
 spec_no_data = {
     "data": {"name": "data"},
@@ -292,12 +292,11 @@ class ScalerW(VBoxTyped):
             "Run scaler", cb=self._start_btn_cb, disabled=True
         )
 
+    @starter_callback
     def _start_btn_cb(self, btn: Any) -> None:
         self.output_module = self.init_scaler()
         self.output_slot = "result"
         self.output_module.on_after_run(_refresh_info(self.child.out))
-        self.make_chaining_box()
-        self.dag_running()
         self.child.inp._dict["selm"].disabled = True
         self.child.inp._dict["apply"].disabled = False
 

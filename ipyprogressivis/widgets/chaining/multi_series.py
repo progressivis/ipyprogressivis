@@ -116,10 +116,6 @@ class MultiSeriesW(VBoxTyped):
         self.child.vega = HVegaWidget(spec=multi_series_no_data)
         assert isinstance(self.input_module, Module)
         self.input_module.on_after_run(self._update_vw)
-        self.dag_running()
-
-    def get_underlying_modules(self) -> List[str]:
-        return []
 
 
 # stage_register["MultiSeries"] = MultiSeriesW

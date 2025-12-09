@@ -1,12 +1,12 @@
-from .utils import (make_button, dongle_widget, VBoxTyped, chaining_widget,
+from .utils import (make_button, dongle_widget, VBoxTyped, chaining_widget, starter_callback,
                     TypedBase, amend_last_record, GuestWidget, IpyHBoxTyped,
                     is_recording, disable_all, runner, needs_dtypes, labcommand, modules_producer)
 from ..df_grid import DataFrameGrid
 import pandas as pd
 import ipywidgets as ipw
-from progressivis.core.api import Module, Sink
+from progressivis.core.api import Sink
 from .custom import register_snippet, SnippetResult
-from typing import Any as AnyType, List, Callable
+from typing import Any as AnyType, Callable
 
 layout_refresh = ipw.Layout(width='30px', height='30px')
 _ = register_snippet, SnippetResult
@@ -110,14 +110,11 @@ class SnippetW(VBoxTyped):
     def _snippet_cb(self, val: AnyType) -> None:
         self.child.start_btn.disabled = not val["new"]
 
-    def get_underlying_modules(self) -> List[str]:
-        assert isinstance(self.output_module, Module)
-        return [self.output_module.name]
-
     def _refresh_btn_cb(self, btn: ipw.Button | None = None) -> None:
         from .custom import CUSTOMER_SNIPPET
         self.child.snippet.child.choice.options = [""] + list(CUSTOMER_SNIPPET.keys())
 
+    @starter_callback(disable_ui=False)
     def _start_btn_cb(self, btn: ipw.Button) -> None:
         from .custom import CUSTOMER_SNIPPET
         snippet = CUSTOMER_SNIPPET[self.child.snippet.child.choice.value]
@@ -138,10 +135,7 @@ class SnippetW(VBoxTyped):
         self.output_slot = res.output_slot
         if res.widget is not None:
             self.child.widget = res.widget
-        self.make_chaining_box()
-        self.dag_running()
         disable_all(self, exceptions=(res.widget,))
-        self.manage_replay()
 
     def provide_surrogate(self, title: str) -> GuestWidget:
         # disable_all(self)

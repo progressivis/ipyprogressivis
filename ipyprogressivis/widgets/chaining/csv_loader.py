@@ -8,13 +8,13 @@ from progressivis.table.api import PTable, Constant
 from .custom import register_function
 from .utils import (
     make_button,
+    starter_callback,
     get_schema,
     VBoxTyped,
     TypedBase,
     IpyHBoxTyped,
     amend_last_record,
     is_recording,
-    disable_all,
     runner,
     dot_progressivis,
     expand_urls,
@@ -270,6 +270,7 @@ class CsvLoaderW(VBoxTyped):
         self.c_.start_save.c_.sniff_btn.disabled = not change["new"]
         self.c_.start_save.c_.start.disabled = not change["new"]
 
+    @starter_callback
     def _start_loader_reuse_cb(self, btn: ipw.Button) -> None:
         if isinstance(self.c_.sniffer, JsonEditorW):
             # content = self.c_.sniffer.json_editor.value
@@ -300,11 +301,6 @@ class CsvLoaderW(VBoxTyped):
         self.output_module = csv_module
         self.output_slot = "result"
         self.output_dtypes = schema
-        self.make_chaining_box()
-        btn.disabled = True
-        self.dag_running()
-        disable_all(self)
-        self.manage_replay()
 
     def _sniffer_cb(self, btn: ipw.Button) -> None:
         if btn.description.startswith("Sniff"):
@@ -359,6 +355,7 @@ class CsvLoaderW(VBoxTyped):
             self.c_.sniffer = self._sniffer.box
             btn.description = "Hide sniffer"
 
+    @starter_callback
     def _start_loader_cb(self, btn: ipw.Button) -> None:
         urls = relative_urls(self._urls)
         assert self._sniffer is not None
@@ -384,10 +381,6 @@ class CsvLoaderW(VBoxTyped):
         self.output_slot = "result"
         assert self._sniffer is not None
         self.output_dtypes = get_schema(self._sniffer)
-        self.make_chaining_box()
-        btn.disabled = True
-        self.dag_running()
-        disable_all(self)
 
     def _save_settings_cb(self, btn: ipw.Button) -> None:
         pv_dir = dot_progressivis()

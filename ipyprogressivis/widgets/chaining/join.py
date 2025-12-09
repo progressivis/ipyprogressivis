@@ -1,7 +1,7 @@
 from .utils import (
     make_button,
-    chaining_widget,
-    append_child, VBox, amend_last_record, is_recording, disable_all, runner, needs_dtypes,
+    chaining_widget, starter_callback,
+    append_child, VBox, amend_last_record, is_recording, runner, needs_dtypes,
     modules_producer
 )
 import ipywidgets as ipw
@@ -109,6 +109,7 @@ class JoinW(VBox):
                          ipw.HBox([self._how,
                                    self._btn_start]))
 
+    @starter_callback
     def _btn_start_cb(self, btn: Any) -> None:
         primary_cols = [k for (k, (ck, _, _)) in
                         self._primary_cols_dict.items() if ck.value]
@@ -146,10 +147,6 @@ class JoinW(VBox):
         if is_recording():
             amend_last_record({'frozen': join_kw})
         self.output_module = self.init_join(**join_kw)
-
-        self.make_chaining_box()
-        self.dag_running()
-        disable_all(self)
 
     @runner
     def run(self) -> None:

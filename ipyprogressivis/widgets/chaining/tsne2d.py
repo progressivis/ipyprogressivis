@@ -1,5 +1,6 @@
 from .utils import (
     make_button,
+    starter_callback,
     chaining_widget,
     disable_all,
     VBoxTyped,
@@ -102,6 +103,7 @@ class TSNE2DW(VBoxTyped):
         else:
             self.child.start_btn.disabled = True
 
+    @starter_callback
     def _start_btn_cb(self, btn: ipw.Button) -> None:
         assert self.array_column
         params = dict(array=self.array_column,
@@ -110,9 +112,7 @@ class TSNE2DW(VBoxTyped):
         if is_recording():
             amend_last_record({"frozen": params})
         self.init_module(params)
-        self.make_leaf_bar(self.after_run)
-        btn.disabled = True
-        self.manage_replay()
+
     @modules_producer
     def init_module(self, ctx: dict[str, AnyType]) -> Module:
         array = ctx["array"]
@@ -137,7 +137,6 @@ class TSNE2DW(VBoxTyped):
             self.after_run = AfterRun()
             self.after_run.widget = self
             tsne.on_after_run(self.after_run)  # Install the callback
-            self.dag_running()
         return tsne
 
     def provide_surrogate(self, title: str) -> GuestWidget:

@@ -1,6 +1,9 @@
 # type: ignore
 from .utils import (
     make_button,
+    starter_callback,
+    is_leaf,
+    no_progress_bar,
     chaining_widget,
     VBoxTyped,
     TypedBase,
@@ -34,6 +37,8 @@ class AfterRun(Coro):
             self.leaf.child.vega.update("data", remove="true", insert=dataset)  # type: ignore
         await asynchronize(_func)
 
+@is_leaf
+@no_progress_bar
 @chaining_widget(label="Corr")
 class CorrelationW(VBoxTyped):
     class Typed(TypedBase):
@@ -73,6 +78,7 @@ class CorrelationW(VBoxTyped):
             "Start", cb=self._start_btn_cb, disabled=True
         )
 
+
     @runner
     def run(self) -> AnyType:
         content = self.frozen_kw
@@ -95,12 +101,12 @@ class CorrelationW(VBoxTyped):
         self.child.vega = VegaWidget(spec=corr_spec_no_data)
         self.after_run = after_run = AfterRun()
         corr.on_after_run(after_run)
-        self.dag_running()
         return corr
 
     def _selection_cb(self, change: AnyType) -> None:
         self.child.start_btn.disabled = len(change["new"]) < 2
 
+    @starter_callback
     def _start_btn_cb(self, btn: ipw.Button) -> None:
         content = dict(
             selection=self.child.selection.value,
@@ -109,12 +115,6 @@ class CorrelationW(VBoxTyped):
         if is_recording():
             amend_last_record({"frozen": content})
         self.output_module = self.init_corr(content)
-        self.make_leaf_bar(self.after_run)
-        btn.disabled = True
-        self.child.selection.disabled = True
-        #self.dag_running()
-        #self.make_chaining_box()
-        self.manage_replay()
 
     def provide_surrogate(self, title: str) -> GuestWidget:
         disable_all(self)

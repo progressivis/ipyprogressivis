@@ -1,5 +1,6 @@
 from .utils import (
     make_button,
+    starter_callback,
     stage_register,
     disable_all,
     VBoxTyped,
@@ -109,6 +110,7 @@ class MCDensityMapW(VBoxTyped):
         )
         replay_next()
 
+    @starter_callback
     def _start_btn_cb(self, btn: ipw.Button) -> None:
         df = self.child.columns.df
         class_dict: dict[str, dict[str, str]] = defaultdict(dict)
@@ -135,8 +137,6 @@ class MCDensityMapW(VBoxTyped):
             after_run.widget = self.child.image
             self.child.image.link_module(heatmap, refresh=False)
             heatmap.on_after_run(after_run)  # Install the callback
-            self.dag_running()
-            self.make_leaf_bar(after_run)
             return heatmap
 
     def provide_surrogate(self, title: str) -> GuestWidget:
@@ -148,8 +148,5 @@ class MCDensityMapW(VBoxTyped):
         content = self.frozen_kw
         self.output_module = self.init_map(content)
         self.output_slot = "result"
-
-    def get_underlying_modules(self) -> list[object]:
-        return []
 
 stage_register["MCDensityMap"] = MCDensityMapW

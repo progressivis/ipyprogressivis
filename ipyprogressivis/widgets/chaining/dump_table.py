@@ -1,6 +1,6 @@
-from .utils import VBox, make_replay_next_btn, is_step, Coro, chaining_widget
+from .utils import VBox, make_replay_next_btn, is_step, Coro, chaining_widget, starter_callback
 from ..slot_wg import SlotWg
-from typing import List, cast
+from typing import cast
 from progressivis.core.api import Module
 from progressivis.core import aio
 
@@ -16,8 +16,8 @@ class DumpPTableW(VBox):
         super().__init__()
         self.frozen_kw = dict(fake="fake")
 
+    @starter_callback
     def initialize(self) -> None:
-        self.dag_running()
         input_ = (
             self.input_module
             if isinstance(self.input_module, Module)
@@ -29,11 +29,7 @@ class DumpPTableW(VBox):
             self.children = (sl_wg, next_btn)
         else:
             self.children = (sl_wg,)
-        after_run = AfterRun()
+        self.after_run = after_run = AfterRun()
         input_.on_after_run(after_run)
-        self.make_leaf_bar(after_run)
         if input_.state == input_.state_terminated:  # useful for little tables
             aio.create_task(after_run.action(input_, 42))
-
-    def get_underlying_modules(self) -> List[str]:
-        return []

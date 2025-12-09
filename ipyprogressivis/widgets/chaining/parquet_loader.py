@@ -8,8 +8,8 @@ from progressivis.table.api import PTable, Constant
 from progressivis.io.api import ParquetLoader
 from .loaders import JsonEditorW, BtnBar
 from .utils import (make_button, VBoxTyped, TypedBase, is_recording,
+                    starter_callback,
                     amend_last_record,
-                    disable_all,
                     dot_progressivis,
                     runner,
                     expand_urls,
@@ -306,6 +306,7 @@ class ParquetLoaderW(VBoxTyped):
             assert btn.description.startswith("Show")
             btn.description = "Hide sniffer"
 
+    @starter_callback
     def _start_loader_reuse_cb(self, btn: ipw.Button) -> None:
         if isinstance(self.c_.sniffer, JsonEditorW):
             content = self.c_.sniffer.c_.editor.data
@@ -329,12 +330,8 @@ class ParquetLoaderW(VBoxTyped):
         self.output_module = pq_module
         self.output_slot = "result"
         self.output_dtypes = dtypes
-        self.make_chaining_box()
-        btn.disabled = True
-        self.dag_running()
-        disable_all(self)
-        self.manage_replay()
 
+    @starter_callback
     def _start_loader_cb(self, btn: ipw.Button) -> None:
         urls = relative_urls(self._urls)
         throttle = self.c_.throttle.value
@@ -352,10 +349,6 @@ class ParquetLoaderW(VBoxTyped):
         self.output_module = pq_module
         self.output_slot = "result"
         self.output_dtypes = dtypes
-        self.make_chaining_box()
-        btn.disabled = True
-        self.dag_running()
-        disable_all(self)
 
     def _save_settings_cb(self, btn: ipw.Button) -> None:
         pv_dir = dot_progressivis()

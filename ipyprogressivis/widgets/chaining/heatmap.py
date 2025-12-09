@@ -1,5 +1,8 @@
 from .utils import (
     make_button,
+    starter_callback,
+    is_leaf,
+    no_progress_bar,
     chaining_widget,
     disable_all,
     VBoxTyped,
@@ -55,7 +58,8 @@ def make_float(
         layout={"width": "initial"},
     )
 
-
+@is_leaf
+@no_progress_bar
 @chaining_widget(label="Heatmap")
 class HeatmapW(VBoxTyped):
     class Typed(TypedBase):
@@ -161,6 +165,7 @@ class HeatmapW(VBoxTyped):
         )
         replay_next()
 
+    @starter_callback
     def _start_btn_cb(self, btn: ipw.Button) -> None:
         assert self.column_x and self.column_y
         xy = dict(X=self.column_x, Y=self.column_y,
@@ -172,12 +177,7 @@ class HeatmapW(VBoxTyped):
                   )
         if is_recording():
             amend_last_record({"frozen": xy})
-        self.init_heatmap(xy)
-        self.make_leaf_bar(self.after_run)
-        btn.disabled = True
-        self.child.choice_x.disabled = True
-        self.child.choice_y.disabled = True
-        self.child.choice_dim.disabled = True
+        self.output_module = self.init_heatmap(xy)
 
     @modules_producer
     def init_heatmap(self, ctx: dict[str, AnyType]) -> Heatmap:
@@ -216,7 +216,6 @@ class HeatmapW(VBoxTyped):
             self._heatmap.params.gaussian_blur = ctx["blur"]
             self.after_run = AfterRun()
             heatmap.on_after_run(self.after_run)  # Install the callback
-            self.dag_running()
             return heatmap
 
     def provide_surrogate(self, title: str) -> GuestWidget:
@@ -227,6 +226,5 @@ class HeatmapW(VBoxTyped):
     def run(self) -> AnyType:
         content = self.frozen_kw
         self.output_module = self.init_heatmap(content)
-        self.make_leaf_bar(self.after_run)
         self.output_slot = "result"
 

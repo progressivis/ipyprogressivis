@@ -8,8 +8,8 @@ import progressivis.core.aio as aio
 from progressivis.table.api import RangeQuery, TableFacade
 from progressivis.stats.api import Histogram1D, KLLSketch
 from ..df_grid import DataFrameGrid
-from .utils import (TreeTab, make_button, VBox, TypedBase, IpyVBoxTyped,
-                    amend_last_record, is_recording, disable_all, runner, needs_dtypes,
+from .utils import (TreeTab, make_button, VBox, TypedBase, IpyVBoxTyped, starter_callback,
+                    amend_last_record, is_recording, runner, needs_dtypes,
                     modules_producer)
 from progressivis.io.api import Variable
 from ..vega import VegaWidget
@@ -675,14 +675,9 @@ class FacadeCreatorW(VBox):
         btn = make_button("Start", cb=self._start_cb)
         self.children = (self._dyn_viewer, btn)
 
-    def get_underlying_modules(self) -> list[str]:
-        return ["TODO"]
-
+    @starter_callback
     def _start_cb(self, btn: AnyType) -> None:
         self._dyn_viewer.run(self)
-        self.make_chaining_box()
-        self.dag_running()
-        disable_all(self)
 
     @runner
     def run(self) -> None:

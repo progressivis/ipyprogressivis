@@ -1,5 +1,6 @@
 from .utils import (
     make_button,
+    starter_callback,
     chaining_widget,
     disable_all,
     VBoxTyped,
@@ -127,6 +128,7 @@ class MBKMeansW(VBoxTyped):
     def _awake_btn_cb(self, btn: ipw.Button) -> None:
         self._awake()
 
+    @starter_callback
     def _start_btn_cb(self, btn: ipw.Button) -> None:
         ctx = dict(
             col_x=self.column_x,
@@ -162,8 +164,6 @@ class MBKMeansW(VBoxTyped):
             self._awake = self.child.image.link_module(sp, refresh=False)
             self.child.awake_btn.disabled = False
             sp.on_after_run(after_run)  # Install the callback
-            self.dag_running()
-            self.make_leaf_bar(after_run)
             return sp
 
     def provide_surrogate(self, title: str) -> GuestWidget:

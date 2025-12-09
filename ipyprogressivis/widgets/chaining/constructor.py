@@ -29,7 +29,6 @@ from .utils import (
     LOADERS,
     add_new_loader,
     disable_all,
-    shot_cell_cmd,
     set_parent_widget
 )
 
@@ -192,9 +191,7 @@ class Constructor(RootVBox, TypedBox):
             reset_recorder()
             set_recording_state(True)
         add_new_loader(self, self.c_.loader.c_.choice.value, self.c_.loader.c_.alias_inp.value)
-        #alias.value = ""
         disable_all(self)
-        shot_cell_cmd(tag="root")
         self.dag_running()
 
     def start_scheduler(self, n: int = 3) -> None:
@@ -213,6 +210,7 @@ class Constructor(RootVBox, TypedBox):
         replay_list.extend(self._arch_list)
         replay_list.append({})  # end of tape marker
         # disable_all(self)
+        self.dag_running()
         if batch:
             replay_sequence(self)
         else:

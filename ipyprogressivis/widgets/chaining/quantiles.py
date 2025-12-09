@@ -1,6 +1,7 @@
 # type: ignore
 from .utils import (
     make_button,
+    starter_callback,
     chaining_widget,
     VBoxTyped,
     TypedBase,
@@ -71,13 +72,10 @@ class QuantilesW(VBoxTyped):
     def _selection_cb(self, change: AnyType) -> None:
         self.child.start_btn.disabled = not change["new"]
 
+    @starter_callback
     def _start_btn_cb(self, btn: ipw.Button) -> None:
         content = self.child.selection.value
         if is_recording():
             amend_last_record({"frozen": content})
         self.output_module = self.init_quantiles(content)
-        btn.disabled = True
         self.child.selection.disabled = True
-        self.dag_running()
-        self.make_chaining_box()
-        self.manage_replay()

@@ -32,6 +32,7 @@ from typing import (
     Any,
     Tuple,
     Union,
+    Type,
     Any as AnyType,
     Optional,
     Dict,
@@ -70,7 +71,7 @@ QUAL_W = 512
 QUAL_H = 128
 ITRASH = 0
 IGUEST = 1
-BOX_SIZE = 2
+BOX_SIZE = 5
 
 
 def dongle_widget(v: str = "") -> ipw.HTML:
@@ -203,11 +204,6 @@ FSSPEC_HTTPS = fsspec.filesystem('https')
 
 LOADERS = {"CSV loader": "csv", "PARQUET loader": "parquet", "CUSTOM loader": "custom"}
 
-DO_SHOT = False
-
-SHOT_LATER: list[str] = []
-
-
 def dot_progressivis() -> str:
     home = HOME
     pv_dir: Path | str = f"{home}/.progressivis/"
@@ -221,36 +217,8 @@ def dot_progressivis() -> str:
     return ""
 
 
-def shot_later(name: str) -> None:
-    if not DO_SHOT:
-        return
-    SHOT_LATER.append(name)
-
-
-def shot_cell_cmd(tag: str, delay: int = 3000) -> None:
-    if not DO_SHOT:
-        return
-    if REPLAY_BATCH:
-        return
-    for name in SHOT_LATER:
-        labcommand("progressivis:shot_cell", tag=name, delay=delay)
-    SHOT_LATER.clear()
-    labcommand("progressivis:shot_cell", tag=tag, delay=delay)
-
-
 def glob_url(url: str) -> list[str]:
     return cast(list[str], FSSPEC_HTTPS.glob(url))
-
-
-def shot_cell(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
-    def wrapper(*args: Any, **kwargs: Any) -> None:
-        self_ = args[0]
-        assert isinstance(self_, GuestWidget)
-        func(*args, **kwargs)
-        shot_cell_cmd(tag=self_.carrier.title, delay=3000)
-    if DO_SHOT:
-        return wrapper
-    return func
 
 
 def expand_urls(urls: list[str]) -> list[str]:
@@ -885,7 +853,6 @@ def _make_btn_start_loader(
                 obj.c_.loader.c_.custom
             )
         )
-    shot_cell_cmd(tag="root", delay=3000)
     return _cbk
 
 
@@ -927,6 +894,7 @@ class ChainingProtocol(Protocol):
     _output_dtypes: Optional[Dict[str, str]]
     _output_module: ModuleOrFacade
     title: str
+    guest: "GuestWidget"
 
     def _make_btn_chain_it_cb(
         self, sel: AnyType, alias: AnyType, frozen: AnyType | None = None, number: int | None = None
@@ -955,7 +923,6 @@ class ChainingMixin:
                 parent_widget = self  # type: ignore
                 add_new_stage(self, sel.value, alias.value, frozen=frozen, number=number)  # type: ignore
             sel.value = ""
-            shot_cell_cmd(tag=self.title, delay=3000)
         return _cbk
 
     def _progress_bar(self) -> ipw.IntProgress:
@@ -988,86 +955,40 @@ class ChainingMixin:
         qv.height = QUAL_H  # type: ignore
         return qv
 
-    def _make_progress_bar(self) -> ipw.VBox:
-        prog_wg = self._progress_bar()
-        return ipw.VBox([prog_wg])
-
-    def _make_chaining_box(self: ChainingProtocol) -> ipw.Box:
-        sel = ipw.Dropdown(
-            options=[""] + list(sorted(stage_register.keys())) + list(LOADERS.keys()),
-            value="",
-            description="Next stage",
-            disabled=False,
-        )
-        alias = ipw.Text(
-            value="",
-            placeholder="optional alias",
-            description="",
-            disabled=False,
-            style={"description_width": "initial"},
-        )
-
-        btn = make_button("Chain it", disabled=True, cb=self._make_btn_chain_it_cb(sel, alias))
-        #del_btn = make_button(
-        #    f"Remove {self.title}", disabled=False, cb=make_remove(self)  # type: ignore
-        #)
-
+    def _make_footer(self: ChainingProtocol, batch: bool = False) -> ipw.Box:
         def _on_sel_change(change: Any) -> None:
             if change["new"]:
                 btn.disabled = False
             else:
                 btn.disabled = True
-
-        prog_wg = self._progress_bar()  # type: ignore
-        qual_wg = self._quality_bar()  # type: ignore
-        sel.observe(_on_sel_change, names="value")
-        chaining = ipw.HBox([sel, alias, btn])
-        children_ = [prog_wg, qual_wg, chaining] if qual_wg else [prog_wg, chaining]
-        return ipw.VBox(children_)
-
-    def _make_replay_chaining_box(self: ChainingProtocol) -> ipw.Box:
-        next_stage = replay_list.pop(0)
-        frozen = next_stage.get("frozen")
-        if "ftype" in next_stage:
-            title = next_stage["alias"]
-        else:
-            title = next_stage["title"]
-        sel = ipw.Dropdown(
-            options=[title],
-            value=title,
-            description="Next stage",
-            disabled=True,
-        )
-
-        class _FakeSel:
-            value: str
-
-        fake_sel = _FakeSel()
-        fake_sel.value = title
-
-        if "ftype" in next_stage:
-            cons = PARAMS["constructor"]
-            btn = make_button(
-                "Create loader",
+        after_run_bar = None
+        guest = self.guest
+        if hasattr(guest, "after_run"):
+            guest.after_run.leaf = guest
+            after_run_bar = guest.after_run.bar
+        prog_wg = self._progress_bar() if guest._show_progress else None # type: ignore
+        qual_wg = self._quality_bar() if guest._show_quality else None  # type: ignore
+        if guest._is_chainable and not batch:
+            sel = ipw.Dropdown(
+                options=[""] + list(sorted(stage_register.keys())) + list(LOADERS.keys()),
+                value="",
+                description="Next stage",
                 disabled=False,
-                cb=_make_btn_start_loader(cons, next_stage["ftype"], fake_sel, frozen),
             )
+            alias = ipw.Text(
+                value="",
+                placeholder="optional alias",
+                description="",
+                disabled=False,
+                style={"description_width": "initial"},
+            )
+            btn = make_button("Chain it", disabled=True, cb=self._make_btn_chain_it_cb(sel, alias))
+            sel.observe(_on_sel_change, names="value")
+            chaining_ = ipw.HBox([sel, alias, btn])
         else:
-            btn = make_button(
-                "Chain it", disabled=False, cb=self._make_btn_chain_it_cb(sel, frozen)
-            )
-        del_btn = make_button("Remove subtree", disabled=True)
-
-        def _on_sel_change(change: Any) -> None:
-            if change["new"]:
-                btn.disabled = False
-            else:
-                btn.disabled = True
-
-        sel.observe(_on_sel_change, names="value")
-        prog_wg = self._progress_bar()  # type: ignore
-        chaining = ipw.HBox([sel, btn, del_btn])
-        return ipw.VBox([prog_wg, chaining])
+            chaining_ = None
+        children_ = [elt for elt in (after_run_bar, prog_wg, qual_wg, chaining_) if elt is not None]
+        return ipw.VBox(children_)
 
 
 def get_previous(obj: "ChainingWidget") -> "ChainingWidget":
@@ -1213,9 +1134,6 @@ class ChainingWidget:
         self.subwidgets: List[ChainingWidget] = []
         self.managed_modules: set[str] = set()
 
-    def get_underlying_modules(self) -> List[str]:
-        raise NotImplementedError()
-
     def dag_register(self) -> None:
         assert self.parent is not None
         self.dag.register_widget(
@@ -1249,6 +1167,10 @@ class ChainingWidget:
 
 
 class GuestWidget:
+    _show_progress: bool = True
+    _show_quality: bool = True
+    _is_chainable: bool = True
+
     def __init__(self) -> None:
         self.__carrier: Union[int, ReferenceType["NodeCarrier"]] = 0
         self.frozen_kw: Dict[str, Any]
@@ -1329,13 +1251,8 @@ class GuestWidget:
     def dag_running(self) -> None:
         self.carrier.dag_running()
 
-    @shot_cell
-    def make_chaining_box(self) -> None:
-        self.carrier.make_chaining_box()
-
-    def make_leaf_bar(self, coro: "Coro") -> None:
-        coro.leaf = self
-        self.carrier.make_leaf_bar(coro)
+    def make_footer(self, batch: bool = False) -> None:
+        self.carrier.make_footer(batch=batch)
 
     def _make_guess_types(
         self, fun: Callable[..., None], args: Iterable[Any], kw: Dict[str, Any]
@@ -1398,13 +1315,8 @@ class GuestWidget:
         surrogate = self.provide_surrogate(title)
         self.carrier.children = (BTN_DEL, surrogate,)  # type: ignore
         surrogate._GuestWidget__carrier = ref(self.carrier)  # type: ignore
-
-        if PARAMS["replay_before_resume"]:
-            self.make_chaining_box()
-        elif hasattr(self, "after_run"):
-            self.make_leaf_bar(self.after_run)
-        else:
-            self.carrier.make_progress_bar()
+        batch = not PARAMS["replay_before_resume"]
+        self.make_footer(batch=batch)
         replay_next_if(self.carrier)
         return self.carrier
 
@@ -1465,31 +1377,14 @@ class NodeCarrier(NodeVBox):
         assert self.children[IGUEST].frozen_kw is not None  # type: ignore
         return self.children[IGUEST].run()  # type: ignore
 
-    def make_chaining_box(self) -> None:
+    def make_footer(self, batch: bool = False) -> None:
         if len(self.children) > BOX_SIZE:
             raise ValueError("The chaining box already exists")
-        if replay_list and not PARAMS["replay_before_resume"]:
-            box = self._make_replay_chaining_box()  # type: ignore
-        else:
-            box = self._make_chaining_box()  # type: ignore
+        box = self._make_footer(batch=batch)  # type: ignore
         if not box:
             return
         self.children = (self.children[ITRASH], self.children[IGUEST], box)
-
-    def make_composed_bar(self, box: ipw.Box) -> None:
-        qual_wg = self._quality_bar()
-        self.children = ([self.children[ITRASH], self.children[IGUEST], box] if qual_wg is None
-                         else [self.children[ITRASH], self.children[IGUEST], box, qual_wg]
-                         )
-
-    def make_leaf_bar(self, coro_obj: "Coro") -> None:
-        self.make_composed_bar(coro_obj.bar)
-
-    def make_progress_bar(self) -> None:
-        "used in post_run()"
-        box = self._make_progress_bar()
-        self.make_composed_bar(box)
-        #self.children = (self.children[ITRASH], self.children[IGUEST], box)
+        #self.children = list(self.children) + [box]
 
     @property
     def guest(self) -> GuestWidget:
@@ -1569,10 +1464,8 @@ class CoroBar(IpyHBoxTyped):
 
 class Coro:
     __name__ = "action"  # raise clean exceptions in Module
-    def __init__(self, shot_offset: int = 3, shot_rate: int = 100) -> None:
+    def __init__(self) -> None:
         self.leaf: GuestWidget | None = None  # TODO: use a weakref here
-        self._shot_offset = shot_offset
-        self._shot_rate = shot_rate
         self._last_display: int = 0
         self.calls_counter: int = 0
         self.bar = CoroBar()
@@ -1606,8 +1499,6 @@ class Coro:
         await self.action(m, run_n)
         self._last_display = int(time.time())
         self.calls_counter += 1
-        if self.calls_counter % self._shot_rate == self._shot_offset and self.leaf is not None:
-            shot_cell_cmd(tag=self.leaf.carrier.title, delay=3000)
 
 def modules_producer(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyType]:
     """
@@ -1632,13 +1523,14 @@ def modules_producer(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyTy
 def chaining_widget(label: str) -> Callable[..., AnyType]:
     def decorator(cls: AnyType) -> AnyType:
         stage_register[label] = cls
+        return cls
     return decorator
 
 def starter_callback(func: Callable[..., AnyType] | None = None,
                 *,
                 disable_btn: bool = True,
                 disable_ui: bool = True,
-                chaining: bool = True,
+                footer: bool = True,
                 dag_running: bool = True,
                 manage_display: bool = True,
 
@@ -1646,19 +1538,19 @@ def starter_callback(func: Callable[..., AnyType] | None = None,
                 ) -> Callable[..., AnyType]:
     def decorator(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
         @wraps(func)
-        def wrapper(self_: GuestWidget, btn: ipw.Button, *args: AnyType, **kw: AnyType) -> AnyType:
-            ret = func(self_, btn, *args, **kw)
-            if disable_btn:
+        def wrapper(self_: GuestWidget, btn: ipw.Button | None = None, *args: AnyType, **kw: AnyType) -> AnyType:
+            if btn:
+                ret = func(self_, btn, *args, **kw)
+            else:
+                ret = func(self_, *args, **kw)
+            if btn and disable_btn:
                 btn.disabled = True
             if disable_ui:
                 disable_all(self_)
-            if chaining:
-                self_.make_chaining_box()
+            if footer:
+                self_.make_footer()
             if dag_running:
                 self_.dag_running()
-            if hasattr(self_, "after_run"):
-                self_.make_leaf_bar(self_.after_run)
-
             if manage_display:
                 self_.manage_replay()
             return ret
@@ -1667,3 +1559,15 @@ def starter_callback(func: Callable[..., AnyType] | None = None,
     if func is None:
         return decorator
     return decorator(func)
+
+def is_leaf(cls: Type[GuestWidget]) -> Type[GuestWidget]:
+    cls._is_chainable = False
+    return cls
+
+def no_progress_bar(cls: Type[GuestWidget]) -> Type[GuestWidget]:
+    cls._show_progress = False
+    return cls
+
+def no_quality_bar(cls: Type[GuestWidget]) -> Type[GuestWidget]:
+    cls._show_quality = False
+    return cls
