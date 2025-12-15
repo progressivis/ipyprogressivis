@@ -6,7 +6,7 @@ from ..vega import VegaWidget
 import pandas as pd
 from progressivis.core.api import Scheduler
 
-from typing import Any as AnyType, Type, cast, List, Dict, Callable
+from typing import Any as AnyType, Type, cast, Callable
 from typing_extensions import TypeAlias
 import copy
 
@@ -30,7 +30,7 @@ class HistogramW(VBoxTyped):
     def initialize(self) -> None:
         self.output_dtypes = None  # type: ignore
         self._axis = {}
-        lst: List[ipw.DOMWidget] = [
+        lst: list[ipw.DOMWidget] = [
             _l("Axis"),
             _l("PColumn"),
             _l("Symbol"),
@@ -48,7 +48,7 @@ class HistogramW(VBoxTyped):
             "Apply", disabled=True, cb=self._btn_apply_cb
         )
 
-    def _axis_row(self, axis: str) -> Dict[str, ipw.DOMWidget]:
+    def _axis_row(self, axis: str) -> dict[str, ipw.DOMWidget]:
         axis_w = _l(axis)
         col_list = [""] + list(self.dtypes.keys())
         col = ipw.Dropdown(
@@ -83,20 +83,20 @@ class HistogramW(VBoxTyped):
     def _make_aggregate_cb(self, axis: str) -> Callable[..., None]:
         other = "Y" if axis == "X" else "X"
 
-        def _aggregate_cb(change: Dict[str, AnyType]) -> None:
+        def _aggregate_cb(change: dict[str, AnyType]) -> None:
             if not change["new"]:
                 return
             self._axis[other]["aggregate"].value = ""
 
         return _aggregate_cb
 
-    def _col_xy_cb(self, change: Dict[str, AnyType]) -> None:
+    def _col_xy_cb(self, change: dict[str, AnyType]) -> None:
         self._x_col = self._axis["X"]["col"].value
         self._y_col = self._axis["Y"]["col"].value
         self.child.btn_apply.disabled = not (self._x_col and self._y_col)
 
     def _btn_apply_cb(self, btn: AnyType) -> None:
-        sc_json: Dict[str, AnyType] = copy.deepcopy(histogram1d_no_data)
+        sc_json: dict[str, AnyType] = copy.deepcopy(histogram1d_no_data)
         x_sym = self._axis["X"]["sym"].value
         x_aggr = self._axis["X"]["aggregate"].value
         if x_aggr:

@@ -6,7 +6,7 @@ import pandas as pd
 from progressivis.table.api import Aggregate
 from progressivis.core.api import Sink
 
-from typing import Any as AnyType, Optional, List, Tuple, Dict, Callable
+from typing import Any as AnyType, Callable
 
 WidgetType = AnyType
 
@@ -32,7 +32,7 @@ class AggregateW(VBoxTyped):
 
     @needs_dtypes
     def initialize(self) -> None:
-        self.hidden_cols: List[str] = []
+        self.hidden_cols: list[str] = []
         fncs = ["hide"] + list(Aggregate.registry.keys())
         self.all_functions = dict(zip(fncs, fncs))
         self.child.hidden_sel = ipw.SelectMultiple(
@@ -45,7 +45,7 @@ class AggregateW(VBoxTyped):
         self.child.hidden_sel.observe(self._selm_obs_cb, "value")
         self.visible_cols: list[str] = [ALL_COLS] + list(self.dtypes.keys())
         self.obs_flag = False
-        self.info_cbx: Dict[Tuple[str, str], ipw.Checkbox] = {}
+        self.info_cbx: dict[tuple[str, str], ipw.Checkbox] = {}
         self.child.grid = self.draw_matrix()
         self.child.start_btn = make_button(
             "Activate", cb=self._start_btn_cb, disabled=True
@@ -61,8 +61,8 @@ class AggregateW(VBoxTyped):
             sink.input.inp = aggr.output.result
             return aggr
 
-    def draw_matrix(self, ext_df: Optional[pd.DataFrame] = None) -> ipw.GridBox:
-        lst: List[WidgetType] = [ipw.Label("")] + [
+    def draw_matrix(self, ext_df: pd.DataFrame | None = None) -> ipw.GridBox:
+        lst: list[WidgetType] = [ipw.Label("")] + [
             ipw.Label(s) for s in self.all_functions.values()
         ]
         width_ = len(lst)

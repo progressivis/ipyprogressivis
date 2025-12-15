@@ -6,7 +6,7 @@ import ipywidgets as ipw
 from ..vega import VegaWidget
 import pandas as pd
 from progressivis.core.api import Module
-from typing import Any as AnyType, Dict, cast, Type, List
+from typing import Any as AnyType, cast, Type
 from typing_extensions import TypeAlias
 
 
@@ -29,7 +29,7 @@ class MultiSeriesW(VBoxTyped):
     def initialize(self) -> None:
         self.output_dtypes = None  # type: ignore
         self._axis = []
-        lst: List[ipw.DOMWidget] = [
+        lst: list[ipw.DOMWidget] = [
             _l(""),
             _l("Column"),
             _l("* Factor"),
@@ -48,7 +48,7 @@ class MultiSeriesW(VBoxTyped):
         )
 
 
-    def _axis_row(self, axis: str) -> Dict[str, ipw.DOMWidget]:
+    def _axis_row(self, axis: str) -> dict[str, ipw.DOMWidget]:
         axis_w = _l(axis)
         if axis == "T":
             col_list = [col for (col, t) in self.dtypes.items() if t == "datetime64"]
@@ -101,7 +101,7 @@ class MultiSeriesW(VBoxTyped):
             dataframes.append(df)
         self.child.vega.update("data", remove="true", insert=pd.concat(dataframes))
 
-    def _col_xy_cb(self, change: Dict[str, AnyType]) -> None:
+    def _col_xy_cb(self, change: dict[str, AnyType]) -> None:
         has_x = False
         has_y = False
         for row in self._axis:

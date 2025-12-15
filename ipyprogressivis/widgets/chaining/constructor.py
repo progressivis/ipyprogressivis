@@ -35,8 +35,6 @@ from .utils import (
 from typing import (
     Any as AnyType,
     Callable,
-    Optional,
-    List,
 )
 
 
@@ -87,11 +85,11 @@ class Constructor(RootVBox, TypedBox):
     def __init__(
             self,
             dag: DAGWidget,
-            urls: List[str] = [],
+            urls: list[str] = [],
             *,
             backup: AnyType = None,
             name: str = "root",
-            to_sniff: Optional[str] = None,
+            to_sniff: str | None = None,
     ) -> None:
         set_dag(dag)
         ctx = dict(

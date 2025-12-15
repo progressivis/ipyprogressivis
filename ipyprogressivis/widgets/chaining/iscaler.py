@@ -6,7 +6,7 @@ from progressivis.core.api import asynchronize, Sink, Module
 import progressivis.core.aio as aio
 from progressivis.io.api import Variable
 from progressivis.stats.scaling import MinMaxScaler
-from typing import Any, Dict, List, Callable, cast
+from typing import Any, Callable, cast
 from .utils import make_button, VBoxTyped, TypedBase, needs_dtypes, starter_callback
 
 spec_no_data = {
@@ -161,7 +161,7 @@ class IScalerIn(ipw.GridBox):
             "reset": rst,
             "apply": btn,
         }
-        lst: List[ipw.DOMWidget] = []
+        lst: list[ipw.DOMWidget] = []
         for wg in [selm, rt, tol_p100, tol, ign, rst]:
             lst.append(ipw.Label(wg.description))
             wg.description = ""
@@ -189,11 +189,11 @@ class IScalerIn(ipw.GridBox):
         return cast(int, self._dict["ignore_max"].value)
 
     @property
-    def selm(self) -> List[str]:
-        return cast(List[str], self._dict["selm"].value)
+    def selm(self) -> list[str]:
+        return cast(list[str], self._dict["selm"].value)
 
     @property
-    def values(self) -> Dict[str, Any]:
+    def values(self) -> dict[str, Any]:
         return {k: wg.value for (k, wg) in self._dict.items() if hasattr(wg, "value")}
 
     def _apply_cb(self, _btn: Any) -> None:
@@ -224,7 +224,7 @@ class IScalerOut(ipw.HBox):
 
     def __init__(self, main: "ScalerW") -> None:
         self._main = weakref.ref(main)
-        self.info_labels: Dict[str, ipw.Label] = {}
+        self.info_labels: dict[str, ipw.Label] = {}
         lst = []
         for k, lab in self.info_keys.items():
             lst.append(ipw.Label(lab))

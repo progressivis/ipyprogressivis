@@ -5,7 +5,7 @@ import ipywidgets as ipw
 from ..vega import VegaWidget
 import pandas as pd
 from progressivis.core.api import Scheduler
-from typing import Any as AnyType, Dict, cast, Type, List
+from typing import Any as AnyType, cast, Type
 from typing_extensions import TypeAlias
 import copy
 
@@ -29,7 +29,7 @@ class ScatterplotW(VBoxTyped):
     def initialize(self) -> None:
         self.output_dtypes = None  # type: ignore
         self._axis = {}
-        lst: List[ipw.DOMWidget] = [_l("Axis"), _l("PColumn"), _l("Symbol")]
+        lst: list[ipw.DOMWidget] = [_l("Axis"), _l("PColumn"), _l("Symbol")]
         for row_name in ["X", "Y", "Color", "Shape"]:
             row = self._axis_row(row_name)
             self._axis[row_name] = row
@@ -42,7 +42,7 @@ class ScatterplotW(VBoxTyped):
             "Apply", disabled=True, cb=self._btn_apply_cb
         )
 
-    def _axis_row(self, axis: str) -> Dict[str, ipw.DOMWidget]:
+    def _axis_row(self, axis: str) -> dict[str, ipw.DOMWidget]:
         axis_w = _l(axis)
         col_list = [""] + list(self.dtypes.keys())
         col = ipw.Dropdown(
@@ -73,13 +73,13 @@ class ScatterplotW(VBoxTyped):
         df = pd.DataFrame(df_dict)
         self.child.vega.update("data", remove="true", insert=df)
 
-    def _col_xy_cb(self, change: Dict[str, AnyType]) -> None:
+    def _col_xy_cb(self, change: dict[str, AnyType]) -> None:
         self._x_col = self._axis["X"]["col"].value
         self._y_col = self._axis["Y"]["col"].value
         self.child.btn_apply.disabled = not (self._x_col and self._y_col)
 
     def _btn_apply_cb(self, btn: AnyType) -> None:
-        sc_json: Dict[str, AnyType] = copy.deepcopy(scatterplot_no_data)
+        sc_json: dict[str, AnyType] = copy.deepcopy(scatterplot_no_data)
         x_sym = self._axis["X"]["sym"].value
         y_sym = self._axis["Y"]["sym"].value
         self._x_sym = x_sym or self._x_col

@@ -12,10 +12,7 @@ from typing import (
     Any as AnyType,
     Any,
     Optional,
-    Dict,
     Callable,
-    List,
-    Union,
     Literal,
     cast
 )
@@ -51,7 +48,7 @@ class MaskWidget(ipw.HBox):
             ck.value = True
         self.children = tuple([])
 
-    def get_values(self) -> List[bool]:
+    def get_values(self) -> list[bool]:
         return [ck.value for ck in self._ck_tpl]
 
     def get_dt(self) -> str:
@@ -83,8 +80,8 @@ class JoinW(VBox):
             style={"description_width": "initial"},
         )
         self._cols_setup = ipw.Tab()
-        self._primary_cols_dict: Dict[str, AnyType] = {}
-        self._related_cols_dict: Dict[str, AnyType] = {}
+        self._primary_cols_dict: dict[str, AnyType] = {}
+        self._related_cols_dict: dict[str, AnyType] = {}
         self._primary_wg: Optional[VBox] = None
         self._related_wg: Optional[VBox] = None
         self._role_2.observe(self._role_2_cb, "value")
@@ -115,9 +112,9 @@ class JoinW(VBox):
                         self._primary_cols_dict.items() if ck.value]
         related_cols = [k for (k, ck) in
                         self._related_cols_dict.items() if ck.value]
-        primary_on: Union[str, List[str]] = [k for (k, (_, dd, _)) in
+        primary_on: str | list[str] = [k for (k, (_, dd, _)) in
                                              self._primary_cols_dict.items() if dd.value]
-        related_on: Union[str, List[str]] = [dd.value for (_, dd, _) in
+        related_on: str | list[str] = [dd.value for (_, dd, _) in
                                              self._primary_cols_dict.values() if dd.value]
         assert primary_on
         assert related_on
@@ -223,7 +220,7 @@ class JoinW(VBox):
                               description="",
                               disabled=False,
                               indent=False)
-        lst: List[WidgetType] = [_l(""), _l("Keep"), _l("Join on"), _l("Subcolumns"),
+        lst: list[WidgetType] = [_l(""), _l("Keep"), _l("Join on"), _l("Subcolumns"),
                                  _l("*"), ck_all, _l(""), _l("")]
         assert primary_wg.output_dtypes is not None
         assert related_wg.output_dtypes is not None
@@ -282,7 +279,7 @@ class JoinW(VBox):
         for ck in self._related_cols_dict.values():
             ck.value = val
 
-    def _role_2_cb(self, change: Dict[str, AnyType]) -> None:
+    def _role_2_cb(self, change: dict[str, AnyType]) -> None:
         role = change["new"]
         self._role_1.value = "primary" if role == "related" else "related"
 
