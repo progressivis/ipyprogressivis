@@ -214,8 +214,7 @@ class HeatmapW(VBoxTyped):
             self._heatmap = heatmap
             self._heatmap.params.transform = int(ctx["trans"])
             self._heatmap.params.gaussian_blur = ctx["blur"]
-            self.after_run = AfterRun()
-            heatmap.on_after_run(self.after_run)  # Install the callback
+            self.after_run = AfterRun(heatmap)
             return heatmap
 
     def provide_surrogate(self, title: str) -> GuestWidget:

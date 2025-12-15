@@ -13,8 +13,6 @@ from .utils import (
     VBoxTyped,
     TypedBase,
     IpyHBoxTyped,
-    amend_last_record,
-    is_recording,
     runner,
     dot_progressivis,
     expand_urls,
@@ -28,18 +26,18 @@ import time
 import json as js
 import operator as op
 
-from typing import List, Optional, Any, Dict, Callable, cast
+from typing import Any, Callable, cast
 
 HOME = os.getenv("HOME")
 assert HOME is not None
 
 
-def clean_nodefault(d: Dict[str, Any]) -> Dict[str, Any]:
+def clean_nodefault(d: dict[str, Any]) -> dict[str, Any]:
     return {k: v for (k, v) in d.items() if type(v).__name__ != "_NoDefault"}
 
 
 def make_filter(
-    filter_dict: Dict[str, List[Any]]
+    filter_dict: dict[str, list[Any]]
 ) -> Callable[[pd.DataFrame], pd.DataFrame]:
     operators = dict(
         [
@@ -115,12 +113,12 @@ class CsvLoaderW(VBoxTyped):
 
     def __init__(self) -> None:
         super().__init__()
-        self._sniffer: Optional[CSVSniffer] = None
-        self._urls: List[str] = []
+        self._sniffer: CSVSniffer | None = None
+        self._urls: list[str] = []
         self.child.start_save = BtnBar()
 
     def initialize(
-        self, urls: List[str] = [], to_sniff: str = "", lines: int = 100
+        self, urls: list[str] = [], to_sniff: str = "", lines: int = 100
     ) -> None:
         if self.widget_dir and os.listdir(self.widget_dir):
             self.c_.reuse_ck = ipw.Checkbox(
@@ -220,7 +218,7 @@ class CsvLoaderW(VBoxTyped):
                        index=2,  # i.e. insert it after #root & co
                        run=False)
         self._refresh_btn_cb()
-    def _reuse_cb(self, change: Dict[str, Any]) -> None:
+    def _reuse_cb(self, change: dict[str, Any]) -> None:
         if change["new"]:
             self.c_.to_sniff = None
             self.c_.n_lines = None
@@ -266,7 +264,7 @@ class CsvLoaderW(VBoxTyped):
             layout=ipw.Layout(width="100%"),
         )
 
-    def _enable_reuse_cb(self, change: Dict[str, Any]) -> None:
+    def _enable_reuse_cb(self, change: dict[str, Any]) -> None:
         self.c_.start_save.c_.sniff_btn.disabled = not change["new"]
         self.c_.start_save.c_.start.disabled = not change["new"]
 
@@ -296,8 +294,7 @@ class CsvLoaderW(VBoxTyped):
         )
         csv_module = self.init_modules(**kw)
         kw["schema"] = schema
-        if is_recording():
-            amend_last_record({"frozen": kw})
+        self.record = kw
         self.output_module = csv_module
         self.output_slot = "result"
         self.output_dtypes = schema
@@ -374,8 +371,7 @@ class CsvLoaderW(VBoxTyped):
             filter_=filter_,
             filter_code=filter_code,
         )
-        if is_recording():
-            amend_last_record({"frozen": kw})
+        self.record = kw
         csv_module = self.init_modules(**kw)
         self.output_module = csv_module
         self.output_slot = "result"
@@ -407,7 +403,7 @@ class CsvLoaderW(VBoxTyped):
 
     @runner
     def run(self) -> Any:
-        content = self.frozen_kw
+        content = self.record
         urls = content["urls"]
         throttle = content["throttle"]
         shuffle = content.get("shuffle", False)
@@ -430,11 +426,11 @@ class CsvLoaderW(VBoxTyped):
     @modules_producer
     def init_modules(
         self,
-        urls: List[str] | None = None,
+        urls: list[str] | None = None,
         throttle: int | None = None,
         shuffle: bool = False,
-        sniffed_params: Dict[str, Any] | None = None,
-        filter_: Dict[str, Any] | None = None,
+        sniffed_params: dict[str, Any] | None = None,
+        filter_: dict[str, Any] | None = None,
         filter_code: str = "",
         **kw: Any
     ) -> SimpleCSVLoader:

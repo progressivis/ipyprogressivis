@@ -35,9 +35,7 @@ from typing import (
     Type,
     Any as AnyType,
     Optional,
-    Dict,
     Set,
-    List,
     Callable,
     Iterable,
     Sequence,
@@ -61,7 +59,7 @@ ModuleOrFacade: TypeAlias = Module | TableFacade
 
 logger = logging.getLogger(__name__)
 
-PARAMS: Dict[str, AnyType] = {}
+PARAMS: dict[str, AnyType] = {}
 
 HOME = os.getenv("HOME")
 assert HOME is not None
@@ -194,7 +192,7 @@ def make_trash_box(obj: "NodeCarrier", box: ipw.HBox | None = None) -> ipw.HBox:
     return box
 
 
-replay_list: List[Dict[str, AnyType]] = []
+replay_list: list[dict[str, AnyType]] = []
 md_list: list[str] = []
 widget_list: AnyType = []
 REPLAY_BATCH: bool = False
@@ -401,11 +399,11 @@ def b642json(b64str: str) -> AnyType:
     return json.loads(base64.b64decode(b64str.encode()).decode())
 
 
-def bpack(bak: List[AnyType]) -> str:
+def bpack(bak: list[AnyType]) -> str:
     return ";".join([json2b64(elt) for elt in bak])
 
 
-def bunpack(bstr: str) -> List[AnyType]:
+def bunpack(bstr: str) -> list[AnyType]:
     return bstr.split(";")
 
 
@@ -424,13 +422,13 @@ class Recorder:
     def is_empty(self) -> bool:
         return not self.tape
 
-    def add_to_record(self, content: Dict[str, AnyType]) -> None:
+    def add_to_record(self, content: dict[str, AnyType]) -> None:
         self.tape = (
             self.tape + ";" + json2b64(content) if self.tape else json2b64(content)
         )
         labcommand("progressivis:set_backup", backup=self.tape)
 
-    def amend_nth_record(self, nth: int, content: Dict[str, AnyType]) -> None:
+    def amend_nth_record(self, nth: int, content: dict[str, AnyType]) -> None:
         unpacked = bunpack(self.tape)
         current = b642json(unpacked[nth])
         current.update(content)
@@ -438,7 +436,7 @@ class Recorder:
         self.tape = ";".join(unpacked)
         labcommand("progressivis:set_backup", backup=self.tape)
 
-    def amend_last_record(self, content: Dict[str, AnyType]) -> None:
+    def amend_last_record(self, content: dict[str, AnyType]) -> None:
         self.amend_nth_record(-1, content)
 
     def get_last_record_index(self) -> int:
@@ -449,21 +447,21 @@ def get_recorder() -> Recorder:
     return cast(Recorder, PARAMS.get("recorder"))
 
 
-def add_to_record(content: Dict[str, AnyType]) -> None:
+def add_to_record(content: dict[str, AnyType]) -> None:
     rec = get_recorder()
     if rec is None:
         return
     rec.add_to_record(content)
 
 
-def amend_last_record(content: Dict[str, AnyType]) -> None:
+def amend_last_record(content: dict[str, AnyType]) -> None:
     rec = get_recorder()
     if rec is None:
         return
     rec.amend_last_record(content)
 
 
-def amend_nth_record(i: int, content: Dict[str, AnyType]) -> None:
+def amend_nth_record(i: int, content: dict[str, AnyType]) -> None:
     rec = get_recorder()
     if rec is None:
         return
@@ -572,7 +570,7 @@ def set_dag(dag: DAGWidget) -> None:
 WidgetType = AnyType
 
 
-def get_param(d: Dict[str, List[str]], key: str, default: List[str]) -> List[str]:
+def get_param(d: dict[str, list[str]], key: str, default: list[str]) -> list[str]:
     if key not in d:
         return default
     val = d[key]
@@ -603,7 +601,7 @@ class HandyTab(ipw.Tab):
         pos = len(self.children) - 1
         self.set_title(pos, name)
 
-    def get_titles(self) -> List[str]:
+    def get_titles(self) -> list[str]:
         return [self.get_title(pos) for pos in range(len(self.children))]
 
     def set_tab(self, title: str, wg: WidgetType, overwrite: bool = True) -> None:
@@ -651,7 +649,7 @@ class TreeTab(HandyTab):
         super().__init__(*args, **kw)
         self.upper = upper
         self.known_as = known_as
-        self.mod_dict: Dict[str, Set[str]] = {}
+        self.mod_dict: dict[str, Set[str]] = {}
 
     def is_visible(self, sel: str) -> bool:
         if self.get_selected_title() != sel:
@@ -705,13 +703,13 @@ def make_replay_next_btn() -> ipw.Button:
     )
 
 
-stage_register: Dict[str, AnyType] = {}
+stage_register: dict[str, AnyType] = {}
 parent_widget: Union["NodeCarrier", "Constructor"] | None = None
-parent_dtypes: Optional[Dict[str, str]] = None
-key_by_id: Dict[int, Tuple[str, int]] = {}
-widget_by_id: Dict[int, "NodeCarrier"] = {}
-widget_by_key: Dict[Tuple[str, int], "NodeCarrier"] = {}
-widget_numbers: Dict[str, int] = defaultdict(int)
+parent_dtypes: Optional[dict[str, str]] = None
+key_by_id: dict[int, Tuple[str, int]] = {}
+widget_by_id: dict[int, "NodeCarrier"] = {}
+widget_by_key: dict[Tuple[str, int], "NodeCarrier"] = {}
+widget_numbers: dict[str, int] = defaultdict(int)
 recording_state: bool = False
 
 def get_tag_class(tag: str) -> str:
@@ -891,7 +889,7 @@ def replay_new_stage(
 
 
 class ChainingProtocol(Protocol):
-    _output_dtypes: Optional[Dict[str, str]]
+    _output_dtypes: Optional[dict[str, str]]
     _output_module: ModuleOrFacade
     title: str
     guest: "GuestWidget"
@@ -1121,17 +1119,17 @@ class ChainingWidget:
         assert "parent" in kw
         self.parent: Optional["NodeVBox"] = kw["parent"]
         assert "dtypes" in kw
-        self._dtypes: Dict[str, str] = kw["dtypes"]
+        self._dtypes: dict[str, str] = kw["dtypes"]
         assert "input_module" in kw
         self._input_module: ModuleOrFacade = cast(ModuleOrFacade, kw["input_module"])
         self._input_slot: str = kw.get("input_slot", "result")
         self._output_module: ModuleOrFacade = self._input_module
         self._output_slot: str = self._input_slot
-        self._output_dtypes: Optional[Dict[str, str]] = None
+        self._output_dtypes: Optional[dict[str, str]] = None
         if self._dtypes is not None:  # i.e. not a loader
             self._output_dtypes = None
         self._dag = kw["dag"]
-        self.subwidgets: List[ChainingWidget] = []
+        self.subwidgets: list[ChainingWidget] = []
         self.managed_modules: set[str] = set()
 
     def dag_register(self) -> None:
@@ -1173,7 +1171,7 @@ class GuestWidget:
 
     def __init__(self) -> None:
         self.__carrier: Union[int, ReferenceType["NodeCarrier"]] = 0
-        self.frozen_kw: Dict[str, Any]
+        self.frozen_kw: dict[str, Any]
         self._do_replay_next: bool = False
         self._record_index: int = 0
 
@@ -1186,11 +1184,11 @@ class GuestWidget:
         return cast("NodeCarrier", self.__carrier())
 
     @property
-    def dtypes(self) -> Dict[str, str]:
+    def dtypes(self) -> dict[str, str]:
         return self.carrier._dtypes
 
     @property
-    def input_dtypes(self) -> Dict[str, str]:
+    def input_dtypes(self) -> dict[str, str]:
         return self.carrier._dtypes
 
     @property
@@ -1218,11 +1216,11 @@ class GuestWidget:
         self.carrier._output_slot = value
 
     @property
-    def output_dtypes(self) -> Optional[Dict[str, str]]:
+    def output_dtypes(self) -> Optional[dict[str, str]]:
         return self.carrier._output_dtypes
 
     @output_dtypes.setter
-    def output_dtypes(self, value: Dict[str, str]) -> None:
+    def output_dtypes(self, value: dict[str, str]) -> None:
         self.carrier._output_dtypes = value
 
     @property
@@ -1254,8 +1252,17 @@ class GuestWidget:
     def make_footer(self, batch: bool = False) -> None:
         self.carrier.make_footer(batch=batch)
 
+    @property
+    def record(self) -> dict[str, Any]:
+        return self.frozen_kw
+
+    @record.setter
+    def record(self, value: dict[str, Any]) -> None:
+        if is_recording():
+            amend_last_record({'frozen': value})
+
     def _make_guess_types(
-        self, fun: Callable[..., None], args: Iterable[Any], kw: Dict[str, Any]
+        self, fun: Callable[..., None], args: Iterable[Any], kw: dict[str, Any]
     ) -> Callable[[Module, int], None]:
         def _guess2(m: Module, run_number: int) -> None:
             assert hasattr(m, "result")
@@ -1281,7 +1288,7 @@ class GuestWidget:
         self,
         func: Callable[..., None],
         args: Iterable[Any] = (),
-        kw: Dict[str, Any] = {},
+        kw: dict[str, Any] = {},
     ) -> None:
         if is_replay_batch():
             self.output_dtypes = {}
@@ -1344,7 +1351,7 @@ class Surrogate(CellOut, GuestWidget):
 
 class LeafVBox(ipw.VBox, ChainingWidget):
     def __init__(
-        self, ctx: Dict[str, Any], children: Sequence[GuestWidget] = ()
+        self, ctx: dict[str, Any], children: Sequence[GuestWidget] = ()
     ) -> None:
         ipw.VBox.__init__(self, children)
         ChainingWidget.__init__(self, ctx)
@@ -1353,7 +1360,7 @@ class LeafVBox(ipw.VBox, ChainingWidget):
 
 class NodeVBox(LeafVBox, ChainingMixin):
     def __init__(
-        self, ctx: Dict[str, Any], children: Sequence[GuestWidget] = ()
+        self, ctx: dict[str, Any], children: Sequence[GuestWidget] = ()
     ) -> None:
         super().__init__(ctx, children)
         self.dag_register()
@@ -1361,14 +1368,14 @@ class NodeVBox(LeafVBox, ChainingMixin):
 
 class RootVBox(LeafVBox):
     def __init__(
-        self, ctx: Dict[str, Any], children: Sequence[GuestWidget] = ()
+        self, ctx: dict[str, Any], children: Sequence[GuestWidget] = ()
     ) -> None:
         super().__init__(ctx, children)
         self.dag_register()
 
 
 class NodeCarrier(NodeVBox):
-    def __init__(self, ctx: Dict[str, Any], guest: GuestWidget) -> None:
+    def __init__(self, ctx: dict[str, Any], guest: GuestWidget) -> None:
         super().__init__(ctx, (make_trash_box(self), guest,))  # type: ignore
         guest._GuestWidget__carrier = ref(self)  # type: ignore
         self.dag_register()
@@ -1464,7 +1471,7 @@ class CoroBar(IpyHBoxTyped):
 
 class Coro:
     __name__ = "action"  # raise clean exceptions in Module
-    def __init__(self) -> None:
+    def __init__(self, m: Module | None = None) -> None:
         self.leaf: GuestWidget | None = None  # TODO: use a weakref here
         self._last_display: int = 0
         self.calls_counter: int = 0
@@ -1486,6 +1493,8 @@ class Coro:
             description="Active", value=True, disabled=False
         )
         self.bar.c_.message = ipw.HTML()
+        if m is not None:
+            m.on_after_run(self)
 
     async def action(self, m: Module, run_n: int) -> None:
         raise ValueError("'action' method must be defined in a 'Coro' subclass")
