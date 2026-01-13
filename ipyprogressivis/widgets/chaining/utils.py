@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from weakref import ref, ReferenceType
 import numpy as np
 import os
@@ -1399,6 +1401,7 @@ class NodeCarrier(NodeVBox):
 
 
 class TypedBase:
+    #__annotations__ = []
     def __init__(self) -> None:
         self._main: Optional[ReferenceType["TypedBox"]] = None
 
@@ -1410,13 +1413,13 @@ class TypedBase:
     def __setattr__(self, name: str, value: ipw.DOMWidget) -> None:
         super().__setattr__(name, value)
         if (
-            self.__annotations__
-            and name in self.__annotations__
+            type(self).__annotations__
+            and name in type(self).__annotations__
             and self._main is not None
         ):
             if not self.main.children:
                 self.main.children = [
-                    dongle_widget() for _ in self.__annotations__.keys()
+                    dongle_widget() for _ in type(self).__annotations__.keys()
                 ]
             if value is None:
                 value = dongle_widget()
@@ -1433,7 +1436,7 @@ class TypedBox:
         self.children: Sequence[ipw.DOMWidget] = ()
 
     def set_child(self, name: str, child: ipw.DOMWidget) -> None:
-        schema = list(self.child.__annotations__)  # TODO: cache it
+        schema = list(type(self.child).__annotations__)  # TODO: cache it
         i = schema.index(name)
         children = list(self.children)
         children[i] = child

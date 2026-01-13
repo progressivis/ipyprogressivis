@@ -17,9 +17,7 @@ class VegaMapView(PView):
             return
         assert isinstance(m, Histogram2D)
         assert m.result is not None
-        last = m.result.last()
-        assert last
-        res = last.to_dict()
+        res = m.result
         arr = res["array"]
         maxa = arr.max()
         if maxa != 0:
