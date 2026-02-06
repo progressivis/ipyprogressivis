@@ -2,25 +2,43 @@ from ipyprogressivis.ipyfuncs import Proxy
 
 from typing import Any
 
-def enable_all(proxy, change: dict[str, Any]) -> None:
-    for col, _, in proxy.that.columns.widget.options:
-        proxy.lookup(f"c_use_{col}").attrs(value=change["new"])
-        proxy.lookup(f"c_retype_{col}").attrs(disabled=not change["new"])
+
+def sync_cmdline(proxy):
     backend = proxy.back("sniffer")
     update_backend(proxy)
+    proxy.that.cmdline.attrs(value=backend.cmdline)
+    
+
+def _enable_all(proxy, change: dict[str, Any]) -> None:
+    for col, _, in proxy.that.columns.widget.options:
+        (
+            proxy.lookup(f"c_use_{col}")
+            .attrs(value=change["new"])
+            .lookup(f"c_retype_{col}")
+            .attrs(disabled=not change["new"])
+            .lookup(f"c_rename_{col}")
+            .attrs(disabled=not change["new"])
+        )
+        #proxy.lookup(f"c_retype_{col}").attrs(disabled=not change["new"])
+    backend = proxy.back("sniffer")
+    update_backend(proxy)
+    proxy.that.cmdline.attrs(value=backend.cmdline)
 
 def true_values(proxy, change: dict[str, Any]) -> None:
     backend = proxy.back("sniffer")
     backend._parse_list("true_values", change["new"])
-
+    proxy.that.cmdline.attrs(value=backend.cmdline)
+    
 def false_values(proxy, change: dict[str, Any]) -> None:
     backend = proxy.back("sniffer")
     backend._parse_list("false_values", change["new"])
+    proxy.that.cmdline.attrs(value=backend.cmdline)
 
 def na_values(proxy, change: dict[str, Any]) -> None:
     backend = proxy.back("sniffer")
     backend._parse_list("na_values", change["new"])
-
+    proxy.that.cmdline.attrs(value=backend.cmdline)
+    
 def skiprows(proxy, change: dict[str, Any]) -> None:
     backend = proxy.back("sniffer")    
     skip = change["new"]
@@ -38,29 +56,14 @@ def delimiter(proxy, change: dict[str, Any]) -> None:
     delim = change["new"]
     # print(f"Delimiter: '{delim}'")
     backend.set_delimiter(delim)
-
+    backend.dataframe(force=True)
+    proxy.that.columns.attrs(options=[(col, i) for (i, col) in enumerate(backend.column.keys())])
+    proxy.that.cmdline.attrs(value=backend.cmdline)
+    
 def columns(proxy, change: dict[str, Any]) -> None:
     column = change["new"]
     proxy.that.sel_column_stk.attrs(selected_index=column)
-
-def set_delimiter(proxy, delim: str) -> None:
-    backend = proxy.back("sniffer")    
-    if delim == "skip":
-        delim = " "
-        if backend.params.get("skipinitialspace"):
-            return
-        backend.params["skipinitialspace"] = True
-    backend.dialect()
-    assert backend._dialect is not None
-    backend._dialect.delimiter = delim  # TODO check valid delim
-    backend.delim_other.value = delim
-    backend.delimiter.value = delim
-    backend.tab.selected_index = 1
-    if backend._df is not None:
-        backend._reset()
-    else:
-        backend.params = _merge_with_dialect_properties(backend._dialect, backend.params)
-    backend.dataframe(force=True)
+    
 
 # Col info
 
@@ -86,7 +89,7 @@ def update_backend(proxy, force=False):
     if force:
         backend.dataframe(force=True)
 
-def retype_column(proxy, change: dict[str, Any]) -> None:
+def __retype_column(proxy, change: dict[str, Any]) -> None:
     backend = proxy.back("sniffer")
     update_backend(proxy)
     backend.retype_columns()
@@ -107,11 +110,26 @@ def retype_values(proxy) -> List[str]:
 
 def rename_column(proxy, change: dict[str, Any]) -> None:
     backend = proxy.back("sniffer")
+    col_name = proxy.hint.col
+    col_info = backend.column[col_name]
+    col_info.rename = change["new"]
     backend.rename_columns()
+    backend.sync_cmdline(proxy)
 
+def per_column_na(proxy, change: dict[str, Any]) -> None:
+    if change["new"]:
+        proxy.that.na_values.attrs(value="")
+    proxy.that.na_values.attrs(disabled=change["new"])
+    col_options = proxy.that.columns.widget.options
+    for col, _ in col_options:
+        c_use = proxy.lookup(f"c_use_{col}").widget.value
+        if not c_use:
+            continue
+        proxy.lookup(f"c_na_{col}").attrs(
+            disabled=not change["new"],
+            value="")
 
-    
-def usecols_column(proxy, change: dict[str, Any]) -> None:
+def __usecols_column(proxy, change: dict[str, Any]) -> None:
     new_val = change["new"]
     backend = proxy.back("sniffer")
     col_name = proxy.hint.col
@@ -120,56 +138,24 @@ def usecols_column(proxy, change: dict[str, Any]) -> None:
     col_options = proxy.that.columns.widget.options
     update_backend(proxy)
     backend.usecols_columns()
-    for temp in "c_rename_{}", "c_retype_{}", "c_na_ck_{}":
+    for temp in "c_rename_{}", "c_retype_{}", "c_na_{}":
         uid = temp.format(col_name)
         proxy.lookup(uid).attrs(disabled=not new_val)
+    if not proxy.that.per_col_na.widget.value:
+        proxy.lookup(f"c_na_{col_name}").attrs(disabled=True)
     cmdline = proxy.that.cmdline
     cmdline.attrs(value=backend.cmdline)
         
 
-def na_values_ck(proxy, change: dict[str, Any]) -> None:
-    """if change["new"]:
-        set_child(proxy.box, 6, widgets.VBox([
-            proxy.na_values_ck,
-            proxy.na_values_,
-            proxy.na_values_sep
-            ]))
-    else:
-        proxy.na_values_.value = ""
-        proxy.na_values_sep.value = ""
-        set_child(proxy.box, 6, proxy.na_values_ck)"""
-    new_val = change["new"]
+
+def __na_values_col(proxy, change: dict[str, Any]) -> None:
     backend = proxy.back("sniffer")
     col_name = proxy.hint.col
-    col_info = backend.column[col_name]    
+    backend.column[col_name].na_values_ = change["new"]
+    backend.na_values_columns()
+    cmdline = proxy.that.cmdline
+    cmdline.attrs(value=backend.cmdline)
 
-def filtering_ck(proxy, change: dict[str, Any]) -> None:
-    """if change["new"]:
-        set_child(proxy.box, 7, widgets.VBox([
-            proxy.filtering_ck,
-            proxy.filtering_group
-            ]))
-    else:
-        set_child(proxy.box, 7, proxy.filtering_ck)
-        for hbox in proxy.filtering_group.children:
-            hbox.children[0].value = None
-            hbox.children[1].value = 0.0"""
-
-def na_values(proxy, change: dict[str, Any]) -> None:
-    """if change["new"]:
-        proxy.na_values_sep.disabled = False
-    else:
-        proxy.na_values_sep.value = ""
-        proxy.na_values_sep.disabled = True
-    proxy.sniffer.na_values_columns()"""
-
-def na_values_sep(proxy, change: dict[str, Any]) -> None:
-    #proxy.sniffer.na_values_columns()
-    pass
-
-def filtering_value(proxy, change: dict[str, Any]) -> None:
-    #proxy.sniffer.filtering_columns()
-    pass
 
 def test_column_type(proxy, newtype: Any) -> ValueError | None:
     """try:
@@ -185,3 +171,5 @@ def test_cmd(proxy, button: widgets.Button) -> None:
     backend.test_cmd()
     proxy.that.df2_text.attrs(value=backend.df2_text)
     proxy.that.tab.attrs(selected_index=2)
+
+    

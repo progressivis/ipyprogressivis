@@ -79,7 +79,7 @@ def _merge_with_dialect_properties(
     return kwds
 
 
-class CSVSnifferDF:
+class CSVSniffer:
     """
     Non progressive class to assist in specifying parameters
     to a CSV module
@@ -100,7 +100,7 @@ class CSVSnifferDF:
         self._df2: Optional[pd.DataFrame] = None
         self._rename: Optional[List[str]] = None
         self._types: Optional[Dict[str, str]] = None
-        self.column_info: List[PColumnInfo] = []
+        #self.column_info: List[PColumnInfo] = []
         ## No widgets
         self.column: dict[str, PColumnInfo] = dict()
         self.delim_other: str = ""
@@ -122,7 +122,6 @@ class CSVSnifferDF:
         self.clear()
         self.dataframe()
 
-    """
     def _parse_list(self, key: str, values: str) -> None:
         split = [s for s in values.split(",") if s]
         if split:
@@ -130,7 +129,7 @@ class CSVSnifferDF:
         else:
             self.params.pop(key, None)
         self.set_cmdline()
-    """
+        return self
 
     def set_delimiter(self, delim: str) -> None:
         if delim == "skip":
@@ -149,6 +148,7 @@ class CSVSnifferDF:
         else:
             self.params = _merge_with_dialect_properties(self._dialect, self.params)
         self.dataframe(force=True)
+        return self
 
     def _reset(self) -> None:
         args = self._args.copy()
@@ -245,7 +245,7 @@ class CSVSnifferDF:
                 self.df_text = self._df._repr_html_()  # type: ignore
         self.dataframe_to_columns()
         self.dataframe_to_params()
-        return self._df
+        return self # ._df
 
     def test_cmd(self) -> None:
         strin = io.StringIO(self.head())
@@ -262,6 +262,7 @@ class CSVSnifferDF:
             ):
                 self.df2_text = self._df2._repr_html_()  # type: ignore
         #self.tab.selected_index = 2
+        return self
 
     def dataframe_to_params(self) -> None:
         df = self._df
@@ -299,7 +300,8 @@ class CSVSnifferDF:
         self.params["names"] = names
         # print(f"Renames: {names}")
         self.set_cmdline()
-
+        return self
+    
     def usecols_columns(self) -> None:
         assert self._df is not None
         names = [col for col in self._df.columns if self.column[col].use]
@@ -309,7 +311,8 @@ class CSVSnifferDF:
         else:
             self.params["usecols"] = names
         self.set_cmdline()
-
+        return self
+    
     def retype_columns(self) -> None:
         types: Dict[str, str] = {}
         parse_dates: List[str] = []
@@ -338,24 +341,24 @@ class CSVSnifferDF:
             self.params["dayfirst"] = self.dayfirst
             self.params["date_format"] = self.date_format
         self.set_cmdline()
+        return self
 
     def na_values_columns(self) -> None:
         assert self._df is not None
         na_values: Dict[str, Any] = {}
         for name in list(self._df.columns):
             col = self.column[name]
-            if not col.na_values_ck:
-                continue
-            if col.na_values_sep:
-                val = col.na_values_.split(col.na_values_sep)
+            raw = col.na_values_
+            if raw:
+                na_values[name] = raw.split(",")
             else:
-                val = col.na_values_
-            na_values[name] = val
+                na_values.pop(name, None)
         if na_values:
             self.params["na_values"] = na_values
         else:
-            self.params["na_values"] = None
+            self.params.pop("na_values", None)
         self.set_cmdline()
+        return self
 
     def filtering_columns(self) -> None:
         assert self._df is not None
@@ -379,7 +382,38 @@ class CSVSnifferDF:
     def load_dataframe(self) -> pd.DataFrame:
         "Full load the DataFrame with the GUI parameters"
         return cast(pd.DataFrame, pd.read_csv(self.path, **self.params))
-        
+
+    def update_backend(self, proxy, force=False):
+        col_options = proxy.that.columns.widget.options
+        for col, _ in col_options:
+            c_use = proxy.lookup(f"c_use_{col}").widget.value
+            col_info = self.column[col]
+            col_info.use = c_use
+            if not c_use:
+                continue
+            col_info.retype = proxy.lookup(f"c_retype_{col}").widget.value
+            col_info.rename = proxy.lookup(f"c_rename_{col}").widget.value
+        self.usecols_columns()
+        self.delimiter = proxy.that.delimiter.widget.value
+        self.dayfirst = proxy.that.dayfirst.widget.value
+        self.date_format = proxy.that.date_format.widget.value
+        self.header = proxy.that.header.widget.value
+        self.skiprows = proxy.that.skiprows.widget.value
+        self.true_values = proxy.that.true_values.widget.value
+        self.false_values = proxy.that.false_values.widget.value
+        self.na_values = proxy.that.na_values.widget.value
+        if force:
+            self.dataframe(force=True)
+        return self
+
+    def sync_cmdline(self, proxy):
+        self.update_backend(proxy)
+        proxy.that.cmdline.attrs(value=self.cmdline)
+        return self
+
+    def this(self, proxy):
+        return proxy
+
 class PColumnInfo:
     numeric_types = [
         "int8",
@@ -430,3 +464,8 @@ class PColumnInfo:
 
     def retype_column(self, change: Dict[str, Any]) -> None:
         self.sniffer.retype_columns()
+
+    def set_attributes(self, **kw):
+        for k, w in kw.items():
+            setattr(self, k, w)
+        return self
