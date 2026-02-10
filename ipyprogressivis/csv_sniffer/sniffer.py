@@ -1,15 +1,26 @@
-from ipyprogressivis.ipywel import *
-from ipyprogressivis.csv_sniffer.backend import CSVSniffer
+from ipyprogressivis.ipywel import (
+    Proxy,
+    Backend,
+    box,
+    vbox,
+    hbox,
+    stack,
+    tab,
+    button,
+    radiobuttons,
+    text,
+    bounded_int_text,
+    html,
+    textarea,
+    checkbox,
+    select,
+    dropdown,
+    label,
+)
+from ipyprogressivis.csv_sniffer.backend import CSVSniffer, PColumnInfo
 
-import numpy as np
-import pandas as pd
-import csv
-import inspect
-import io
-import logging
 
-
-def column_box(data):
+def column_box(data: PColumnInfo) -> Proxy:
     cname = data.name
     return (
         vbox(
@@ -94,7 +105,7 @@ def column_box(data):
     )
 
 
-def _sniffer(csv_s):
+def _sniffer(csv_s: Backend) -> Proxy:
     return (
         vbox(
             hbox(
@@ -196,7 +207,7 @@ def _sniffer(csv_s):
                         checkbox("Per-column NA values")
                         .uid("per_col_na")
                         .observe(
-                            lambda proxy, change: expr(
+                            lambda proxy, change: proxy.proc(
                                 proxy.that.na_values.attrs(value="")
                                 if change["new"]
                                 else proxy.that.na_values.attrs(disabled=change["new"])
@@ -299,8 +310,8 @@ def _sniffer(csv_s):
     )
 
 
-def sniffer(url, lines=100):
-    csv_s = Backend(CSVSniffer, url, lines)
+def sniffer(url: str, lines: int = 100) -> Proxy:
+    csv_s = Backend(CSVSniffer, url, lines)  # type: ignore
     proxy = _sniffer(csv_s)
     proxy.that.enable_all.attrs(value=True)
     return proxy
