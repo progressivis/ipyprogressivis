@@ -2,6 +2,7 @@
 Sniffer for Pandas csv_read, allows interactive specification of data types,
 names, and various parameters before loading the whole file.
 """
+
 from __future__ import annotations
 
 import csv
@@ -20,6 +21,7 @@ from typing import Dict, Any, Union, List, Optional, cast
 
 logger = logging.getLogger(__name__)
 
+
 def quote_html(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
@@ -27,7 +29,8 @@ def quote_html(text: str) -> str:
 _parser_defaults: Dict[str, Any] = {
     key: val.default
     for key, val in inspect.signature(pd.read_csv).parameters.items()
-    if val.default is not inspect._empty and key not in ("mangle_dupe_cols", "index_col")
+    if val.default is not inspect._empty
+    and key not in ("mangle_dupe_cols", "index_col")
 }
 
 # Borrowed from pandas
@@ -37,7 +40,7 @@ MANDATORY_DIALECT_ATTRS = (
     "escapechar",
     "skipinitialspace",
     "quotechar",
-    "quoting"
+    "quoting",
 )
 
 
@@ -100,7 +103,7 @@ class CSVSniffer:
         self._df2: Optional[pd.DataFrame] = None
         self._rename: Optional[List[str]] = None
         self._types: Optional[Dict[str, str]] = None
-        #self.column_info: List[PColumnInfo] = []
+        # self.column_info: List[PColumnInfo] = []
         ## No widgets
         self.column: dict[str, PColumnInfo] = dict()
         self.delim_other: str = ""
@@ -172,7 +175,7 @@ class CSVSniffer:
                 continue
             params[key] = val
         return params
-    
+
     def set_cmdline(self) -> None:
         params = self.kwargs()
         self.cmdline = str(params)
@@ -230,7 +233,6 @@ class CSVSniffer:
         self.dialect()
         strin = io.StringIO(self.head())
         try:
-            # print(f"read_csv params: {self.params}")
             self._df = cast(pd.DataFrame, pd.read_csv(strin, **self.params))
             self.column = {}
         except ValueError as e:
@@ -245,7 +247,7 @@ class CSVSniffer:
                 self.df_text = self._df._repr_html_()  # type: ignore
         self.dataframe_to_columns()
         self.dataframe_to_params()
-        return self # ._df
+        return self  # ._df
 
     def test_cmd(self) -> None:
         strin = io.StringIO(self.head())
@@ -261,7 +263,6 @@ class CSVSniffer:
                 "display.max_rows", self.lines, "display.max_columns", 0
             ):
                 self.df2_text = self._df2._repr_html_()  # type: ignore
-        #self.tab.selected_index = 2
         return self
 
     def dataframe_to_params(self) -> None:
@@ -277,8 +278,8 @@ class CSVSniffer:
         df = self._df
         col: Union[pd.Series[Any], PColumnInfo]
         if df is None:
-            #self.columns.options = []
-            #self.columns.disabled = True
+            # self.columns.options = []
+            # self.columns.disabled = True
             return
         for column in df.columns:
             col = df[column]
@@ -290,7 +291,7 @@ class CSVSniffer:
                 col = self.column[column]
                 col.box.close()
                 del self.column[column]
-        #self.columns = list(df.columns)
+        # self.columns = list(df.columns)
         # self.show_column(df.columns[0])
 
     def rename_columns(self) -> None:
@@ -298,10 +299,9 @@ class CSVSniffer:
         names = [self.column[col].rename for col in self._df.columns]
         self._rename = names
         self.params["names"] = names
-        # print(f"Renames: {names}")
         self.set_cmdline()
         return self
-    
+
     def usecols_columns(self) -> None:
         assert self._df is not None
         names = [col for col in self._df.columns if self.column[col].use]
@@ -312,7 +312,7 @@ class CSVSniffer:
             self.params["usecols"] = names
         self.set_cmdline()
         return self
-    
+
     def retype_columns(self) -> None:
         types: Dict[str, str] = {}
         parse_dates: List[str] = []
@@ -327,7 +327,9 @@ class CSVSniffer:
                 else:
                     types[name] = type
         if types:
-            self._types = {col: typ for (col, typ) in types.items() if col not in parse_dates}
+            self._types = {
+                col: typ for (col, typ) in types.items() if col not in parse_dates
+            }
             if not self._types:
                 self._types = None
             else:
@@ -360,29 +362,6 @@ class CSVSniffer:
         self.set_cmdline()
         return self
 
-    def filtering_columns(self) -> None:
-        assert self._df is not None
-        f_values: Dict[str, Any] = {}
-        for name in list(self._df.columns):
-            col = self.column[name]
-            if not col.filtering_ck:
-                continue
-            val = []
-            for pred in col.filtering_group.children:
-                if pred.children[0]:
-                    val.append([v for v in pred.children])
-            if val:
-                f_values[name] = val
-        if f_values:
-            self.progressivis["filter_values"] = f_values
-        else:
-            self.progressivis["filter_values"] = None
-        self.set_cmdline()
-
-    def load_dataframe(self) -> pd.DataFrame:
-        "Full load the DataFrame with the GUI parameters"
-        return cast(pd.DataFrame, pd.read_csv(self.path, **self.params))
-
     def update_backend(self, proxy, force=False):
         col_options = proxy.that.columns.widget.options
         for col, _ in col_options:
@@ -413,6 +392,7 @@ class CSVSniffer:
 
     def this(self, proxy):
         return proxy
+
 
 class PColumnInfo:
     numeric_types = [

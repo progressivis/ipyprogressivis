@@ -1,4 +1,4 @@
-from ipyprogressivis.ipyfuncs import *
+from ipyprogressivis.ipywel import *
 from ipyprogressivis.csv_sniffer.backend import CSVSniffer
 
 import numpy as np
@@ -7,6 +7,7 @@ import csv
 import inspect
 import io
 import logging
+
 
 def column_box(data):
     cname = data.name
@@ -31,28 +32,28 @@ def column_box(data):
             checkbox("Use", value=True)
             .uid(f"c_use_{cname}")
             .observe(
-                lambda proxy, change: (
-                    (
-                        proxy.back("sniffer")
-                        .column[proxy.hint.col]
-                        .set_attributes(use=change["new"])
-                        .sniffer.update_backend(proxy)
-                        .usecols_columns()
-                        .retype_columns(),
-                        *[
-                            proxy.lookup(temp.format(proxy.hint.col)).attrs(
-                                disabled=not change["new"]
-                            )
-                            for temp in ("c_rename_{}", "c_retype_{}", "c_na_{}")
-                        ],
-                    ),
-                    (
-                        proxy.lookup(f"c_na_{proxy.hint.col}").attrs(disabled=True)
-                        if not proxy.that.per_col_na.widget.value
-                        else None
-                    ),
-                    proxy.back("sniffer").sync_cmdline(proxy),
+                lambda proxy, change: proxy.back("sniffer")
+                .column[proxy.hint.col]
+                .set_attributes(use=change["new"])
+                .sniffer.update_backend(proxy)
+                .usecols_columns()
+                .retype_columns()
+                .this(proxy)
+                .proc(
+                    [
+                        proxy.lookup(temp.format(proxy.hint.col)).attrs(
+                            disabled=not change["new"]
+                        )
+                        for temp in ("c_rename_{}", "c_retype_{}", "c_na_{}")
+                    ]
                 )
+                .proc(
+                    proxy.lookup(f"c_na_{proxy.hint.col}").attrs(disabled=True)
+                    if not proxy.that.per_col_na.widget.value
+                    else proxy
+                )
+                .back("sniffer")
+                .sync_cmdline(proxy),
                 # cb.usecols_column
             )
             .hints(col=cname),
@@ -93,21 +94,7 @@ def column_box(data):
     )
 
 
-"""
-                text("Separator:",
-                     value="",
-                     placeholder="if many values",
-                     disabled=True,
-                     ).uid(f"c_na_sep_{cname}").observe(cb.na_values_sep).hints(col=cname),
-checkbox("Filtering",
-                 indent=True,
-                 disabled=True
-                 ).uid(f"c_filter_{cname}").observe(cb.filtering_ck).hints(col=cname),
-"""
-
-
-def _sniffer(url, lines=100):
-    csv_s = Backend(CSVSniffer, url, lines)
+def _sniffer(csv_s):
     return (
         vbox(
             hbox(
@@ -124,12 +111,15 @@ def _sniffer(url, lines=100):
                             .set_delimiter(change["new"])
                             .dataframe(force=True)
                             .this(proxy)
-                            .that.columns.attrs(options=[(col, i)
-                                                         for (i, col) in
-                                                         enumerate(proxy.back("sniffer").column.keys())])
+                            .that.columns.attrs(
+                                options=[
+                                    (col, i)
+                                    for (i, col) in enumerate(
+                                        proxy.back("sniffer").column.keys()
+                                    )
+                                ]
+                            )
                             .that.cmdline.attrs(value=proxy.back("sniffer").cmdline)
-
-
                             # cb.delimiter
                         ),
                     ),
@@ -176,10 +166,13 @@ def _sniffer(url, lines=100):
                         ),
                     ),
                     vbox(
-                        text("True values").uid("true_values").observe(
+                        text("True values")
+                        .uid("true_values")
+                        .observe(
                             lambda proxy, change: proxy.back("sniffer")
                             ._parse_list("true_values", change["new"])
-                            .this(proxy).that.cmdline.attrs(value=proxy.back("sniffer").cmdline)
+                            .this(proxy)
+                            .that.cmdline.attrs(value=proxy.back("sniffer").cmdline)
                             # cb.true_values
                         ),
                         text("False values")
@@ -187,7 +180,8 @@ def _sniffer(url, lines=100):
                         .observe(
                             lambda proxy, change: proxy.back("sniffer")
                             ._parse_list("true_values", change["new"])
-                            .this(proxy).that.cmdline.attrs(value=proxy.back("sniffer").cmdline)
+                            .this(proxy)
+                            .that.cmdline.attrs(value=proxy.back("sniffer").cmdline)
                             # cb.false_values
                         ),
                         text("NA values")
@@ -195,23 +189,29 @@ def _sniffer(url, lines=100):
                         .observe(
                             lambda proxy, change: proxy.back("sniffer")
                             ._parse_list("na_values", change["new"])
-                            .this(proxy).that.cmdline.attrs(value=proxy.back("sniffer").cmdline)
+                            .this(proxy)
+                            .that.cmdline.attrs(value=proxy.back("sniffer").cmdline)
                             # cb.na_values
                         ),
                         checkbox("Per-column NA values")
                         .uid("per_col_na")
                         .observe(
-                            lambda proxy, change: (
-                            proxy.that.na_values.attrs(value="") if change["new"] else proxy
-                            .that.na_values.attrs(disabled=change["new"]),
-                            [(col,
-                              proxy.lookup(f"c_na_{col}").attrs(
-                                  disabled=not change["new"],
-                                  value="")
-                              ) for (col, _) in proxy.that.columns.widget.options
-                             if proxy.lookup(f"c_use_{col}").widget.value
-                             ]
-                                )
+                            lambda proxy, change: expr(
+                                proxy.that.na_values.attrs(value="")
+                                if change["new"]
+                                else proxy.that.na_values.attrs(disabled=change["new"])
+                            ).proc(
+                                [
+                                    (
+                                        col,
+                                        proxy.lookup(f"c_na_{col}").attrs(
+                                            disabled=not change["new"], value=""
+                                        ),
+                                    )
+                                    for (col, _) in proxy.that.columns.widget.options
+                                    if proxy.lookup(f"c_use_{col}").widget.value
+                                ]
+                            )
                             # cb.per_column_na
                         ),
                     )
@@ -229,15 +229,16 @@ def _sniffer(url, lines=100):
                         rows=9,
                     )
                     .observe(
-                        lambda proxy, change:
-                        proxy.that.sel_column_stk.attrs(selected_index=change["new"])
+                        lambda proxy, change: proxy.that.sel_column_stk.attrs(
+                            selected_index=change["new"]
+                        )
                         # cb.columns
                     )
                     .uid("columns"),
                     checkbox("Enable/disable all", value=False)
                     .uid("enable_all")
                     .observe(
-                        lambda proxy, change: (
+                        lambda proxy, change: proxy.proc(
                             [
                                 proxy.lookup(f"c_use_{col}")
                                 .attrs(value=change["new"])
@@ -246,9 +247,10 @@ def _sniffer(url, lines=100):
                                 .lookup(f"c_rename_{col}")
                                 .attrs(disabled=not change["new"])
                                 for (col, _) in proxy.that.columns.widget.options
-                            ],
-                            proxy.back("sniffer").sync_cmdline(proxy),
+                            ]
                         )
+                        .back("sniffer")
+                        .sync_cmdline(proxy),
                     ),
                 ).layout(border="solid"),
                 vbox(
@@ -266,7 +268,9 @@ def _sniffer(url, lines=100):
                 ).layout(border="solid"),
             ).uid("top"),
             hbox(
-                button("Test").on_click(
+                button("Test")
+                .uid("test_btn")
+                .on_click(
                     lambda proxy, btn: proxy.back("sniffer")
                     .update_backend(proxy)
                     .test_cmd()
@@ -291,11 +295,12 @@ def _sniffer(url, lines=100):
             .attrs(selected_index=1),
         )
         .uid("main")
-        .backend("sniffer", csv_s)
+        .backend(csv_s, name="sniffer")
     )
 
 
 def sniffer(url, lines=100):
-    proxy =  _sniffer(url, lines)
+    csv_s = Backend(CSVSniffer, url, lines)
+    proxy = _sniffer(csv_s)
     proxy.that.enable_all.attrs(value=True)
     return proxy
