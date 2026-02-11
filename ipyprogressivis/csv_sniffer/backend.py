@@ -14,10 +14,11 @@ import logging
 
 import pandas as pd
 import fsspec  # type: ignore
+from ipyprogressivis.ipywel import Proxy
 
 # from traitlets import HasTraits, observe, Instance
 
-from typing import Dict, Any, Union, List, Optional, cast
+from typing import Any, cast, Self
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ def quote_html(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-_parser_defaults: Dict[str, Any] = {
+_parser_defaults: dict[str, Any] = {
     key: val.default
     for key, val in inspect.signature(pd.read_csv).parameters.items()
     if val.default is not inspect._empty
@@ -45,8 +46,8 @@ MANDATORY_DIALECT_ATTRS = (
 
 
 def _merge_with_dialect_properties(
-    dialect: Optional[csv.Dialect], defaults: Dict[str, Any]
-) -> Dict[str, Any]:
+    dialect: csv.Dialect | None, defaults: dict[str, Any]
+) -> dict[str, Any]:
     if not dialect:
         return defaults
     kwds = defaults.copy()
@@ -96,13 +97,12 @@ class CSVSniffer:
         self.path = path
         self._args = args
         self._head: str = ""
-        self._dialect: Optional[csv.Dialect] = None
-        self.params: Dict[str, Any] = {}
-        self.progressivis: Dict[str, Any] = {}
-        self._df: Optional[pd.DataFrame] = None
-        self._df2: Optional[pd.DataFrame] = None
-        self._rename: Optional[List[str]] = None
-        self._types: Optional[Dict[str, str]] = None
+        self._dialect: csv.Dialect | None = None
+        self.params: dict[str, Any] = {}
+        self.progressivis: dict[str, Any] = {}
+        self._df: pd.DataFrame | None = None
+        self._df2: pd.DataFrame | None = None
+        self._types: dict[str, str] | None = None
         # self.column_info: List[PColumnInfo] = []
         ## No widgets
         self.column: dict[str, PColumnInfo] = dict()
@@ -125,7 +125,7 @@ class CSVSniffer:
         self.clear()
         self.dataframe()
 
-    def _parse_list(self, key: str, values: str) -> None:
+    def _parse_list(self, key: str, values: str) -> Self:
         split = [s for s in values.split(",") if s]
         if split:
             self.params[key] = split
@@ -134,11 +134,11 @@ class CSVSniffer:
         self.set_cmdline()
         return self
 
-    def set_delimiter(self, delim: str) -> None:
+    def set_delimiter(self, delim: str) -> Self:
         if delim == "skip":
             delim = " "
             if self.params.get("skipinitialspace"):
-                return
+                return self
             self.params["skipinitialspace"] = True
         self.dialect()
         assert self._dialect is not None
@@ -166,7 +166,7 @@ class CSVSniffer:
         if args:
             raise ValueError(f"extra keywords arguments {args}")
 
-    def kwargs(self) -> Dict[str, Any]:
+    def kwargs(self) -> dict[str, Any]:
         "Return the arguments to pass to pandas.csv_read"
         params: dict[str, Any] = {}
         for key, val in self.params.items():
@@ -227,9 +227,9 @@ class CSVSniffer:
             self.header = self.params["header"]
         return self._dialect
 
-    def dataframe(self, force: bool = False) -> Optional[pd.DataFrame]:
+    def dataframe(self, force: bool = False) -> Self:
         if not force and self._df is not None:
-            return self._df
+            return self
         self.dialect()
         strin = io.StringIO(self.head())
         try:
@@ -249,7 +249,7 @@ class CSVSniffer:
         self.dataframe_to_params()
         return self  # ._df
 
-    def test_cmd(self) -> None:
+    def test_cmd(self) -> Self:
         strin = io.StringIO(self.head())
         try:
             self._df2 = cast(pd.DataFrame, pd.read_csv(strin, **self.params))
@@ -276,7 +276,7 @@ class CSVSniffer:
 
     def dataframe_to_columns(self) -> None:
         df = self._df
-        col: Union[pd.Series[Any], PColumnInfo]
+        col: pd.Series[Any] | PColumnInfo
         if df is None:
             # self.columns.options = []
             # self.columns.disabled = True
@@ -289,20 +289,19 @@ class CSVSniffer:
         for column in list(self.column):
             if column not in df.columns:
                 col = self.column[column]
-                col.box.close()
                 del self.column[column]
         # self.columns = list(df.columns)
         # self.show_column(df.columns[0])
 
-    def rename_columns(self) -> None:
+    def rename_columns(self) -> Self:
         assert self._df is not None
         names = [self.column[col].rename for col in self._df.columns]
-        self._rename = names
+        self._rename = names  # type: ignore
         self.params["names"] = names
         self.set_cmdline()
         return self
 
-    def usecols_columns(self) -> None:
+    def usecols_columns(self) -> Self:
         assert self._df is not None
         names = [col for col in self._df.columns if self.column[col].use]
         if names == list(self._df.columns):
@@ -313,9 +312,9 @@ class CSVSniffer:
         self.set_cmdline()
         return self
 
-    def retype_columns(self) -> None:
-        types: Dict[str, str] = {}
-        parse_dates: List[str] = []
+    def retype_columns(self) -> Self:
+        types: dict[str, str] = {}
+        parse_dates: list[str] = []
         assert self._df is not None
         for name in list(self._df.columns):
             col = self.column[name]
@@ -345,9 +344,9 @@ class CSVSniffer:
         self.set_cmdline()
         return self
 
-    def na_values_columns(self) -> None:
+    def na_values_columns(self) -> Self:
         assert self._df is not None
-        na_values: Dict[str, Any] = {}
+        na_values: dict[str, Any] = {}
         for name in list(self._df.columns):
             col = self.column[name]
             raw = col.na_values_
@@ -362,7 +361,8 @@ class CSVSniffer:
         self.set_cmdline()
         return self
 
-    def update_backend(self, proxy, force=False):
+    def update_backend(self, proxy: Proxy, force: bool = False) -> Self:
+        assert hasattr(proxy.that.columns.widget, "options")
         col_options = proxy.that.columns.widget.options
         for col, _ in col_options:
             c_use = proxy.lookup(f"c_use_{col}").widget.value
@@ -385,12 +385,12 @@ class CSVSniffer:
             self.dataframe(force=True)
         return self
 
-    def sync_cmdline(self, proxy):
+    def sync_cmdline(self, proxy: Proxy) -> Self:
         self.update_backend(proxy)
         proxy.that.cmdline.attrs(value=self.cmdline)
         return self
 
-    def this(self, proxy):
+    def this(self, proxy: Proxy) -> Proxy:
         return proxy
 
 
@@ -410,7 +410,7 @@ class PColumnInfo:
     ]
     object_types = ["object", "str", "category", "datetime"]
 
-    def __init__(self, sniffer: CSVSniffer, series: pd.Series[Any]):
+    def __init__(self, sniffer: CSVSniffer, series: pd.Series[Any]) -> None:
         self.sniffer = sniffer
         self.series = series
         self.default_type = series.dtype.name
@@ -424,17 +424,8 @@ class PColumnInfo:
         self.na_values_ = ""
         self.na_values_sep = ""
         self.filtering_ck = False
-        operators = [
-            "",
-            ">",
-            "<",
-            ">=",
-            "<=",
-            "==",
-            "!=",
-        ]
 
-    def retype_values(self) -> List[str]:
+    def retype_values(self) -> list[str]:
         type = self.series.dtype.name
         if type in self.numeric_types:
             return self.numeric_types
@@ -442,10 +433,10 @@ class PColumnInfo:
             return self.object_types + self.numeric_types
         return [type]
 
-    def retype_column(self, change: Dict[str, Any]) -> None:
+    def retype_column(self, change: dict[str, Any]) -> None:
         self.sniffer.retype_columns()
 
-    def set_attributes(self, **kw):
+    def set_attributes(self, **kw: Any) -> Self:
         for k, w in kw.items():
             setattr(self, k, w)
         return self

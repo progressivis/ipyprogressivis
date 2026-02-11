@@ -21,7 +21,7 @@ from progressivis.core import aio
 from progressivis.datasets import get_dataset
 from ipyprogressivis.hook_tools import make_css_marker, parse_tag
 import asyncio
-from ..csv_sniffer import CSVSniffer
+from ipyprogressivis.csv_sniffer.backend import CSVSniffer
 from collections import defaultdict
 from .. import DagWidgetController  # type: ignore
 from ..quality_visualization import QualityVisualization
