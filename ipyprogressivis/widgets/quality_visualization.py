@@ -1,10 +1,19 @@
 import time
-from typing import Dict
+import math
+from typing import Dict, Any as AnyType
 
 import ipywidgets as widgets
 from traitlets import Unicode, Any
 from .. _frontend import NPM_PACKAGE, NPM_PACKAGE_RANGE
-from .utils import sanitize
+
+def sanitize(x: AnyType) -> AnyType:
+    if isinstance(x, dict):
+        return {k: sanitize(v) for (k, v) in x.items()}
+    if isinstance(x, list):
+        return [sanitize(elt) for elt in x]
+    if isinstance(x, float) and math.isnan(x):
+        return None
+    return x
 
 # See js/src/quality.js for the frontend counterpart to this file.
 

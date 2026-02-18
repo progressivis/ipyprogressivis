@@ -1,22 +1,30 @@
 from .utils import (
-    make_button,
     starter_callback,
     is_leaf,
     no_progress_bar,
     chaining_widget,
     disable_all,
-    VBoxTyped,
-    TypedBase,
+    VBox,
     needs_dtypes,
-    replay_next,
-    is_recording,
-    amend_last_record,
+    # replay_next,
     runner,
     GuestWidget,
-    dongle_widget,
     Coro,
-    modules_producer
+    modules_producer,
 )
+from ipyprogressivis.ipywel import (
+    Proxy,
+    button,
+    anybox,
+    dropdown,
+    stack,
+    html,
+    bounded_float_text,
+    int_slider,
+    image,
+    restore,
+)
+
 import ipywidgets as ipw
 from progressivis.core.api import Module, asynchronize
 from progressivis.vis.heatmap import Heatmap
@@ -31,48 +39,46 @@ MAX_DIM = 512
 
 
 class AfterRun(Coro):
+    proxy: Proxy | None = None
+
     async def action(self, m: Module, run_number: int) -> None:
-        if self.leaf is None:
+        if self.proxy is None:
             return
         assert isinstance(m, Heatmap)
+
         def _func() -> None:
             try:
                 image = m.get_image_bin()
                 if image is not None:
-                    self.leaf.child.image.value = image  # type: ignore
+                    self.proxy.that.image.widget.value = image  # type: ignore
             except Exception:
                 import traceback
+
                 print(traceback.format_exc())
+
         await asynchronize(_func)
 
+
 def make_float(
-    description: str = "", disabled: bool = False, value: float = 0.0
-) -> ipw.BoundedFloatText:
-    return ipw.BoundedFloatText(
-        value=value,
-        min=0.0,
-        max=1.0,
-        step=0.001,
-        description=description,
-        disabled=disabled,
-        layout={"width": "initial"},
+    description: str,
+    uid: str,
+    disabled: bool = False,
+    value: float = 0.0,
+    index: int = 0,
+) -> Proxy:
+    return stack(
+        html(""),
+        bounded_float_text(
+            description, value=value, min=0.0, max=1.0, step=0.001, disabled=disabled
+        ).uid(uid),
+        selected_index=index,
     )
+
 
 @is_leaf
 @no_progress_bar
 @chaining_widget(label="Heatmap")
-class HeatmapW(VBoxTyped):
-    class Typed(TypedBase):
-        choice_dim: ipw.Dropdown
-        choice_x: ipw.Dropdown
-        choice_y: ipw.Dropdown
-        min_q: ipw.BoundedFloatText
-        max_q: ipw.BoundedFloatText
-        choice_trans: ipw.Dropdown
-        gaussian_blur: ipw.IntSlider
-        start_btn: ipw.Button
-        image: ipw.Image
-
+class HeatmapW(VBox):
     def __init__(self) -> None:
         super().__init__()
         self.column_x: str = ""
@@ -81,19 +87,26 @@ class HeatmapW(VBoxTyped):
         self._heatmap: Heatmap | None = None
         self._last_display: int = 0
 
-    def obs_columns(self, change: dict[str, AnyType]) -> None:
-        if self.child.choice_x.value and self.child.choice_y.value:
-            self.child.start_btn.disabled = False
-            self.column_x = self.child.choice_x.value.split(":")[0]
-            self.column_y = self.child.choice_y.value.split(":")[0]
-        else:
-            self.child.start_btn.disabled = True
+    def get_num_cols(self) -> list[tuple[str, str]]:
+        return [
+            (col, c)
+            for (col, (c, t)) in self.col_typed_names.items()
+            if (t.startswith("float") or t.startswith("int"))
+        ] + [("", "")]
 
-    def obs_trans(self, change: dict[str, AnyType]) -> None:
+    def obs_columns(self, proxy: Proxy, change: dict[str, AnyType]) -> None:
+        if proxy.that.choice_x.widget.value and proxy.that.choice_y.widget.value:
+            proxy.that.start_btn.attrs(disabled=False)
+            self.column_x = proxy.that.choice_x.widget.value.split(":")[0]
+            self.column_y = proxy.that.choice_y.widget.value.split(":")[0]
+        else:
+            proxy.that.start_btn.attrs(disabled=True)
+
+    def obs_trans(self, proxy: Proxy, change: dict[str, AnyType]) -> None:
         if self._heatmap is not None:
             self._heatmap.params.transform = int(change["new"])
 
-    def obs_gaussian_blur(self, change: dict[str, AnyType]) -> None:
+    def obs_gaussian_blur(self, proxy: Proxy, change: dict[str, AnyType]) -> None:
         if self._heatmap is not None:
             self._heatmap.params.gaussian_blur = int(change["new"])
 
@@ -102,91 +115,83 @@ class HeatmapW(VBoxTyped):
         self.output_dtypes = self.dtypes
         self.col_types = {k: str(t) for (k, t) in self.dtypes.items()}
         self.col_typed_names = {f"{n}:{t}": (n, t) for (n, t) in self.col_types.items()}
-        num_cols = [
-            col
-            for (col, (c, t)) in self.col_typed_names.items()
-            if (t.startswith("float") or t.startswith("int"))
-        ]
-        self.child.choice_dim = ipw.Dropdown(
-            options=[("512*512", "512"), ("256*256", "256"), ("128*128", "128")],
-            value="512",
-            description="Definition",
-            disabled=False,
-            # layout={"width": "initial"},
-        )
-        self.child.choice_trans = ipw.Dropdown(
-            options=[("NONE", "1"), ("SQRT", "2"), ("CBRT", "3"), ("LOG", "4")],
-            value="4",
-            description="Transform",
-            disabled=False,
-            # layout={"width": "initial"},
-        )
-        self.child.choice_trans.observe(self.obs_trans, "value")
-        self.child.gaussian_blur = ipw.IntSlider(
-            value=0,
-            min=0,
-            max=5,
-            step=1,
-            description="Gaussian blur:",
-            style={'description_width': 'initial'},
-            disabled=False,
-            continuous_update=False,
-            orientation="horizontal",
-            readout=True,
-            readout_format="d",
-        )
-        self.child.gaussian_blur.observe(self.obs_gaussian_blur, "value")
-        self.child.choice_x = ipw.Dropdown(
-            options=num_cols + [""],
-            value="",
-            description="X",
-            disabled=False,
-            # layout={"width": "initial"},
-        )
-        self.child.choice_x.observe(self.obs_columns, "value")
-        self.child.choice_y = ipw.Dropdown(
-            options=num_cols + [""],
-            value="",
-            description="Y",
-            disabled=False,
-            # layout={"width": "initial"},
-        )
-        self.child.choice_y.observe(self.obs_columns, "value")
+
         self.has_quantiles = isinstance(self.input_module, Quantiles)
-        self.child.min_q = (
-            make_float("MinQuant.:", value=0.03) if self.has_quantiles else dongle_widget()
+        self._proxy = anybox(
+            self,
+            dropdown(
+                "Definition",
+                options=[("512*512", "512"), ("256*256", "256"), ("128*128", "128")],
+                value="512",
+            ).uid("choice_dim"),
+            dropdown(
+                "X",
+                options=self.get_num_cols(),
+                value="",
+            )
+            .uid("choice_x")
+            .observe(self.obs_columns),
+            dropdown(
+                "Y",
+                options=self.get_num_cols(),
+                value="",
+            )
+            .uid("choice_y")
+            .observe(self.obs_columns),
+            make_float("MinQuant.:", uid="min_q", value=0.03, index=self.has_quantiles),
+            make_float("MaxQuant.:", uid="max_q", value=0.97, index=self.has_quantiles),
+            dropdown(
+                "Transform",
+                options=[("NONE", "1"), ("SQRT", "2"), ("CBRT", "3"), ("LOG", "4")],
+                value="4",
+            )
+            .uid("choice_trans")
+            .observe(self.obs_trans),
+            int_slider(
+                "Gaussian blur:",
+                value=0,
+                min=0,
+                max=5,
+                step=1,
+                style={"description_width": "initial"},
+                continuous_update=False,
+                orientation="horizontal",
+                readout=True,
+                readout_format="d",
+            )
+            .uid("gaussian_blur")
+            .observe(self.obs_gaussian_blur),
+            button("Start").uid("start_btn").on_click(self._start_btn_cb),
+            image(width=512, height=512).uid("image"),
         )
-        self.child.max_q = (
-            make_float("MaxQuant.:", value=0.97) if self.has_quantiles else dongle_widget()
+
+        # replay_next()
+
+    def fetch_parameters(self) -> dict[str, AnyType]:
+        return dict(
+            X=self._proxy.that.choice_x.widget.value.split(":")[0],
+            Y=self._proxy.that.choice_y.widget.value.split(":")[0],
+            dim=self._proxy.that.choice_dim.widget.value,
+            min_q=self._proxy.that.min_q.widget.value,
+            max_q=self._proxy.that.max_q.widget.value,
+            trans=self._proxy.that.choice_trans.widget.value,
+            blur=self._proxy.that.gaussian_blur.widget.value,
         )
-        self.child.image = dongle_widget()
-        self.child.start_btn = make_button(
-            "Start", cb=self._start_btn_cb, disabled=True
-        )
-        replay_next()
 
     @starter_callback
-    def _start_btn_cb(self, btn: ipw.Button) -> None:
+    def _start_btn_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
         assert self.column_x and self.column_y
-        xy = dict(X=self.column_x, Y=self.column_y,
-                  dim=self.child.choice_dim.value,
-                  min_q=self.child.min_q.value,
-                  max_q=self.child.max_q.value,
-                  trans=self.child.choice_trans.value,
-                  blur=self.child.gaussian_blur.value
-                  )
-        if is_recording():
-            amend_last_record({"frozen": xy})
-        self.output_module = self.init_heatmap(xy)
+        content = self._proxy.dump()
+        self.record = content  # saved for replay
+        xy = self.fetch_parameters()
+        self.output_module = self.init_modules(xy)
 
     @modules_producer
-    def init_heatmap(self, ctx: dict[str, AnyType]) -> Heatmap:
+    def init_modules(self, ctx: dict[str, AnyType]) -> Heatmap:
         col_x = ctx["X"]
         col_y = ctx["Y"]
         print("XY", ctx)
-        #DIM = int(self.child.choice_dim.value)
         DIM = ctx["dim"]
-        self.child.image = ipw.Image(value=b"\x00", width=512, height=512)
         s = self.input_module.scheduler
         query = quantiles = self.input_module
         with s:
@@ -215,15 +220,35 @@ class HeatmapW(VBoxTyped):
             self._heatmap.params.transform = int(ctx["trans"])
             self._heatmap.params.gaussian_blur = ctx["blur"]
             self.after_run = AfterRun(heatmap)
+            self.after_run.proxy = self._proxy
             return heatmap
 
     def provide_surrogate(self, title: str) -> GuestWidget:
-        disable_all(self)
+        disable_all(
+            self,
+            exceptions=(
+                self._proxy.that.image.widget,
+                self._proxy.that.choice_trans.widget,
+                self._proxy.that.gaussian_blur.widget,
+            ),
+        )
         return self
 
     @runner
     def run(self) -> AnyType:
-        content = self.frozen_kw
-        self.output_module = self.init_heatmap(content)
+        ui_dumped = self.record
+        self._proxy = restore(ui_dumped, globals(), obj=self)
+        assert hasattr(self._proxy.widget, "children")
+        self.children = self._proxy.widget.children
+        content = self.fetch_parameters()
+        self.output_module = self.init_modules(content)
         self.output_slot = "result"
 
+    def init_ui(self) -> None:
+        ui_dumped = self.record
+        self._proxy = restore(ui_dumped, globals(), obj=self)
+        options = self.get_num_cols()
+        self._proxy.that.choice_x.attrs(options=options)
+        self._proxy.that.choice_y.attrs(options=options)
+        assert hasattr(self._proxy.widget, "children")
+        self.children = self._proxy.widget.children

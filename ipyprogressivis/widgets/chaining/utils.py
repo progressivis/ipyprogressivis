@@ -84,13 +84,13 @@ def get_dag() -> DAGWidget:
 
 
 def make_button(
-        label: str,
-        disabled: bool = False,
-        cb: Optional[Callable[..., AnyType]] = None,
-        icon: str = "check",
-        button_style: str = "",
-        tooltip: str = "",
-        **kw: Any,
+    label: str,
+    disabled: bool = False,
+    cb: Optional[Callable[..., AnyType]] = None,
+    icon: str = "check",
+    button_style: str = "",
+    tooltip: str = "",
+    **kw: Any,
 ) -> ipw.Button:
     btn = ipw.Button(
         description=label,
@@ -105,9 +105,11 @@ def make_button(
     return btn
 
 
-BTN_DEL = ipw.HBox([make_button("", icon="trash", button_style="danger", disabled=True)])
-BTN_DEL.display = 'flex'
-BTN_DEL.layout.justify_content = 'flex-end'
+BTN_DEL = ipw.HBox(
+    [make_button("", icon="trash", button_style="danger", disabled=True)]
+)
+BTN_DEL.display = "flex"
+BTN_DEL.layout.justify_content = "flex-end"
 
 
 def enable_all(wg: Any, exceptions: Sequence[Any] = tuple()) -> None:
@@ -127,6 +129,7 @@ def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
         for sw in obj_.subwidgets:
             objects.append(sw)  # type: ignore
             _aux(sw)  # type: ignore
+
     _aux(obj)
     modules: list[str] = []
     for obj_ in objects:
@@ -137,8 +140,10 @@ def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
     m_set = set(modules)
     if m_set != deps:
         others = deps.difference(m_set)
-    messg = ("<b>WARNING:</b> This action will permanently delete the widgets listed below and"
-             " their underlying modules")
+    messg = (
+        "<b>WARNING:</b> This action will permanently delete the widgets listed below and"
+        " their underlying modules"
+    )
     begin = f"<table style='border: 1px solid;background-color:red;'><tr><td>&#9888;</td><td>{messg}</td></tr></table>"
     end = "</ul>\n"
     sio = io.StringIO()
@@ -174,9 +179,18 @@ def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
                 del widget_by_key[(obj_.label, obj_.number)]
         if not len(widget_by_key):
             enable_all(PARAMS["header"].constructor)
-    vbox = ipw.VBox([ipw.HTML(sio.getvalue()),
-                     ipw.HBox([make_button("Cancel", cb=_cancel),
-                               make_button("Confirm", cb=_confirm, button_style="danger")])])
+
+    vbox = ipw.VBox(
+        [
+            ipw.HTML(sio.getvalue()),
+            ipw.HBox(
+                [
+                    make_button("Cancel", cb=_cancel),
+                    make_button("Confirm", cb=_confirm, button_style="danger"),
+                ]
+            ),
+        ]
+    )
     box.children = [vbox]
     box.display = None
     box.layout.justify_content = None  # 'flex-start'
@@ -188,8 +202,8 @@ def make_trash_box(obj: "NodeCarrier", box: ipw.HBox | None = None) -> ipw.HBox:
         box = ipw.HBox([trash_btn])
     else:
         box.children = [trash_btn]
-    box.display = 'flex'
-    box.layout.justify_content = 'flex-end'
+    box.display = "flex"
+    box.layout.justify_content = "flex-end"
     trash_btn.on_click(partial(_process_trash, box=box, obj=obj))
     return box
 
@@ -200,9 +214,10 @@ widget_list: AnyType = []
 REPLAY_BATCH: bool = False
 
 
-FSSPEC_HTTPS = fsspec.filesystem('https')
+FSSPEC_HTTPS = fsspec.filesystem("https")
 
 LOADERS = {"CSV loader": "csv", "PARQUET loader": "parquet", "CUSTOM loader": "custom"}
+
 
 def dot_progressivis() -> str:
     home = HOME
@@ -269,6 +284,7 @@ def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
             def _edit_cb(b: Any) -> "NodeCarrier":
                 assert isinstance(self_, GuestWidget)
                 self_.carrier.children = wg_copy
+                self_.carrier.children[1].init_ui()  # type: ignore
                 self_._do_replay_next = True
                 return self_.carrier
 
@@ -290,7 +306,10 @@ def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
             btn_e = make_button("Edit", cb=_edit_cb, disabled=not is_recording())
             btn_d = make_button("Delete", cb=_delete_cb, disabled=not is_recording())
             box = ipw.HBox([btn_c, btn_e, btn_d])
-            self_.carrier.children = (BTN_DEL, box,)
+            self_.carrier.children = (
+                BTN_DEL,
+                box,
+            )
             return self_.carrier
         else:
             func(*args, **kwargs)
@@ -321,6 +340,7 @@ def needs_dtypes(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
         else:
             func(*args, **kwargs)
             return
+
     return wrapper
 
 
@@ -384,9 +404,10 @@ def labcommand(cmd: str, **kw: AnyType) -> None:
         md = kw["md"]
         tag = kw["tag"]
         widget_list.append((md, wg, tag))
-        code = ("from ipyprogressivis.widgets.chaining.constructor import Constructor\n"
-                "from ipyprogressivis.widgets.chaining.utils import get_header\n"
-                ) + code
+        code = (
+            "from ipyprogressivis.widgets.chaining.constructor import Constructor\n"
+            "from ipyprogressivis.widgets.chaining.utils import get_header\n"
+        ) + code
         exec(code)
         return
     hdr = PARAMS["header"]
@@ -541,25 +562,38 @@ def replay_sequence(obj: "Constructor") -> None:
     for md, code, tag in widget_list:
         tag_class = get_tag_class(tag)
         labcommand(
-            "progressivis:create_stage_cells", tag=tag, tag_class=tag_class,
-            md=md, code=code, rw=False, run=True
+            "progressivis:create_stage_cells",
+            tag=tag,
+            tag_class=tag_class,
+            md=md,
+            code=code,
+            rw=False,
+            run=True,
         )
 
 
 def create_root(backup: BackupWidget) -> None:
-    code = ("# do not run this cell\n"
-            "display(header.constructor)\n"
-            "header.constructor.start_scheduler()\n"
-            "header.talker.labcommand('notebook:hide-cell-code')")
+    code = (
+        "# do not run this cell\n"
+        "display(header.constructor)\n"
+        "header.constructor.start_scheduler()\n"
+        "header.talker.labcommand('notebook:hide-cell-code')"
+    )
 
     async def _func() -> None:
         await aio.sleep(0.2)
         extra = backup.root_markdown
         md = f"## root\n {extra}" if extra else "## root"
         labcommand(
-            "progressivis:create_stage_cells", tag="root", tag_class="root",
-            md=md, code=code, rw=False, run=True
+            "progressivis:create_stage_cells",
+            tag="root",
+            tag_class="root",
+            md=md,
+            code=code,
+            rw=False,
+            run=True,
         )
+
     loop = asyncio.get_event_loop()
     loop.create_task(_func())
 
@@ -625,8 +659,8 @@ class HandyTab(ipw.Tab):
             return
         pos = all_titles.index(title)
         children_ = list(self.children)
-        children_ = children_[:pos] + children_[pos + 1:]
-        titles_ = all_titles[:pos] + all_titles[pos + 1:]
+        children_ = children_[:pos] + children_[pos + 1 :]
+        titles_ = all_titles[:pos] + all_titles[pos + 1 :]
         self.children = tuple(children_)
         for i, t in enumerate(titles_):
             self.set_title(i, t)
@@ -670,6 +704,7 @@ def get_schema(sniffer: Sniffer) -> AnyType:
     usecols = params.get("usecols")
     parse_dates = get_param(params, "parse_dates", [])
     retype = params.get("dtype", {}) or {}  # "dtype" key may exist and be None
+
     def _ds(col: str, dt: str) -> str:
         if col in parse_dates:
             return "datetime64"
@@ -678,13 +713,13 @@ def get_schema(sniffer: Sniffer) -> AnyType:
     assert hasattr(sniffer, "_df")
     assert sniffer._df is not None
     norm_cols = dict(zip(sniffer._df.columns, norm_rename_cols(sniffer)))
-    dtypes = {col: _ds(col, dt) for (col, dt) in sniffer._df.dtypes.to_dict().items()}
+    dtypes = {col: _ds(col, dt) for (col, dt) in sniffer._df.dtypes.to_dict().items()}  # type: ignore
     for col, dt in retype.items():
         dtypes[col] = dt
     if usecols is not None:
         dtypes = {norm_cols[col]: dtypes[col] for col in usecols}
     else:
-        dtypes = {norm_cols[col]: t for (col, t) in dtypes.items()}
+        dtypes = {norm_cols[col]: t for (col, t) in dtypes.items()}  # type: ignore
     return dtypes
 
 
@@ -695,14 +730,13 @@ def disable_all(wg: Any, exceptions: Sequence[Any] = tuple()) -> None:
         for ch in wg.children:
             disable_all(ch, exceptions)
 
+
 def make_replay_next_btn() -> ipw.Button:
     def _fnc(btn: ipw.Button) -> None:
         replay_next()
         btn.disabled = True
 
-    return make_button(
-        "Next", cb=_fnc, disabled=False
-    )
+    return make_button("Next", cb=_fnc, disabled=False)
 
 
 stage_register: dict[str, AnyType] = {}
@@ -714,14 +748,17 @@ widget_by_key: dict[Tuple[str, int], "NodeCarrier"] = {}
 widget_numbers: dict[str, int] = defaultdict(int)
 recording_state: bool = False
 
+
 def get_tag_class(tag: str) -> str:
     key, nb = parse_tag(tag)
     node = widget_by_key[(key, nb)]
     return type(node.children[1]).__name__
 
+
 def set_parent_widget(obj: Union["NodeCarrier", "Constructor"]) -> None:
     global parent_widget
     parent_widget = obj
+
 
 class _Dag:
     def __init__(
@@ -736,9 +773,8 @@ class _Dag:
         self._alias = alias
 
 
-
 def create_stage_widget(
-        key: str, alias: str, frozen: AnyType = None, number: int | None = None
+    key: str, alias: str, frozen: AnyType = None, number: int | None = None
 ) -> "NodeCarrier":
     obj = parent_widget
     assert obj is not None
@@ -771,7 +807,6 @@ def create_stage_widget(
         key_by_id[id(stage)] = (key, stage.number)
         guest.add_class(make_css_marker(key, stage.number))
     return stage
-
 
 
 def create_loader_widget(
@@ -847,12 +882,14 @@ def _make_btn_start_loader(
         add_new_loader(obj, ftype, alias.value, frozen)
         alias.value = ""
         disable_all(
-            obj, exceptions=(
+            obj,
+            exceptions=(
                 obj.c_.loader.c_.csv,
                 obj.c_.loader.c_.parquet,
-                obj.c_.loader.c_.custom
-            )
+                obj.c_.loader.c_.custom,
+            ),
         )
+
     return _cbk
 
 
@@ -867,27 +904,34 @@ def replay_start_loader(
     global parent_widget
     parent_widget = obj
     assert parent_widget
-    add_new_loader(obj, ftype, alias,
-                   frozen=frozen,
-                   number=number,
-                   markdown=kw.get("markdown", ""))
+    add_new_loader(
+        obj, ftype, alias, frozen=frozen, number=number, markdown=kw.get("markdown", "")
+    )
 
 
 def replay_new_stage(
-        obj: "NodeCarrier",
-        title: str,
-        alias:str,
-        frozen: AnyType | None = None,
-        number: int | None = None,
-        **kw: AnyType,
+    obj: "NodeCarrier",
+    title: str,
+    alias: str,
+    frozen: AnyType | None = None,
+    number: int | None = None,
+    **kw: AnyType,
 ) -> None:
     class _FakeSel:
         value: str
+
     sel = _FakeSel()
     sel.value = title
     global parent_widget
     parent_widget = obj
-    add_new_stage(obj, title, alias=alias, frozen=frozen, number=number, markdown=kw.get("markdown", ""))
+    add_new_stage(
+        obj,
+        title,
+        alias=alias,
+        frozen=frozen,
+        number=number,
+        markdown=kw.get("markdown", ""),
+    )
 
 
 class ChainingProtocol(Protocol):
@@ -897,9 +941,12 @@ class ChainingProtocol(Protocol):
     guest: "GuestWidget"
 
     def _make_btn_chain_it_cb(
-        self, sel: AnyType, alias: AnyType, frozen: AnyType | None = None, number: int | None = None
-    ) -> Callable[..., None]:
-        ...
+        self,
+        sel: AnyType,
+        alias: AnyType,
+        frozen: AnyType | None = None,
+        number: int | None = None,
+    ) -> Callable[..., None]: ...
 
 
 class ChainingMixin:
@@ -923,6 +970,7 @@ class ChainingMixin:
                 parent_widget = self  # type: ignore
                 add_new_stage(self, sel.value, alias.value, frozen=frozen, number=number)  # type: ignore
             sel.value = ""
+
         return _cbk
 
     def _progress_bar(self) -> ipw.IntProgress:
@@ -944,10 +992,15 @@ class ChainingMixin:
 
     def _quality_bar(self) -> QualityVisualization | None:
         from ipyprogressivis.views.quality import display_quality
+
         scheduler = self._output_module.scheduler
         scheduler._update_modules()
         modules = scheduler.modules()
-        managed_m = [m for (n, m) in modules.items() if n in self.managed_modules and Module.TAG_QUALITY in m.tags]
+        managed_m = [
+            m
+            for (n, m) in modules.items()
+            if n in self.managed_modules and Module.TAG_QUALITY in m.tags
+        ]
         if not managed_m:
             return None
         qv = display_quality(managed_m)
@@ -961,16 +1014,19 @@ class ChainingMixin:
                 btn.disabled = False
             else:
                 btn.disabled = True
+
         after_run_bar = None
         guest = self.guest
         if hasattr(guest, "after_run"):
             guest.after_run.leaf = guest
             after_run_bar = guest.after_run.bar
-        prog_wg = self._progress_bar() if guest._show_progress else None # type: ignore
+        prog_wg = self._progress_bar() if guest._show_progress else None  # type: ignore
         qual_wg = self._quality_bar() if guest._show_quality else None  # type: ignore
         if guest._is_chainable and not batch:
             sel = ipw.Dropdown(
-                options=[""] + list(sorted(stage_register.keys())) + list(LOADERS.keys()),
+                options=[""]
+                + list(sorted(stage_register.keys()))
+                + list(LOADERS.keys()),
                 value="",
                 description="Next stage",
                 disabled=False,
@@ -982,12 +1038,18 @@ class ChainingMixin:
                 disabled=False,
                 style={"description_width": "initial"},
             )
-            btn = make_button("Chain it", disabled=True, cb=self._make_btn_chain_it_cb(sel, alias))
+            btn = make_button(
+                "Chain it", disabled=True, cb=self._make_btn_chain_it_cb(sel, alias)
+            )
             sel.observe(_on_sel_change, names="value")
             chaining_ = ipw.HBox([sel, alias, btn])
         else:
             chaining_ = None
-        children_ = [elt for elt in (after_run_bar, prog_wg, qual_wg, chaining_) if elt is not None]
+        children_ = [
+            elt
+            for elt in (after_run_bar, prog_wg, qual_wg, chaining_)
+            if elt is not None
+        ]
         return ipw.VBox(children_)
 
 
@@ -1030,12 +1092,12 @@ def get_loader_cell(
 
 
 def add_new_stage(
-        parent: "ChainingWidget",
-        title: str,
-        alias: str,
-        frozen: AnyType = None,
-        number: int | None = None,
-        markdown: str = ""
+    parent: "ChainingWidget",
+    title: str,
+    alias: str,
+    frozen: AnyType = None,
+    number: int | None = None,
+    markdown: str = "",
 ) -> None:
     stage = create_stage_widget(title, alias, frozen, number=number)
     parent_key = key_by_id[id(parent)]
@@ -1062,13 +1124,18 @@ def add_new_stage(
         code=code,
         rw=rw,
         run=run,
-        markdown=markdown)
-    add_to_record(dict(title=title,
-                       parent=parent_key,
-                       number=stage.number,
-                       alias=alias,
-                       frozen=frozen,
-                       markdown=markdown))
+        markdown=markdown,
+    )
+    add_to_record(
+        dict(
+            title=title,
+            parent=parent_key,
+            number=stage.number,
+            alias=alias,
+            frozen=frozen,
+            markdown=markdown,
+        )
+    )
 
 
 def add_new_loader(
@@ -1077,7 +1144,7 @@ def add_new_loader(
     alias: str,
     frozen: AnyType = None,
     number: int | None = None,
-    markdown: str = ""
+    markdown: str = "",
 ) -> None:
     title = f"{ftype.upper()} loader"
     stage = create_loader_widget(title, ftype, alias, frozen=frozen, number=number)
@@ -1106,14 +1173,18 @@ def add_new_loader(
         code=code,
         rw=rw,
         run=run,
-        markdown=markdown
+        markdown=markdown,
     )
-    add_to_record(dict(title=title,
-                       number=stage.number,
-                       ftype=ftype,
-                       alias=alias,
-                       frozen=frozen,
-                       markdown=markdown))
+    add_to_record(
+        dict(
+            title=title,
+            number=stage.number,
+            ftype=ftype,
+            alias=alias,
+            frozen=frozen,
+            markdown=markdown,
+        )
+    )
 
 
 class ChainingWidget:
@@ -1261,7 +1332,7 @@ class GuestWidget:
     @record.setter
     def record(self, value: dict[str, Any]) -> None:
         if is_recording():
-            amend_last_record({'frozen': value})
+            amend_last_record({"frozen": value})
 
     def _make_guess_types(
         self, fun: Callable[..., None], args: Iterable[Any], kw: dict[str, Any]
@@ -1317,12 +1388,20 @@ class GuestWidget:
         return widget_dir
 
     def provide_surrogate(self, title: str) -> "GuestWidget":
-        return Surrogate(title)
+        # return Surrogate(title)
+        disable_all(self)
+        return self
+
+    def init_ui(self) -> None:
+        pass
 
     def post_run(self, title: str) -> "NodeCarrier":
         self.dag_running()
         surrogate = self.provide_surrogate(title)
-        self.carrier.children = (BTN_DEL, surrogate,)  # type: ignore
+        self.carrier.children = (
+            BTN_DEL,
+            surrogate,
+        )  # type: ignore
         surrogate._GuestWidget__carrier = ref(self.carrier)  # type: ignore
         batch = not PARAMS["replay_before_resume"]
         self.make_footer(batch=batch)
@@ -1330,7 +1409,10 @@ class GuestWidget:
         return self.carrier
 
     def post_delete(self) -> "NodeCarrier":
-        self.carrier.children = (BTN_DEL, ipw.Label("deleted"),)
+        self.carrier.children = (
+            BTN_DEL,
+            ipw.Label("deleted"),
+        )
         replay_next_if()
         return self.carrier
 
@@ -1378,7 +1460,10 @@ class RootVBox(LeafVBox):
 
 class NodeCarrier(NodeVBox):
     def __init__(self, ctx: dict[str, Any], guest: GuestWidget) -> None:
-        super().__init__(ctx, (make_trash_box(self), guest,))  # type: ignore
+        super().__init__(
+            ctx,
+            (make_trash_box(self), guest),  # type: ignore
+        )
         guest._GuestWidget__carrier = ref(self)  # type: ignore
         self.dag_register()
 
@@ -1393,7 +1478,7 @@ class NodeCarrier(NodeVBox):
         if not box:
             return
         self.children = (self.children[ITRASH], self.children[IGUEST], box)
-        #self.children = list(self.children) + [box]
+        # self.children = list(self.children) + [box]
 
     @property
     def guest(self) -> GuestWidget:
@@ -1401,7 +1486,7 @@ class NodeCarrier(NodeVBox):
 
 
 class TypedBase:
-    #__annotations__ = []
+    # __annotations__ = []
     def __init__(self) -> None:
         self._main: Optional[ReferenceType["TypedBox"]] = None
 
@@ -1474,18 +1559,19 @@ class CoroBar(IpyHBoxTyped):
 
 class Coro:
     __name__ = "action"  # raise clean exceptions in Module
+
     def __init__(self, m: Module | None = None) -> None:
         self.leaf: GuestWidget | None = None  # TODO: use a weakref here
         self._last_display: int = 0
         self.calls_counter: int = 0
         self.bar = CoroBar()
-        self.bar.c_.display_t =  ipw.IntSlider(
+        self.bar.c_.display_t = ipw.IntSlider(
             value=1,
             min=1,
             max=10,
             step=1,
             description="Display T:",
-            style={'description_width': 'initial'},
+            style={"description_width": "initial"},
             disabled=False,
             continuous_update=False,
             orientation="horizontal",
@@ -1512,10 +1598,12 @@ class Coro:
         self._last_display = int(time.time())
         self.calls_counter += 1
 
+
 def modules_producer(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyType]:
     """
     Decorator for method which create modules
     """
+
     @wraps(to_decorate)
     def _wrapper(self_: GuestWidget, *args: AnyType, **kwargs: AnyType) -> AnyType:
         """
@@ -1530,27 +1618,35 @@ def modules_producer(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyTy
             mods_after = set(s.modules().keys())
         self_.carrier.managed_modules = mods_after.difference(mods_before)
         return ret
+
     return _wrapper
+
 
 def chaining_widget(label: str) -> Callable[..., AnyType]:
     def decorator(cls: AnyType) -> AnyType:
         stage_register[label] = cls
         return cls
+
     return decorator
 
-def starter_callback(func: Callable[..., AnyType] | None = None,
-                *,
-                disable_btn: bool = True,
-                disable_ui: bool = True,
-                footer: bool = True,
-                dag_running: bool = True,
-                manage_display: bool = True,
 
-
-                ) -> Callable[..., AnyType]:
+def starter_callback(
+    func: Callable[..., AnyType] | None = None,
+    *,
+    disable_btn: bool = True,
+    disable_ui: bool = True,
+    footer: bool = True,
+    dag_running: bool = True,
+    manage_display: bool = True,
+) -> Callable[..., AnyType]:
     def decorator(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
         @wraps(func)
-        def wrapper(self_: GuestWidget, btn: ipw.Button | None = None, *args: AnyType, **kw: AnyType) -> AnyType:
+        def wrapper(
+            self_: GuestWidget,
+            btn: ipw.Button | None = None,
+            *args: AnyType,
+            **kw: AnyType,
+        ) -> AnyType:
             if btn:
                 ret = func(self_, btn, *args, **kw)
             else:
@@ -1568,17 +1664,21 @@ def starter_callback(func: Callable[..., AnyType] | None = None,
             return ret
 
         return wrapper
+
     if func is None:
         return decorator
     return decorator(func)
+
 
 def is_leaf(cls: Type[GuestWidget]) -> Type[GuestWidget]:
     cls._is_chainable = False
     return cls
 
+
 def no_progress_bar(cls: Type[GuestWidget]) -> Type[GuestWidget]:
     cls._show_progress = False
     return cls
+
 
 def no_quality_bar(cls: Type[GuestWidget]) -> Type[GuestWidget]:
     cls._show_quality = False

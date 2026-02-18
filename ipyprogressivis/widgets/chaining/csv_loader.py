@@ -12,7 +12,6 @@ from .utils import (
     dot_progressivis,
     expand_urls,
     shuffle_urls,
-    relative_urls,
     modules_producer,
     labcommand,
 )
@@ -45,7 +44,7 @@ from typing import Any, Callable, cast
 
 HOME = os.getenv("HOME")
 assert HOME is not None
-
+_0 = CSVSniffer  # keeps ruff happy
 
 def clean_nodefault(d: dict[str, Any]) -> dict[str, Any]:
     return {k: v for (k, v) in d.items() if type(v).__name__ != "_NoDefault"}
@@ -187,12 +186,6 @@ class CsvLoaderW(VBox):
             ).uid("global_stack"),
         )
 
-    def __init__(self) -> None:
-        super().__init__()
-        self._sniffer: CSVSniffer | None = None
-        self._urls: list[str] = []
-        # self.child.start_save = BtnBar()
-
     def initialize(
         self, urls: list[str] = [], to_sniff: str = "", lines: int = 100
     ) -> None:
@@ -216,7 +209,6 @@ class CsvLoaderW(VBox):
         from .custom import CUSTOMER_FNC
 
         proxy.that.preprocessor.attrs(options=[""] + list(CUSTOMER_FNC.keys()))
-        # self.child.pre_proc.child.choice.options = [""] + list(CUSTOMER_FNC.keys())
 
     def _upload_cb(self, proxy: Proxy, change: dict[str, Any]) -> None:
         from .custom import CUSTOMER_FNC
@@ -239,45 +231,47 @@ class CsvLoaderW(VBox):
     def _activate_reuse_cb(self, proxy: Proxy, change: dict[str, Any]) -> None:
         proxy.lookup("reuse_btn").attrs(disabled=not proxy.widget.value)
 
+    def restore_ui(self, content: dict[str, Any]) -> None:
+        backends = restore_backends(content, globals())
+        # self.backends = backends
+        stuff = _sniffer(backends["sniffer"])
+        self._proxy = restore(content, globals(), obj=self, lambdas=stuff._lambda)
+
+    def init_ui(self) -> None:
+        content = self.record
+        self.restore_ui(content)
+        assert hasattr(self._proxy.widget, "children")
+        self.children = self._proxy.widget.children
+
     def _reuse_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
         base_name = proxy.lookup("reuse_file").widget.value
         file_name = f"{self.widget_dir}/{base_name}"
         with open(file_name) as f:
             content = json.load(f)
-        backends = restore_backends(content, globals())
-        self.backends = backends
-        stuff = _sniffer(backends["sniffer"])
-        self._proxy = restored = restore(
-            content, globals(), obj=self, lambdas=stuff._lambda
-        )
-        assert hasattr(restored.widget, "children")
-        self.children = restored.widget.children
-        self._sniffer = self._proxy._backends["sniffer"]()
-        self._to_sniff_cb(restored, dict())  # sets self._urls self._to_sniff
+        self.restore_ui(content)
+        assert hasattr(self._proxy.widget, "children")
+        self.children = self._proxy.widget.children
+        self._to_sniff_cb(self._proxy, dict())  # sets self._urls self._to_sniff
+
+    def get_all_urls(self, proxy: Proxy | None = None) -> list[str]:
+        proxy = proxy or self._proxy
+        bookmarks = proxy.that.bookmarks
+        urls_wg = proxy.that.urls_wg
+        urls = list(bookmarks.widget.value) + urls_wg.widget.value.strip().split("\n")
+        urls = [elt for elt in urls if elt]
+        return urls
 
     def _to_sniff_cb(self, proxy: Proxy, change: dict[str, Any]) -> None:
         if to_sniff := proxy.that.to_sniff.widget.value:
             self._to_sniff = to_sniff
             proxy.that.sniff_btn.attrs(disabled=False)
             return
-        to_sniff = proxy.lookup("to_sniff")
-        bookmarks = proxy.lookup("bookmarks")
-        urls_wg = proxy.lookup("urls_wg")
-        urls = list(bookmarks.widget.value) + urls_wg.widget.value.strip().split("\n")
-        urls = [elt for elt in urls if elt]
-        if not urls:
+        if not (urls := self.get_all_urls(proxy)):
             return
-        self._urls = urls
-        to_sniff_url = ""
-        to_sniff_lst = expand_urls([to_sniff.widget.value.strip()])
-        if to_sniff_lst:
-            to_sniff_url = to_sniff_lst[0]
-        if not to_sniff_url:
-            to_sniff_url = urls[0]
-
-        if not to_sniff_url:
+        to_sniff_lst = expand_urls(urls)  # just in case when urls[0] contains *
+        if not to_sniff_lst:
             return
-        self._to_sniff = to_sniff_url
+        self._to_sniff = to_sniff_lst[0]
         sniff_btn = proxy.lookup("sniff_btn")
         sniff_btn.attrs(disabled=not self._to_sniff)
 
@@ -285,7 +279,6 @@ class CsvLoaderW(VBox):
         proxy.lookup("save_btn").attrs(disabled=not change["new"])
 
     def _sniffer_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
-        # to_sniff = proxy.that.to_sniff.widget.value
         n_lines = proxy.that.n_lines.widget.value
         for uid in ("start_stack", "save_stack", "save_file_stack"):
             proxy.lookup(uid).attrs(selected_index=0)
@@ -294,33 +287,40 @@ class CsvLoaderW(VBox):
         if not sniff_stack._children:
             merge_trees(self._proxy, sniff_stack, snf_proxy)
         sniff_stack.attrs(selected_index=0)
-        self._sniffer = self._proxy._backends["sniffer"]()
         proxy.lookup("sniff_btn").attrs(disabled=True)
 
-    @starter_callback
-    def _start_loader_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
-        urls = relative_urls(self._urls)
-        assert self._sniffer is not None
+    def fetch_parameters(self) -> dict[str, Any]:
+        proxy = self._proxy
+        urls = self.get_all_urls(proxy)
         filter_: dict[str, str] = {}  # disabled
         filter_code = proxy.that.preprocessor.widget.value
         throttle = proxy.that.throttle.widget.value
         shuffle = proxy.that.shuffle_ck.widget.value
-        sniffed_params = clean_nodefault(self._sniffer.params)
-        kw = dict(
+        sniffer = self._proxy._backends["sniffer"]()
+        assert sniffer is not None
+        sniffed_params = clean_nodefault(sniffer.params)
+        schema = get_schema(sniffer)
+        return dict(
             urls=urls,
             throttle=throttle,
             shuffle=shuffle,
             sniffed_params=sniffed_params,
-            schema=get_schema(self._sniffer),
+            schema=schema,
             filter_=filter_,
             filter_code=filter_code,
         )
-        self.record = kw
+
+    @starter_callback
+    def _start_loader_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+        sniffer = self._proxy._backends["sniffer"]()
+        assert sniffer is not None
+        content = self._proxy.dump()
+        self.record = content  # saved for replay
+        kw = self.fetch_parameters()
         csv_module = self.init_modules(**kw)
         self.output_module = csv_module
         self.output_slot = "result"
-        assert self._sniffer is not None
-        self.output_dtypes = get_schema(self._sniffer)
+        self.output_dtypes = kw["schema"]
 
     def _save_settings_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
         pv_dir = dot_progressivis()
@@ -333,6 +333,10 @@ class CsvLoaderW(VBox):
     @runner
     def run(self) -> Any:
         content = self.record
+        self.restore_ui(content)
+        assert hasattr(self._proxy.widget, "children")
+        self.children = self._proxy.widget.children
+        content = self.fetch_parameters()
         urls = content["urls"]
         throttle = content["throttle"]
         shuffle = content.get("shuffle", False)
@@ -340,6 +344,7 @@ class CsvLoaderW(VBox):
         schema = content["schema"]
         filter_ = content["filter_"]
         filter_code = content.get("filter_code", "")
+        print("content", content)
         csv_module = self.init_modules(
             urls=urls,
             throttle=throttle,
@@ -355,28 +360,17 @@ class CsvLoaderW(VBox):
     @modules_producer
     def init_modules(
         self,
-        urls: list[str] | None = None,
+        urls: list[str] = [],
         throttle: int | None = None,
         shuffle: bool = False,
-        sniffed_params: dict[str, Any] | None = None,
+        sniffed_params: dict[str, Any] = dict(),
         filter_: dict[str, Any] | None = None,
         filter_code: str = "",
         **kw: Any,
     ) -> SimpleCSVLoader:
         filter_fnc = None
         filter_fnc2 = None
-        if urls is None:
-            assert self._sniffer is not None
-            urls = expand_urls(self._urls)
-            urls = shuffle_urls(urls) if shuffle else urls
-            params = self._sniffer.params.copy()
-            params["throttle"] = self._proxy.that.throttle.widget.value
-        else:
-            urls = expand_urls(urls)
-            if filter_:
-                filter_fnc = make_filter(filter_)
-            assert sniffed_params is not None
-            params = dict(throttle=throttle, **sniffed_params)
+        params = sniffed_params
         if filter_code:
             from .custom import CUSTOMER_FNC
 

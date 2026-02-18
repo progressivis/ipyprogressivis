@@ -15,7 +15,10 @@ from ipyprogressivis.ipywel import (
     text,
     int_text,
     bounded_int_text,
+    bounded_float_text,
+    int_slider,
     html,
+    image,
     textarea,
     checkbox,
     select,
@@ -27,6 +30,7 @@ from ipyprogressivis.ipywel import (
     restore,
 )
 """
+
 
 def small_dict(**kw: Any) -> dict[Any, Any]:
     res = dict()
@@ -121,6 +125,7 @@ class Proxy:
         self._backends: dict[str, Backend] = dict()
         self._code: Callable[..., Any] | None = None
         self._lambda: dict[str, Callable[..., Any]] = dict()
+        self._no_obs = False
         self.that = _Lookup(self)
         self.hint = _Hint(self)
         # self.attr = _Attr(self)
@@ -340,9 +345,26 @@ def bounded_int_text(descr: str | None = None, **kw: Any) -> Proxy:
     return _value_widget(ipw.BoundedIntText(), **kw, **kw2)
 
 
+def bounded_float_text(descr: str | None = None, **kw: Any) -> Proxy:
+    kw2 = dict() if descr is None else dict(description=descr)
+    return _value_widget(ipw.BoundedFloatText(), **kw, **kw2)
+
+
+def int_slider(descr: str | None = None, **kw: Any) -> Proxy:
+    kw2 = dict() if descr is None else dict(description=descr)
+    return _value_widget(ipw.IntSlider(), **kw, **kw2)
+
+
 def html(descr: str | None = None, **kw: Any) -> Proxy:
     kw2 = dict() if descr is None else dict(description=descr)
     return _value_widget(ipw.HTML(), **kw, **kw2)
+
+
+def image(descr: str | None = None, **kw: Any) -> Proxy:
+    kw2 = dict() if descr is None else dict(description=descr)
+    proxy = Proxy(ipw.Image())
+    proxy.attrs(**kw, **kw2)
+    return proxy
 
 
 def textarea(descr: str | None = None, **kw: Any) -> Proxy:
@@ -389,10 +411,13 @@ corresp = dict(
     Text=text,
     IntText=int_text,
     BoundedIntText=bounded_int_text,
+    BoundedFloatText=bounded_float_text,
+    IntSlider=int_slider,
     Button=button,
     Label=label,
     Select=select,
     HTML=html,
+    Image=image,
     RadioButtons=radiobuttons,
     Tab=tab,
     SelectMultiple=select_multiple,
