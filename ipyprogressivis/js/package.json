@@ -72,6 +72,7 @@
     "d3-dag": "^0.11.5",
     "d3-scale-chromatic": "^3.1.0",
     "datatables": "^1.10.18",
+    "datatables.net-dt": "^2.3.7",
     "jquery-sparkline": "^2.4.0",
     "jupyter-dataserializers": "^3.0.1",
     "jupyter-tablewidgets": "^0.3.2",

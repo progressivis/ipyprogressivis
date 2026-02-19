@@ -1,10 +1,10 @@
 import * as widgets from '@jupyter-widgets/base';
 import $ from 'jquery';
-import 'datatables';
+import DataTable from 'datatables.net';
 import { elementReady } from './es6-element-ready';
 import { new_id } from './base';
 
-import 'datatables/media/css/jquery.dataTables.css';
+import 'datatables.net-dt/css/dataTables.dataTables.css';
 
 
 export class DataTableModel extends widgets.DOMWidgetModel {
@@ -65,8 +65,7 @@ function update_table(wobj, dt_id) {
   //console.log(data)
   if (!wobj.data_table) {
     const columns = columns_.map((c) => ({ sTitle: c.toString() }));
-    wobj.data_table = $('#' + dt_id)
-      .DataTable({
+      wobj.data_table = new DataTable('#' + dt_id, {
         columns: columns,
         processing: true,
         serverSide: true,
