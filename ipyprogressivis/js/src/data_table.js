@@ -1,5 +1,4 @@
 import * as widgets from '@jupyter-widgets/base';
-import $ from 'jquery';
 import DataTable from 'datatables.net';
 import { elementReady } from './es6-element-ready';
 import { new_id } from './base';
