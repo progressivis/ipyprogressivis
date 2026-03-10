@@ -66,7 +66,7 @@ class IpyProgressivisMagic(Magics):
         labcommand("progressivis:unlock_markdown_cells")
         btn.disabled = True
 
-    @line_magic  # type: ignore
+    @line_magic
     def pv_markdown(self, line: str) -> Any:
         if not is_recording():
             print("You must allow overwriting record to edit markdown cells")
