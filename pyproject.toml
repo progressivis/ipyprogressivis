@@ -3,6 +3,7 @@ requires = [
     "hatchling>=1.18",
     "hatch-vcs",
     "jupyterlab>=4.0.0",
+    "hatch-jupyter-builder>=0.5"
 ]
 build-backend = "hatchling.build"
 
@@ -44,7 +45,7 @@ dependencies = [
     "traitlets>=4.3.0",
     "traittypes>=0.0.6",
     "numpy>=1.26.4",
-    "pandas>=1.0.0,<3.0.0",
+    "pandas>=1.0.0,<4.0.0",
     "ipydatawidgets",
     "ipytablewidgets",
     "jupyter-client>=8.6.0",
