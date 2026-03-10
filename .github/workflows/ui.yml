@@ -36,7 +36,7 @@ jobs:
         python -m pip install jupyterlab==4.4.9
         python -m pip install -U ipywidgets
         jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
-        python -m pip install hatch
+        python -m pip install hatch==1.15
         hatch build dist/
         python -m pip install dist/*.gz
 
