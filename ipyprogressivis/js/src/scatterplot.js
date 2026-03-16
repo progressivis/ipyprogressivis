@@ -15,7 +15,7 @@ import "../css/scatterplot.css";
 const DEFAULT_SIGMA = 0;
 const DEFAULT_FILTER = "default";
 const MAX_PREV_IMAGES = 3;
-
+import { table_serialization, rowProxy, IDict } from "jupyter-tablewidgets";
 import {
   data_union_serialization,
   listenToUnion,
@@ -45,7 +45,7 @@ export class ScatterplotModel extends widgets.DOMWidgetModel {
       _view_module: "jupyter-progressivis",
       _model_module_version: "0.1.0",
       _view_module_version: "0.1.0",
-      hists: ndarray([]),
+      histograms: ndarray([]),
       samples: ndarray([]),
       data: "Hello Scatterplot!",
       _img_url: "",
@@ -59,8 +59,8 @@ export class ScatterplotModel extends widgets.DOMWidgetModel {
   static serializers = {
     ...widgets.DOMWidgetModel.serializers,
     _img_url: { serialize: serializeImgURL },
-    hists: data_union_serialization,
-    samples: data_union_serialization,
+    histograms: table_serialization,
+    samples: table_serialization,
   };
   static model_name = "ScatterplotModel";
   static model_module = "jupyter-progressivis";
@@ -92,8 +92,8 @@ export class ScatterplotView extends widgets.DOMWidgetView {
     elementReady("#" + scatterplot.with_id("prevImages")).then(() =>
       scatterplot.ready(that),
     );
-    listenToUnion(this.model, "hists", this.update.bind(this), true);
-    listenToUnion(this.model, "samples", this.update.bind(this), true);
+    //listenToUnion(this.model, "hists", this.update.bind(this), true);
+    //listenToUnion(this.model, "samples", this.update.bind(this), true);
     // Observe changes in the value traitlet in Python, and define
     // a custom callback.
     this.model.on("change:data", this.data_changed, this);
@@ -278,25 +278,29 @@ function Scatterplot(ipyView) {
     const heatmapContainer = with_id("heatmapContainer");
     const bounds = rawdata.bounds;
     if (!bounds) return;
-    const sc = rawdata.samples_counter;
-    const sc_sum = sc.reduce((a, b) => a + b, 0);
-    const st = ipyView.model.get("samples");
-    const index = [...Array(sc_sum).keys()];
+    const samples = ipyView.model.get("samples");
     const rows = Array();
-    for (let z in [...Array(st.shape[2])]) {
-      z = parseInt(z);
-      let nsam = sc[z];
-      for (let i in [...Array(nsam)]) {
-        rows.push([st.get(i, 0, z), st.get(i, 1, z), z]);
+    for (let i = 0; i < samples.columns.length / 2; i++) {
+      let k = 2 * i;
+      let col_x = samples.columns[k];
+      let col_y = samples.columns[k + 1];
+      let vect_x = samples.data[col_x];
+      let vect_y = samples.data[col_y];
+      let z = i;
+      let size = vect_y.shape[0];
+      for (let j = 0; j < size; j++) {
+        rows.push([vect_x.get(j), vect_y.get(j), z]);
       }
     }
     const dot_color = ["red", "blue", "green", "cyan", "orange"];
     const data_ = rawdata.chart;
-    const hist_tensor = ipyView.model.get("hists");
-    for (let s in data_.buffers) {
-      let i = parseInt(s);
-      const h_pick = hist_tensor.pick(null, null, i);
-      data_.buffers[i].binnedPixels = ndarray_unpack(h_pick);
+    const histograms = ipyView.model.get("histograms");
+    let h_size = histograms.size;
+    let i = 0;
+    for (let i in histograms.columns) {
+      let col = histograms.columns[i];
+      //console.log("sum", col, histograms.data[col].data.reduce((partialSum, a) => partialSum + a, 0));
+      data_.buffers[i].binnedPixels = ndarray_unpack(histograms.data[col]);
     }
     function render(spec, data) {
       const config = new Config(spec);
@@ -446,7 +450,7 @@ function Scatterplot(ipyView) {
         .attr("height", 5)
         .remove();
 
-      const dots = zoomable.selectAll(".dot").data(rows, (d, i) => index[i]);
+      const dots = zoomable.selectAll(".dot").data(rows); //, (d, i) => index[i]);
 
       dots
         .enter()
@@ -458,7 +462,7 @@ function Scatterplot(ipyView) {
         .style("fill", (d) => dot_color[d[2]])
         .call(node_drag)
         .append("title")
-        .text((d, i) => index[i]);
+        .text((d, i) => d);
       dots
         .attr("cx", (d) => x(d[0]))
         .attr("cy", (d) => y(d[1]))

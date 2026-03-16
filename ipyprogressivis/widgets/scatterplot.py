@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-import numpy as np
+
 import ipywidgets as widgets
-from ipydatawidgets import DataUnion  # type: ignore
-from ipydatawidgets.widgets import DataWidget  # type: ignore
+from ipytablewidgets import (serialization,  # type: ignore
+                             NumpyAdapter, TableType)
 from traitlets import Unicode, Any, Bool  # type: ignore
 from progressivis.core.api import JSONEncoderNp as JS, asynchronize
 import progressivis.core.aio as aio
-from .utils import data_union_serialization_compress
 from .. _frontend import NPM_PACKAGE, NPM_PACKAGE_RANGE
-import copy
 from typing import Any as AnyType, TYPE_CHECKING, cast, Callable
 
 if TYPE_CHECKING:
@@ -19,13 +17,10 @@ WidgetType = AnyType
 
 DISPLAY_RATE = 2
 
-# See js/lib/widgets.js for the frontend counterpart to this file.
-
-_serialization = data_union_serialization_compress
 
 
 @widgets.register
-class Scatterplot(DataWidget, widgets.DOMWidget):  # type: ignore
+class Scatterplot(widgets.DOMWidget):
     """Progressivis Scatterplot widget."""
 
     # Name of the widget view class in front-end
@@ -45,10 +40,9 @@ class Scatterplot(DataWidget, widgets.DOMWidget):  # type: ignore
     # Version of the front-end module containing widget model
     _model_module_version = Unicode(NPM_PACKAGE_RANGE).tag(sync=True)
 
-    hists = DataUnion([], dtype="int32").tag(sync=True, **_serialization)
-    samples = DataUnion(np.zeros((0, 0, 0), dtype="float32"), dtype="float32").tag(
-        sync=True, **_serialization
-    )
+    compression = None
+    histograms = TableType(None).tag(sync=True, **serialization)
+    samples = TableType(None).tag(sync=True, **serialization)
     data = Unicode("{}").tag(sync=True)
     _img_url = Unicode('null').tag(sync=True)
     value = Any("{}").tag(sync=True)
@@ -73,12 +67,17 @@ class Scatterplot(DataWidget, widgets.DOMWidget):  # type: ignore
                 for (k, v) in val.items()
                 if k not in ("hist_tensor", "sample_tensor")
             }
-            ht = val.get("hist_tensor", None)
+            ht = val.get("hist_tensor")
+            arrays = dict()
             if ht is not None:
-                wg.hists = copy.copy(ht)  # TODO: avoid copy when possible
+                for i, arr in enumerate(ht):
+                    arrays[f"hist_{i}"] = arr
+                wg.histograms = NumpyAdapter(arrays, touch_mode=False)
             st = val.get("sample_tensor", None)
             if st is not None:
-                wg.samples = copy.copy(st)
+                vectors = {f"v{i}": vec for (i, vec) in enumerate(st)}
+                wg.samples = NumpyAdapter(vectors, touch_mode=False)
+
             wg.data = JS.dumps(data_)
 
         async def _after_run(
