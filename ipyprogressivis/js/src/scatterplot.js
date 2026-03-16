@@ -15,11 +15,7 @@ import "../css/scatterplot.css";
 const DEFAULT_SIGMA = 0;
 const DEFAULT_FILTER = "default";
 const MAX_PREV_IMAGES = 3;
-import { table_serialization, rowProxy, IDict } from "jupyter-tablewidgets";
-import {
-  data_union_serialization,
-  listenToUnion,
-} from "jupyter-dataserializers";
+import { table_serialization } from "jupyter-tablewidgets";
 
 window.ndarray = ndarray;
 
@@ -295,8 +291,6 @@ function Scatterplot(ipyView) {
     const dot_color = ["red", "blue", "green", "cyan", "orange"];
     const data_ = rawdata.chart;
     const histograms = ipyView.model.get("histograms");
-    let h_size = histograms.size;
-    let i = 0;
     for (let i in histograms.columns) {
       let col = histograms.columns[i];
       //console.log("sum", col, histograms.data[col].data.reduce((partialSum, a) => partialSum + a, 0));
@@ -462,7 +456,7 @@ function Scatterplot(ipyView) {
         .style("fill", (d) => dot_color[d[2]])
         .call(node_drag)
         .append("title")
-        .text((d, i) => d);
+        .text((d) => d);
       dots
         .attr("cx", (d) => x(d[0]))
         .attr("cy", (d) => y(d[1]))
