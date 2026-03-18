@@ -273,6 +273,11 @@ function Scatterplot(ipyView) {
     progressivis_data = rawdata;
     const heatmapContainer = with_id("heatmapContainer");
     const bounds = rawdata.bounds;
+    if (rawdata.queryable) {
+      $(swith_id("filter")).show();
+    } else {
+      $(swith_id("filter")).hide();
+    }
     if (!bounds) return;
     const samples = ipyView.model.get("samples");
     const rows = Array();
@@ -456,7 +461,7 @@ function Scatterplot(ipyView) {
         .style("fill", (d) => dot_color[d[2]])
         .call(node_drag)
         .append("title")
-        .text((d) => d);
+        .text((d, i) => i);
       dots
         .attr("cx", (d) => x(d[0]))
         .attr("cy", (d) => y(d[1]))
