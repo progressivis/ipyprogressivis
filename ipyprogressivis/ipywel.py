@@ -442,6 +442,7 @@ def restore(
     ctx: dict[str, Any],
     obj: Any | None = None,
     lambdas: dict[str, Any] | None = None,
+    custom: dict[str, Any] = dict()
 ) -> Proxy:
     def _restore_impl(bulk: dict[str, Any]) -> Proxy:
         assert isinstance(bulk, dict)
@@ -467,7 +468,8 @@ def restore(
                 contn._uid = uid
             return contn
         # leaf case
-        widget_func = corresp[classname]
+        all_corresp = dict(**corresp, **custom)
+        widget_func = all_corresp[classname]
         assert callable(widget_func)
         proxy = cast(Proxy, widget_func())
         proxy.attrs(**bulk.get("updates", dict()))

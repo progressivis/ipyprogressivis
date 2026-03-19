@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from weakref import ref, ReferenceType
 import numpy as np
+import pandas as pd
 import os
 import json
 import base64
@@ -708,18 +709,20 @@ def get_schema(sniffer: Sniffer) -> AnyType:
     def _ds(col: str, dt: str) -> str:
         if col in parse_dates:
             return "datetime64"
+        if isinstance(dt, pd.StringDtype):
+            return dataframe_dshape(np.dtype(object))
         return dataframe_dshape(np.dtype(dt))
 
     assert hasattr(sniffer, "_df")
     assert sniffer._df is not None
     norm_cols = dict(zip(sniffer._df.columns, norm_rename_cols(sniffer)))
-    dtypes = {col: _ds(col, dt) for (col, dt) in sniffer._df.dtypes.to_dict().items()}  # type: ignore
+    dtypes = {col: _ds(col, dt) for (col, dt) in sniffer._df.dtypes.to_dict().items()}
     for col, dt in retype.items():
         dtypes[col] = dt
     if usecols is not None:
         dtypes = {norm_cols[col]: dtypes[col] for col in usecols}
     else:
-        dtypes = {norm_cols[col]: t for (col, t) in dtypes.items()}  # type: ignore
+        dtypes = {norm_cols[col]: t for (col, t) in dtypes.items()}
     return dtypes
 
 

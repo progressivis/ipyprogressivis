@@ -36,6 +36,7 @@ from ipyprogressivis.ipywel import (
     select_multiple,
     label,
     file_upload,
+    html,
     restore_backends,
     restore,
     merge_trees,
@@ -181,6 +182,10 @@ class CsvLoaderW(VBox):
                         .on_click(self._refresh_btn_cb),
                     ),
                     self.btn_bar(),
+                    stack(
+                        html(),
+                        text(value="xxxxxxxxxxxxxxxxxxxx").uid("hidden_parameters"),
+                        )
                 ),
                 selected_index=1,
             ).uid("global_stack"),
@@ -314,9 +319,10 @@ class CsvLoaderW(VBox):
     def _start_loader_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
         sniffer = self._proxy._backends["sniffer"]()
         assert sniffer is not None
+        kw = self.fetch_parameters()
+        self._proxy.that.hidden_parameters.attrs(value=json.dumps(kw))
         content = self._proxy.dump()
         self.record = content  # saved for replay
-        kw = self.fetch_parameters()
         csv_module = self.init_modules(**kw)
         self.output_module = csv_module
         self.output_slot = "result"
@@ -336,7 +342,7 @@ class CsvLoaderW(VBox):
         self.restore_ui(content)
         assert hasattr(self._proxy.widget, "children")
         self.children = self._proxy.widget.children
-        content = self.fetch_parameters()
+        content = json.loads(self._proxy.that.hidden_parameters.widget.value)
         urls = content["urls"]
         throttle = content["throttle"]
         shuffle = content.get("shuffle", False)
