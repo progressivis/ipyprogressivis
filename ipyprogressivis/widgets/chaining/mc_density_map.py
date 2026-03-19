@@ -14,13 +14,13 @@ from .utils import (
     is_recording,
     amend_last_record
 )
-import copy
 import pandas as pd
 import ipywidgets as ipw
 from collections import defaultdict
 from progressivis.core.api import Module, asynchronize
 from progressivis.vis import MCScatterPlot
 from progressivis.core.api import JSONEncoderNp as JS
+from ipytablewidgets import NumpyAdapter  # type: ignore
 from ..scatterplot import Scatterplot
 from ..df_grid import DataFrameGrid
 
@@ -43,13 +43,17 @@ class AfterRun(Coro):
             for (k, v) in val.items()
             if k not in ("hist_tensor", "sample_tensor")
         }
-        ht = val.get("hist_tensor", None)
+        ht = val.get("hist_tensor")
         def _func() -> None:
+            arrays = dict()
             if ht is not None:
-                wg.hists = copy.copy(ht)  # TODO: avoid copy when possible
-            st = val.get("sample_tensor", None)
+                for i, arr in enumerate(ht):
+                    arrays[f"hist_{i}"] = arr
+                wg.histograms = NumpyAdapter(arrays, touch_mode=False)
+            st = val.get("sample_tensor")
             if st is not None:
-                wg.samples = copy.copy(st)
+                vectors = {f"v{i}": vec for (i, vec) in enumerate(st)}
+                wg.samples = NumpyAdapter(vectors, touch_mode=False)
             wg.data = JS.dumps(data_)  # type: ignore
         await asynchronize(_func)
 
