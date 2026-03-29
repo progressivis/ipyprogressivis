@@ -2,14 +2,10 @@ from __future__ import annotations
 import time
 import numpy as np
 import ipywidgets as widgets
-from ipydatawidgets.ndarray.serializers import (  # type: ignore
-    array_to_compressed_json,
-    array_from_compressed_json,
-)
 from progressivis.core.api import asynchronize
 import progressivis.core.aio as aio
 # from ipykernel import connect_qtconsole, get_connection_file, get_connection_info
-from typing import Any, Callable, Dict, Type, cast
+from typing import Any, Callable, Type, cast
 
 
 # cf. https://ipywidgets.readthedocs.io/en/latest/examples/Widget%20Asynchronous.html
@@ -75,23 +71,6 @@ def historized_widget(widget_class: Type[Any], update_method: str) -> Type[Histo
 #
 
 
-def data_union_to_json_compress(value: Any, widget: Any) -> Dict[str, Any]:
-    """Serializer for union of NDArray and NDArrayWidget"""
-    if isinstance(value, widgets.DOMWidget):
-        return widgets.widget_serialization["to_json"](value, widget)  # type: ignore
-    return array_to_compressed_json(value, widget)  # type: ignore
-
-
-def data_union_from_json_compress(value: Any, widget: Any) -> Any:
-    """Deserializer for union of NDArray and NDArrayWidget"""
-    if isinstance(value, str) and value.startswith("IPY_MODEL_"):
-        return widgets.widget_serialization["from_json"](value, widget)  # type: ignore
-    return array_from_compressed_json(value, widget)
-
-
-data_union_serialization_compress: Dict[str, Callable[[Any, Any], Any]] = dict(
-    to_json=data_union_to_json_compress, from_json=data_union_from_json_compress
-)
 
 def sanitize(x: Any) -> Any:
     if isinstance(x, dict):

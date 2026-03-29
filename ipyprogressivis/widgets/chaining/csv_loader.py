@@ -154,7 +154,9 @@ class CsvLoaderW(VBox):
                     .layout(width="60%")
                     .uid("bookmarks")
                     .observe(self._to_sniff_cb),
-                    textarea("New URLs:").layout(width="60%").uid("urls_wg"),
+                    textarea("New URLs:").layout(width="60%")
+                    .uid("urls_wg")
+                    .observe(self._to_sniff_cb),
                     text("URL to sniff(optional):")
                     .uid("to_sniff")
                     .observe(self._to_sniff_cb)
