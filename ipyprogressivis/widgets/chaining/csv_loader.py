@@ -335,6 +335,8 @@ class CsvLoaderW(VBox):
         assert pv_dir
         base_name = proxy.lookup("save_file_name").widget.value
         file_name = f"{self.widget_dir}/{base_name}"
+        kw = self.fetch_parameters()
+        self._proxy.that.hidden_parameters.attrs(value=json.dumps(kw))
         with open(file_name, "w") as f:
             json.dump(self._proxy.dump(), f, indent=4)
 
