@@ -37,7 +37,7 @@ MAX_DIM = 512
 class MyScatterplot(Scatterplot):
     def __init__(self,*args: AnyType, **kw: AnyType) -> None:
         super().__init__(*args, enable_centroids=True, **kw)
-        self.to_hide = ["prevImages"]  # type: ignore
+        self.to_hide = ["historyGrp"]  # type: ignore
 
 def scatterplot_wg(descr: str | None = None, **kw: AnyType) -> Proxy:
     kw2 = dict() if descr is None else dict(description=descr)
