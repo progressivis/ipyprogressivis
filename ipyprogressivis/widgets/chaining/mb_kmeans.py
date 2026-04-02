@@ -11,6 +11,7 @@ from .utils import (
     Coro,
     modules_producer,
 )
+import asyncio as aio
 import ipywidgets as ipw
 from progressivis.core.api import Module, asynchronize, Sink
 from progressivis.vis import MCScatterPlot
@@ -57,8 +58,13 @@ class AfterRun(Coro):
             for (k, v) in val.items()
             if k not in ("hist_tensor", "sample_tensor")
         }
+        def from_input_move_point(_val: AnyType) -> None:
+            aio.create_task(m.move_point.from_input(wg.move_point))  # type:ignore
+
         ht = val.get("hist_tensor")
         def _func() -> None:
+            if wg.modal:  # type: ignore
+                return
             arrays = dict()
             if ht is not None:
                 for i, arr in enumerate(ht):
@@ -69,6 +75,9 @@ class AfterRun(Coro):
                 vectors = {f"v{i}": vec for (i, vec) in enumerate(st)}
                 wg.samples = NumpyAdapter(vectors, touch_mode=False)  # type: ignore
             wg.data = JS.dumps(data_)  # type: ignore
+            if not hasattr(wg, "first_time"):
+                wg.observe(from_input_move_point, "move_point")
+                wg.first_time = True  # type: ignore
         await asynchronize(_func)
 
 @is_leaf
@@ -119,7 +128,7 @@ class MBKMeansW(VBox):
             .observe(self.obs_columns),
             int_text(
                 "Batch size:",
-                value=100,
+                value=1024,
             ).uid("batch_size"),
             int_text(
                 "N clusters:",
@@ -129,18 +138,6 @@ class MBKMeansW(VBox):
             scatterplot_wg().uid("scatterplot_"),  # TODO: customize
         )
 
-    """@starter_callback
-    def _start_btn_cb(self, btn: ipw.Button) -> None:
-        ctx = dict(
-            col_x=self.column_x,
-            col_y=self.column_y,
-            batch_size=self.child.batch_size.value,
-            n_clusters=self.child.n_clusters.value,
-        )
-        if is_recording():
-            amend_last_record({"frozen": ctx})
-        self.init_map(ctx=ctx)
-    """
     @starter_callback
     def _start_btn_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
         assert self.column_x and self.column_y
@@ -166,7 +163,7 @@ class MBKMeansW(VBox):
         n_clusters = ctx["n_clusters"]
         batch_size = ctx["batch_size"]
         with s:
-            mbkmeans = MBKMeans(n_clusters=n_clusters, tol=0.01,
+            mbkmeans = MBKMeans(n_clusters=n_clusters,
                                 batch_size=batch_size, is_input=False,
                                 scheduler=s)
             mbkmeans.create_dependent_modules(self.input_module, self.input_slot)
@@ -181,17 +178,6 @@ class MBKMeansW(VBox):
                                 'y_column': y_col, 'sample': mbkmeans if i==0 else None,
                                 'sample_slot': 'result',
                                 'input_module': filt, 'input_slot': 'result'})
-            """for i in range(n_clusters):
-                cname = f"k{i}"
-                filt = MBKMeansSelector(i, scheduler=s)
-                filt.input.table = self.input_module.output.result
-                filt.input.label_dict = mbkmeans.output.label_dict
-                sink = Sink(scheduler=s)
-                sink.input.inp = filt.output.result
-                classes.append({'name': cname, 'x_column': x_col,
-                                'y_column': y_col, 'sample': mbkmeans if i==0 else None,
-                                'sample_slot': 'result',
-                                'input_module': filt, 'input_slot': 'result'})"""
 
             sp = MCScatterPlot(scheduler=s,
                                classes=classes,
