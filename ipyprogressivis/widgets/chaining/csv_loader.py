@@ -258,6 +258,7 @@ class CsvLoaderW(VBox):
         self.restore_ui(content)
         assert hasattr(self._proxy.widget, "children")
         self.children = self._proxy.widget.children
+        self._proxy.back("sniffer").update_backend(self._proxy)
         self._to_sniff_cb(self._proxy, dict())  # sets self._urls self._to_sniff
 
     def get_all_urls(self, proxy: Proxy | None = None) -> list[str]:
