@@ -716,13 +716,14 @@ def get_schema(sniffer: Sniffer) -> AnyType:
     assert hasattr(sniffer, "_df")
     assert sniffer._df is not None
     norm_cols = dict(zip(sniffer._df.columns, norm_rename_cols(sniffer)))
-    dtypes = {col: _ds(col, dt) for (col, dt) in sniffer._df.dtypes.to_dict().items()}
+    dtypes = {col: _ds(col, dt)  # type: ignore
+              for (col, dt) in sniffer._df.dtypes.to_dict().items()}
     for col, dt in retype.items():
         dtypes[col] = dt
     if usecols is not None:
         dtypes = {norm_cols[col]: dtypes[col] for col in usecols}
     else:
-        dtypes = {norm_cols[col]: t for (col, t) in dtypes.items()}
+        dtypes = {norm_cols[col]: t for (col, t) in dtypes.items()}  # type: ignore
     return dtypes
 
 
