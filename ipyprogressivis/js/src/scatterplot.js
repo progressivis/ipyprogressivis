@@ -142,18 +142,6 @@ function Scatterplot(ipyView) {
   function swith_id(id) {
     return s(with_id(id));
   }
-
-  function multiclass2d_dragstart(event) {
-    event.sourceEvent.stopPropagation();
-    d3.select(this).classed("dragging", true);
-  }
-
-  function multiclass2d_dragmove(event, d) {
-    d[0] = xAxis.scale().invert(event.x);
-    d[1] = yAxis.scale().invert(event.y);
-    d3.select(this).attr("cx", event.x).attr("cy", event.y);
-  }
-
   function template(element, svgShot = null) {
     let defaultFilter = `
           <filter id="gaussianBlur" width="100%" height="100%" x="0" y="0">
@@ -249,8 +237,21 @@ function Scatterplot(ipyView) {
     this.cedit = register_config_editor(id);
   }
 
+  function multiclass2d_dragstart(event) {
+    event.sourceEvent.stopPropagation();
+    d3.select(this).classed("dragging", true);
+  }
+
+  function multiclass2d_dragmove(event, d) {
+    d[0] = xAxis.scale().invert(event.x);
+    d[1] = yAxis.scale().invert(event.y);
+    d3.select(this).attr("cx", event.x).attr("cy", event.y);
+  }
+
   function multiclass2d_dragend(event, d) {
     const msg = {};
+    d[0] = xAxis.scale().invert(event.x);
+    d[1] = yAxis.scale().invert(event.y);
     d3.select(this).classed("dragging", false);
     let i = d3.select(this).text();
     if (collection_in_progress) {
@@ -616,7 +617,8 @@ function Scatterplot(ipyView) {
     $(swith_id("filter"))
       .unbind("click")
       .click(() => multiclass2d_filter());
-    $(swith_id("init_centroids")).click(() => move_centroids());
+    $(swith_id("init_centroids"))
+      .click(() => move_centroids());
     $(swith_id("cancel_centroids"))
       .click(() => cancel_centroids())
       .hide();
