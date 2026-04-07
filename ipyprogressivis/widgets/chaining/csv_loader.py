@@ -129,7 +129,6 @@ class CsvLoaderW(VBox):
 
     def loader_ui(self, bookmarks: list[str]) -> Proxy:
         from .custom import CUSTOMER_FNC
-
         return anybox(
             self,
             checkbox("Reuse previous settings ...")
@@ -139,7 +138,7 @@ class CsvLoaderW(VBox):
                 vbox(
                     select(
                         "Settings",
-                        options=[""] + os.listdir(self.widget_dir),
+                        options=[""] + (os.listdir(self.widget_dir) if self.widget_dir else []),
                         value="",
                         rows=5,
                     )
@@ -209,7 +208,7 @@ class CsvLoaderW(VBox):
                 except Exception:
                     bookmarks = [f"cannot read '{pv_dir}/bookmarks'"]
             else:
-                bookmarks = [f"no '{pv_dir}/bookmarks' file found"]
+                bookmarks = [] #[f"no '{pv_dir}/bookmarks' file found"]
         self._proxy = self.loader_ui(bookmarks)
 
     def _refresh_btn_cb(self, proxy: Proxy, btn: ipw.Button | None = None) -> None:
