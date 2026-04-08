@@ -23,6 +23,7 @@ from ipyprogressivis.ipywel import (
     checkbox,
     select,
     dropdown,
+    gridbox,
     select_multiple,
     label,
     file_upload,
@@ -297,6 +298,9 @@ def vbox(*args: Any, **kw: Any) -> Proxy:
 
 def hbox(*args: Any, **kw: Any) -> Proxy:
     return _container(ipw.HBox(), *args, **kw)
+
+def gridbox(*args: Any, **kw: Any) -> Proxy:
+    return _container(ipw.GridBox(), *args, **kw)
 
 
 def stack(*args: Any, **kw: Any) -> Proxy:
