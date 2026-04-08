@@ -1,7 +1,19 @@
-from .utils import (make_button, dongle_widget, VBoxTyped, chaining_widget,
-                    TypedBase, amend_last_record, starter_callback,
-                    is_recording, runner, needs_dtypes,
+from .utils import (VBox, chaining_widget,
+                    starter_callback,
+                    runner, needs_dtypes,
                     modules_producer)
+from ipyprogressivis.ipywel import (
+    Proxy,
+    button,
+    anybox,
+    select_multiple,
+    stack,
+    radiobuttons,
+    restore,
+    html,
+    hbox,
+    dropdown,
+)
 import ipywidgets as ipw
 from progressivis.core.api import Sink
 from progressivis.table.group_by import (
@@ -12,35 +24,58 @@ from progressivis.table.group_by import (
     UTIME_SHORT_D,
 )
 
-from typing import Any as AnyType, Union, cast
+from typing import Any as AnyType
 
-
-def make_sel_multiple_dt(disabled: bool = True) -> ipw.SelectMultiple:
-    return ipw.SelectMultiple(
-        options=list(zip(UTIME, UTIME_SHORT_D.keys())),
-        value=[],
-        rows=DT_MAX,
-        description="==>",
-        disabled=disabled,
-    )
 
 @chaining_widget(label="Group by")
-class GroupByW(VBoxTyped):
-    class Typed(TypedBase):
-        grouping_mode: Union[ipw.HTML, ipw.RadioButtons]
-        by_box: Union[ipw.SelectMultiple, ipw.HBox]
-        start_btn: ipw.Button
-
+class GroupByW(VBox):
     @needs_dtypes
     def initialize(self) -> None:
-        self.child.grouping_mode = self.make_gr_mode()
-        self.child.by_box = self.make_sel_multiple()
-        self.child.start_btn = make_button(
-            "Activate", cb=self._add_group_by_cb, disabled=True
-        )
+        self._proxy = anybox(
+            self,
+            stack(
+                radiobuttons("Grouping mode:",
+                             options=["columns",
+                                      "datetime subcolumn",
+                                      "multi index subcolumn"],
+                             style={"description_width": "initial"},
+                             ).uid("grouping_mode_radio").observe(self._on_grouping_cb),
+                html("columns"),
+                selected_index="datetime64" not in self.input_dtypes.values()
+            ).uid("grouping_mode_stack"),
+            stack(
+                select_multiple("By",
+                                options=[(f"{col}:{t}", col) for (col, t) in self.dtypes.items()],
+                                value=[],
+                                rows=5,
+                                ).uid("by_box_selm").observe(self.selm_cb),
+                hbox(
+                    dropdown("Datetime column:",
+                             options=[("", "")]
+                             + [
+                                 (f"{col}:{t}", col)
+                                 for (col, t) in self.dtypes.items()
+                                 if t == "datetime64"
+                             ],
+                             style={"description_width": "initial"},
+                             ).uid("by_box_dd").observe(self.dd_cb),
+                    select_multiple(
+                        options=list(zip(UTIME, UTIME_SHORT_D.keys())),
+                        value=[],
+                        rows=DT_MAX,
+                        description="==>",
+                    ).uid("by_box_time").observe(self.sel_cb),
+                ),
+                selected_index=0
+            ).uid("by_box"),
+            button("Start",
+                   disabled=True
+                   ).uid("start_btn").on_click(self._add_group_by_cb)
+            )
 
     @modules_producer
-    def init_group_by(self, by: AnyType) -> GroupBy:
+    def init_modules(self, by: AnyType) -> GroupBy:
+        print("by", by)
         if isinstance(by, dict):
             by = SC(by["col"]).dt[by["subcols"]]
         s = self.input_module.scheduler
@@ -52,97 +87,67 @@ class GroupByW(VBoxTyped):
             return grby
 
     @starter_callback
-    def _add_group_by_cb(self, btn: ipw.Button) -> None:
-        self.child.grouping_mode.disabled = True
-        self.child.by_box.disabled = True
-        if self.child.grouping_mode.value == "columns":
-            by = self.child.by_box.value
+    def _add_group_by_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+        #proxy.that.grouping_mode.attrs(disabled=True)
+        #proxy.that.by_box.attrs(disabled=True)
+        if proxy.that.grouping_mode_stack.widget.selected_index == 1:  # type: ignore
+            by = proxy.that.by_box_selm.widget.value
             assert by
             if len(by) == 1:
                 by = by[0]
-            self.child.by_box.disabled = True
+            #proxy.that.by_box.attrs(disabled=True)
         else:
-            by_box = cast(ipw.HBox, self.child.by_box)
-            dd, sel = by_box.children
-            col = dd.value
-            # by = SC(col).dt["".join(sel.value)]
-            by = dict(col=col, subcols="".join(sel.value))
-            by_box.children[0].disabled = True
-            by_box.children[1].disabled = True
-        if is_recording():
-            amend_last_record({'frozen': dict(by=by)})
-        self.output_module = self.init_group_by(by)
+            #by_box = cast(ipw.HBox, self.child.by_box)
+            dd = proxy.that.by_box_dd.widget.value
+            sel = proxy.that.by_box_time.widget.value
+            col = dd
+            by = SC(col).dt["".join(sel)]
+            by = dict(col=col, subcols="".join(sel))
+            proxy.that.by_box_dd.attrs(disabled = True)
+            proxy.that.by_box_time.attrs(disabled = True)
+        #if is_recording():
+        #    amend_last_record({'frozen': dict(by=by)})
+        self.record = self._proxy.dump()
+        self.output_module = self.init_modules(by)
         self.output_slot = "result"
 
     @runner
     def run(self) -> AnyType:
-        content = self.frozen_kw
-        print("group by content", content)
-        self.output_module = self.init_group_by(**content)
+        ui_dumped = self.record
+        self._proxy = restore(ui_dumped, globals(), obj=self)
+        self.children = self._proxy.widget.children  # type: ignore
+        if self._proxy.that.grouping_mode_stack.widget.selected_index == 1:  # type: ignore
+            by = self._proxy.that.by_box_selm.widget.value
+            assert by
+            if len(by) == 1:
+                by = by[0]
+        else:
+            dd = self._proxy.that.by_box_dd.widget.value
+            sel = self._proxy.that.by_box_time.widget.value
+            col = dd
+            by = SC(col).dt["".join(sel)]
+            by = dict(col=col, subcols="".join(sel))
+        self.output_module = self.init_modules(by)
         self.output_slot = "result"
 
-    def _on_grouping_cb(self, val: AnyType) -> None:
-        if val["new"] == "columns":
-            self.child.by_box = self.make_sel_multiple()
+    def _on_grouping_cb(self, proxy: Proxy, val: AnyType) -> None:
+        proxy.that.by_box.attrs(selected_index=val["new"] != "columns")
+        #if val["new"] == "columns":
+        #    self.child.by_box = self.make_sel_multiple()
+        #else:
+        #    self.child.by_box = self.make_subcolumn_box()
+
+
+    def selm_cb(self, proxy: Proxy, change: dict[str, AnyType]) -> None:
+        proxy.that.start_btn.attrs(disabled=not change["new"])
+
+    def dd_cb(self, proxy: Proxy, val: AnyType) -> None:
+        if val["new"]:
+           proxy.that.by_box_time.attrs(disabled=False)
         else:
-            self.child.by_box = self.make_subcolumn_box()
+           proxy.that.by_box_time.attrs(disabled=True)
+           proxy.that.start_btn.attrs(disabled=True)
 
-    def make_gr_mode(self) -> ipw.HTML | ipw.RadioButtons:
-        wg: ipw.HTML | ipw.RadioButtons
-        if "datetime64" in self.input_dtypes.values():
-            wg = ipw.RadioButtons(
-                options=["columns",
-                         "datetime subcolumn",
-                         "multi index subcolumn"],
-                description="Grouping mode:",
-                disabled=False,
-                style={"description_width": "initial"},
-            )
-            wg.observe(self._on_grouping_cb, names="value")
-        else:
-            wg = dongle_widget("columns")
-        return wg
+    def sel_cb(self, proxy: Proxy, val: AnyType) -> None:
+        proxy.that.start_btn.attrs(disabled=not val["new"])
 
-    def make_sel_multiple(self) -> ipw.SelectMultiple:
-        selm = ipw.SelectMultiple(
-            options=[(f"{col}:{t}", col) for (col, t) in self.dtypes.items()],
-            value=[],
-            rows=5,
-            description="By",
-            disabled=False,
-        )
-
-        def _f(val: AnyType) -> None:
-            self.child.start_btn.disabled = not val["new"]
-
-        selm.observe(_f, names="value")
-        return selm
-
-    def make_subcolumn_box(self) -> ipw.HBox:
-        dd = ipw.Dropdown(
-            options=[("", "")]
-            + [
-                (f"{col}:{t}", col)
-                for (col, t) in self.dtypes.items()
-                if t == "datetime64"
-            ],
-            value="",
-            description="Datetime column:",
-            disabled=False,
-            style={"description_width": "initial"},
-        )
-        dt_sel = make_sel_multiple_dt()
-
-        def _f(val: AnyType) -> None:
-            if val["new"]:
-                dt_sel.disabled = False
-            else:
-                dt_sel.disabled = True
-                self.child.start_btn.disabled = True
-
-        def _f_sel(val: AnyType) -> None:
-            self.child.start_btn.disabled = not val["new"]
-
-        dd.observe(_f, names="value")
-        dt_sel.observe(_f_sel, names="value")
-        return ipw.HBox([dd, dt_sel])
