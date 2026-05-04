@@ -402,8 +402,8 @@ def _static_value_widget(widget: ipw.DOMWidget, **kw: Any) -> Proxy:
     return proxy
 
 
-def label(*args: Any, **kw: Any) -> Proxy:
-    return _static_value_widget(ipw.Label(*args), **kw)
+def label(value: str = '', **kw: Any) -> Proxy:
+    return _static_value_widget(ipw.Label(), value=value, **kw)
 
 
 def file_upload(descr: str | None = None, **kw: Any) -> Proxy:

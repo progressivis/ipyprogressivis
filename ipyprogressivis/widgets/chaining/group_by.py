@@ -38,6 +38,7 @@ class GroupByW(VBox):
                              options=["columns",
                                       "datetime subcolumn",
                                       "multi index subcolumn"],
+                             value="columns",
                              style={"description_width": "initial"},
                              ).uid("grouping_mode_radio").observe(self._on_grouping_cb),
                 html("columns"),
@@ -58,6 +59,7 @@ class GroupByW(VBox):
                                  if t == "datetime64"
                              ],
                              style={"description_width": "initial"},
+                             disabled=True
                              ).uid("by_box_dd").observe(self.dd_cb),
                     select_multiple(
                         options=list(zip(UTIME, UTIME_SHORT_D.keys())),
@@ -88,28 +90,28 @@ class GroupByW(VBox):
 
     @starter_callback
     def _add_group_by_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
-        #proxy.that.grouping_mode.attrs(disabled=True)
-        #proxy.that.by_box.attrs(disabled=True)
         if proxy.that.grouping_mode_stack.widget.selected_index == 1:  # type: ignore
             by = proxy.that.by_box_selm.widget.value
             assert by
             if len(by) == 1:
                 by = by[0]
-            #proxy.that.by_box.attrs(disabled=True)
         else:
-            #by_box = cast(ipw.HBox, self.child.by_box)
             dd = proxy.that.by_box_dd.widget.value
             sel = proxy.that.by_box_time.widget.value
             col = dd
             by = SC(col).dt["".join(sel)]
             by = dict(col=col, subcols="".join(sel))
-            proxy.that.by_box_dd.attrs(disabled = True)
-            proxy.that.by_box_time.attrs(disabled = True)
-        #if is_recording():
-        #    amend_last_record({'frozen': dict(by=by)})
         self.record = self._proxy.dump()
+        proxy.that.by_box_dd.attrs(disabled = True)
+        proxy.that.by_box_time.attrs(disabled = True)
         self.output_module = self.init_modules(by)
         self.output_slot = "result"
+
+    def init_ui(self) -> None:
+        content = self.record
+        self._proxy = restore(content, globals(), obj=self)
+        assert hasattr(self._proxy.widget, "children")
+        self.children = self._proxy.widget.children
 
     @runner
     def run(self) -> AnyType:
@@ -131,11 +133,23 @@ class GroupByW(VBox):
         self.output_slot = "result"
 
     def _on_grouping_cb(self, proxy: Proxy, val: AnyType) -> None:
-        proxy.that.by_box.attrs(selected_index=val["new"] != "columns")
-        #if val["new"] == "columns":
-        #    self.child.by_box = self.make_sel_multiple()
-        #else:
-        #    self.child.by_box = self.make_subcolumn_box()
+        selected_index = val["new"] != "columns"
+        proxy.that.by_box.attrs(selected_index=selected_index)
+        if proxy.that.grouping_mode_radio.widget.value == "columns":
+            proxy.that.by_box_selm.attrs(disabled=False)
+            proxy.that.by_box_dd.attrs(disabled=True)
+            proxy.that.by_box_time.attrs(disabled=True)
+
+        elif proxy.that.grouping_mode_radio.widget.value == "datetime subcolumn":
+            proxy.that.by_box_selm.attrs(disabled=True)
+            proxy.that.by_box_dd.attrs(disabled=False)
+            proxy.that.by_box_time.attrs(disabled=True)
+
+        else:
+            assert proxy.that.grouping_mode_radio.widget.value == "multi index subcolumn"
+            proxy.that.by_box_selm.attrs(disabled=True)
+            proxy.that.by_box_dd.attrs(disabled=True)
+            proxy.that.by_box_time.attrs(disabled=False)
 
 
     def selm_cb(self, proxy: Proxy, change: dict[str, AnyType]) -> None:

@@ -1,121 +1,161 @@
 from .utils import (
-    make_button,
-    chaining_widget, starter_callback,
-    append_child, VBox, amend_last_record, is_recording, runner, needs_dtypes,
-    modules_producer
+    chaining_widget,
+    starter_callback,
+    VBox,
+    runner,
+    needs_dtypes,
+    modules_producer,
 )
 import ipywidgets as ipw
+import json
 from progressivis.table.group_by import UTIME_SHORT_D
 from progressivis.table.api import Join
 from progressivis.core.api import Sink, Module
-from typing import (
-    Any as AnyType,
-    Any,
-    Optional,
-    Callable,
-    Literal,
-    cast
+from ipyprogressivis.ipywel import (
+    Proxy,
+    button,
+    anybox,
+    hbox,
+    label,
+    dropdown,
+    stack,
+    html,
+    text,
+    restore,
+    gridbox,
+    checkbox,
+    tab,
+    _container_impl,
 )
+from typing import Any as AnyType, Any, Literal, cast
 
 WidgetType = AnyType
 _l = ipw.Label
 
 
-def _ck(name: str) -> ipw.Checkbox:
-    return ipw.Checkbox(value=True,
-                        description=name,
-                        disabled=False,
-                        indent=False)
+def get_dt(proxy: Proxy, col: str) -> str:
+    return "".join(
+        [sym * proxy.lookup(f"{sym}/{col}").widget.value for sym in UTIME_SHORT_D]
+    )
 
 
-class MaskWidget(ipw.HBox):
-    def __init__(self) -> None:
-        self.year = _ck("Y")
-        self.month = _ck("M")
-        self.day = _ck("D")
-        self.hour = _ck("h")
-        self.min_ = _ck("m")
-        self.sec = _ck("s")
-        self._ck_tpl = tuple([self.year, self.month, self.day,
-                              self.hour, self.min_, self.sec])
-        super().__init__([])
+def mask_widget(col: str) -> Proxy:
+    return stack(
+        html(),
+        hbox(
+            checkbox("Y", indent=False).uid(f"Y/{col}"),
+            checkbox("M", indent=False).uid(f"M/{col}"),
+            checkbox("D", indent=False).uid(f"D/{col}"),
+            checkbox("h", indent=False).uid(f"h/{col}"),
+            checkbox("m", indent=False).uid(f"m/{col}"),
+            checkbox("s", indent=False).uid(f"s/{col}"),
+        ),
+        selected_index=0,
+    ).uid(f"datetime/{col}")
 
-    def show(self) -> None:
-        self.children = self._ck_tpl
-
-    def hide(self) -> None:
-        for ck in self._ck_tpl:
-            ck.value = True
-        self.children = tuple([])
-
-    def get_values(self) -> list[bool]:
-        return [ck.value for ck in self._ck_tpl]
-
-    def get_dt(self) -> str:
-        return "".join([sym*ck.value for (sym, ck) in zip(UTIME_SHORT_D, self._ck_tpl)])
 
 @chaining_widget(label="Join")
 class JoinW(VBox):
     def __init__(self) -> None:
         super().__init__()
+        self._proxy: Proxy | None = None
 
     @needs_dtypes
     def initialize(self) -> None:
         self.output_dtypes = None  # type: ignore
-        dd_list = [(f"{k}[{n}]" if n
-                    else k, (k, n)) for (k, n) in self.current_widget_keys]
-        self._input_1 = _l(self.parent.title)
-        self._role_1 = _l("primary")
-        self._input_2 = ipw.Dropdown(
-            options=dd_list,
-            description="",
-            disabled=False,
-            style={"description_width": "initial"},
+        dd_list = [
+            (f"{k}[{n}]" if n else k, (k, n)) for (k, n) in self.current_widget_keys
+        ]
+        self._proxy = anybox(
+            self,
+            gridbox(
+                *[
+                    label("Inputs"),
+                    label("Roles"),
+                    label(self.parent.title).uid("input_1"),
+                    label("primary").uid("role_1"),
+                    dropdown(
+                        options=dd_list, style={"description_width": "initial"}
+                    ).uid("input_2"),
+                    dropdown(
+                        options=["primary", "related"],
+                        value="related",
+                        style={"description_width": "initial"},
+                    )
+                    .uid("role_2")
+                    .observe(self._role_2_cb),
+                ]
+            ).layout(grid_template_columns="50% 50%", border="1px solid"),
+            stack(
+                html(),
+                text().uid("primary_wg_frozen"),
+                text().uid("related_wg_frozen"),
+                selected_index=0,
+            ),
+            button("OK").on_click(self._ok_btn_cb),
+            tab(
+                gridbox().uid("p_gb").layout(grid_template_columns="20% 10% 40% 30%"),
+                gridbox().uid("r_gb").layout(grid_template_columns="80% 20%"),
+                titles=["Primary", "Related"],
+            ).uid("cols_setup"),
+            hbox(
+                dropdown(
+                    "How",
+                    options=["inner", "outer"],
+                    value="inner",
+                    style={"description_width": "initial"},
+                ).uid("how_dd"),
+                button("Start").uid("start_btn").on_click(self._start_btn_cb),
+            ),
         )
-        self._role_2 = ipw.Dropdown(
-            options=["primary", "related"],
-            value="related",
-            description="",
-            disabled=False,
-            style={"description_width": "initial"},
-        )
-        self._cols_setup = ipw.Tab()
-        self._primary_cols_dict: dict[str, AnyType] = {}
-        self._related_cols_dict: dict[str, AnyType] = {}
-        self._primary_wg: Optional[VBox] = None
-        self._related_wg: Optional[VBox] = None
-        self._role_2.observe(self._role_2_cb, "value")
-        lst = [_l("Inputs"), _l("Roles"), self._input_1, self._role_1,
-               self._input_2, self._role_2]
-        gb = ipw.GridBox(
-            lst,
-            layout=ipw.Layout(grid_template_columns="50% 50%"),
-        )
-        gb.layout.border = "1px solid"
-        self._btn_ok = make_button("OK", cb=self._btn_ok_cb)
-        self._how = ipw.Dropdown(
-            options=["inner", "outer"],
-            value="inner",
-            description="How",
-            disabled=False,
-            style={"description_width": "initial"},
-        )
-        self._btn_start = make_button("Start", disabled=True, cb=self._btn_start_cb)
-        self.children = (gb, self._btn_ok,
-                         self._cols_setup,
-                         ipw.HBox([self._how,
-                                   self._btn_start]))
+        self._primary_wg: VBox | None = None
+        self._related_wg: VBox | None = None
 
-    @starter_callback
-    def _btn_start_cb(self, btn: Any) -> None:
-        primary_cols = [k for (k, (ck, _, _)) in
-                        self._primary_cols_dict.items() if ck.value]
-        related_cols = [k for (k, ck) in
-                        self._related_cols_dict.items() if ck.value]
-        primary_on: str | list[str] = [k for (k, (_, dd, _)) in
-                                             self._primary_cols_dict.items() if dd.value]
-        related_on: str | list[str] = [dd.value for (_, dd, _) in
-                                             self._primary_cols_dict.values() if dd.value]
+    def filter_cols(
+        self, start_str: str, set_only: bool = True, cols_only: bool = True
+    ) -> list[tuple[str, Proxy]] | list[str]:
+        res: list[tuple[str, Proxy]] | list[str] = []
+        if self._proxy is None:
+            return res
+        start = len(start_str)
+        for uid, px in self._proxy._registry.items():
+            if not uid.startswith(start_str):
+                continue
+            if set_only and not self._proxy.lookup(uid).widget.value:
+                continue
+            res.append(uid[start:] if cols_only else (uid[start:], px))  # type: ignore
+        return res
+
+    def primary_cols_ck(
+        self, set_only: bool = True, cols_only: bool = True
+    ) -> list[tuple[str, Proxy]] | list[str]:
+        return self.filter_cols("p_ck/", set_only, cols_only)
+
+    def related_cols_ck(
+        self, set_only: bool = True, cols_only: bool = True
+    ) -> list[tuple[str, Proxy]] | list[str]:
+        return self.filter_cols("r_ck/", set_only, cols_only)
+
+    def primary_cols_dd(
+        self, set_only: bool = True, cols_only: bool = True
+    ) -> list[tuple[str, Proxy]] | list[str]:
+        return self.filter_cols("p_dd/", set_only, cols_only)
+
+    def related_cols_dd(
+        self, set_only: bool = True, cols_only: bool = True
+    ) -> list[tuple[str, Proxy]] | list[str]:
+        return self.filter_cols("r_dd/", set_only, cols_only)
+
+    def get_join_parameters(self) -> dict[str, AnyType]:
+        primary_cols = self.primary_cols_ck()
+        related_cols = self.related_cols_ck()
+        primary_on: str | list[str] = cast(list[str], self.primary_cols_dd())
+        related_on: str | list[str] = [
+            dd.widget.value
+            for (_, dd) in cast(
+                list[tuple[str, Proxy]], self.primary_cols_dd(cols_only=False)
+            )
+        ]
         assert primary_on
         assert related_on
         assert len(primary_on) == len(related_on)
@@ -124,46 +164,83 @@ class JoinW(VBox):
         inv_mask = None
         assert self._primary_wg is not None
         assert self._primary_wg.output_dtypes is not None
-        if (isinstance(primary_on,
-                       str) and self._primary_wg.output_dtypes[
-                           primary_on] == "datetime64"):
-            _, _, mw = self._primary_cols_dict[primary_on]
-            msk = mw.get_dt()
+        assert self._proxy is not None
+        if (
+            isinstance(primary_on, str)
+            and self._primary_wg.output_dtypes[primary_on] == "datetime64"
+        ):
+            msk = get_dt(self._proxy, primary_on)
             if msk != "YMDhms":
                 inv_mask = msk
-        join_kw = dict(
+        return dict(
             primary_cols=primary_cols,
             related_cols=related_cols,
             primary_on=primary_on,
             related_on=related_on,
-            primary_inp=self._primary_wg_frozen,
-            related_inp=self._related_wg_frozen,
+            primary_inp=json.loads(self._proxy.that.primary_wg_frozen.widget.value),
+            related_inp=json.loads(self._proxy.that.related_wg_frozen.widget.value),
             inv_mask=inv_mask,
-            how=self._how.value,
-            )
-        if is_recording():
-            amend_last_record({'frozen': join_kw})
-        self.output_module = self.init_join(**join_kw)
+            how=self._proxy.that.how_dd.widget.value,
+        )
+
+    @starter_callback
+    def _start_btn_cb(self, proxy: Proxy, btn: Any) -> None:
+        assert self._proxy is not None
+        self.record = self._proxy.dump()
+        join_kw = self.get_join_parameters()
+        self.output_module = self.init_modules(**join_kw)
+
+    def init_ui(self) -> None:
+        content = self.record
+        self._proxy = restore(content, globals(), obj=self)
+        assert hasattr(self._proxy.widget, "children")
+        self.children = self._proxy.widget.children
+        primary_inp = json.loads(self._proxy.that.primary_wg_frozen.widget.value)
+        related_inp = json.loads(self._proxy.that.related_wg_frozen.widget.value)
+        if (key := primary_inp) != "parent":
+            self._primary_wg = self.get_widget_by_key(key)
+        else:
+            self._primary_wg = self.parent
+        self.dag.add_parent(self.title, self._primary_wg.title)
+        if (key := related_inp) != "parent":
+            self._related_wg = self.get_widget_by_key(key)
+        else:
+            self._related_wg = self.parent
+        self.dag.add_parent(self.title, self._related_wg.title)
 
     @runner
     def run(self) -> None:
-        content = self.frozen_kw
-        if (key := content["primary_inp"]) != "parent":
-            primary_wg = self.get_widget_by_key(key)
-            self.dag.add_parent(self.title,  primary_wg.title)
-        if (key := content["related_inp"]) != "parent":
-            related_wg = self.get_widget_by_key(key)
-            self.dag.add_parent(self.title,  related_wg.title)
-        self.output_module = self.init_join(**content)
+        ui_dumped = self.record
+        self._proxy = restore(ui_dumped, globals(), obj=self)
+        self.children = self._proxy.widget.children  # type: ignore
+        primary_inp = json.loads(self._proxy.that.primary_wg_frozen.widget.value)
+        related_inp = json.loads(self._proxy.that.related_wg_frozen.widget.value)
+        if (key := primary_inp) != "parent":
+            self._primary_wg = self.get_widget_by_key(key)
+        else:
+            self._primary_wg = self.parent
+        self.dag.add_parent(self.title, self._primary_wg.title)
+        if (key := related_inp) != "parent":
+            self._related_wg = self.get_widget_by_key(key)
+        else:
+            self._related_wg = self.parent
+        self.dag.add_parent(self.title, self._related_wg.title)
+        content = self.get_join_parameters()
+        self.output_module = self.init_modules(**content)
         self.output_slot = "result"
 
     @modules_producer
-    def init_join(self, primary_cols: list[str], related_cols: list[str],
-                  primary_on: str | list[str], related_on: str | list[str],
-                  primary_inp: str | tuple[str, int], related_inp: tuple[str, int],
-                  inv_mask: str,
-                  how: Literal['inner', 'outer']
-                  ) -> Join:
+    def init_modules(
+        self,
+        primary_cols: list[str],
+        related_cols: list[str],
+        primary_on: str | list[str],
+        related_on: str | list[str],
+        primary_inp: str | tuple[str, int],
+        related_inp: tuple[str, int],
+        inv_mask: str,
+        how: Literal["inner", "outer"],
+    ) -> Join:
         if primary_inp == "parent":
             primary_wg = self.parent
             related_wg = self.get_widget_by_key(tuple(related_inp))  # type: ignore
@@ -182,26 +259,31 @@ class JoinW(VBox):
                 related_on=related_on,
                 primary_on=primary_on,
                 related_cols=related_cols,
-                primary_cols=primary_cols
+                primary_cols=primary_cols,
             )
             sink = Sink(scheduler=s)
             sink.input.inp = join.output.result
         return join
 
-    def _btn_ok_cb(self, *args: Any, **kw: Any) -> None:
-        self._input_2.disabled = True
-        self._role_2.disabled = True
+    def _ok_btn_cb(self, proxy: Proxy, b: Any) -> None:
+        assert self._proxy is not None
+        input_2 = proxy.that.input_2
+        role_2 = proxy.that.role_2
+        input_2.attrs(disabled=True)
+        role_2.attrs(disabled=True)
         widget_1 = self.parent
         widget_1_frozen = "parent"
-        widget_2 = self.get_widget_by_key(self._input_2.value)
-        widget_2_frozen = self._input_2.value
+        widget_2 = self.get_widget_by_key(input_2.widget.value)
+        widget_2_frozen = input_2.widget.value
         if widget_2.output_dtypes is None:
-            widget_2.compute_dtypes_then_call(self._btn_ok_cb, args, kw)
+            widget_2.compute_dtypes_then_call(self._ok_btn_cb, [proxy, b])
             return
-        self.dag.add_parent(self.title,  widget_2.title)  # TODO: find a cleaner way to add a second parnt
+        self.dag.add_parent(
+            self.title, widget_2.title
+        )  # TODO: find a cleaner way to add a second parent
         assert self.carrier not in widget_2.carrier.subwidgets
         widget_2.carrier.subwidgets.append(self.carrier)
-        if self._role_1.value == "primary":
+        if self._proxy.that.role_1.widget.value == "primary":
             primary_wg = widget_1
             primary_wg_frozen = widget_1_frozen
             related_wg = widget_2
@@ -213,94 +295,94 @@ class JoinW(VBox):
             related_wg_frozen = widget_1_frozen
         self._primary_wg = primary_wg
         self._related_wg = related_wg
-        self._primary_wg_frozen = primary_wg_frozen
-        self._related_wg_frozen = related_wg_frozen
+        self._proxy.that.primary_wg_frozen.attrs(value=json.dumps(primary_wg_frozen))
+        self._proxy.that.related_wg_frozen.attrs(value=json.dumps(related_wg_frozen))
         # primary cols
-        ck_all = ipw.Checkbox(value=True,
-                              description="",
-                              disabled=False,
-                              indent=False)
-        lst: list[WidgetType] = [_l(""), _l("Keep"), _l("Join on"), _l("Subcolumns"),
-                                 _l("*"), ck_all, _l(""), _l("")]
+        lst: list[Proxy] = [
+            label(""),
+            label("Keep"),
+            label("Join on"),
+            label("Subcolumns"),
+            label("*"),
+            checkbox(value=True, indent=False).uid("ck_all").observe(self._ck_all_cb),
+            label(""),
+            label(""),
+        ]
         assert primary_wg.output_dtypes is not None
         assert related_wg.output_dtypes is not None
         for col, ty in primary_wg.output_dtypes.items():
-            on_list = [""] + [c for (c, t) in related_wg.output_dtypes.items() if t == ty]
-            ck = ipw.Checkbox(value=True,
-                              description="",
-                              disabled=False,
-                              indent=False)
-            dd = ipw.Dropdown(options=on_list,
-                              description="",
-                              disabled=False,
-                              layout={"width": "initial"})
-            dtw = MaskWidget()
-            dd.observe(self._make_dd_cb(col), "value")
-            self._primary_cols_dict[col] = (ck, dd, dtw)
-            lst.extend([_l(col), ck, dd, dtw])
-        ck_all.observe(self._ck_all_cb, "value")
-        p_gb = ipw.GridBox(
-            lst,
-            layout=ipw.Layout(grid_template_columns="20% 10% 40% 30%"),
-        )
-        append_child(self._cols_setup, p_gb, title="Primary")
+            on_list = [""] + [
+                c for (c, t) in related_wg.output_dtypes.items() if t == ty
+            ]
+            ck = checkbox(value=True, indent=False).uid(f"p_ck/{col}")
+            dd = (
+                dropdown(options=on_list, layout={"width": "initial"})
+                .uid(f"p_dd/{col}")
+                .observe(self._dd_cb)
+            )
+            dtw = mask_widget(col) if ty == "datetime64" else html()
+            lst.extend([label(col), ck, dd, dtw])
+        _container_impl(proxy.that.p_gb, *lst)
+        self._proxy._registry.update(proxy.that.p_gb._registry)
         # related cols
-        ck_all = ipw.Checkbox(value=True,
-                              description="",
-                              disabled=False,
-                              indent=False)
-        lst = [_l(""), _l("Keep"), _l("*"), ck_all]
+        lst = [
+            label(""),
+            label("Keep"),
+            label("*"),
+            checkbox(value=True, indent=False)
+            .uid("ck_all_r")
+            .observe(self._ck_all_cb2),
+        ]
         for col in related_wg.output_dtypes.keys():
-            ck = ipw.Checkbox(value=True,
-                              description="",
-                              disabled=False,
-                              indent=False)
-            self._related_cols_dict[col] = ck
-            lst.extend([_l(col), ck])
-        ck_all.observe(self._ck_all_cb2, "value")
-        r_gb = ipw.GridBox(
-            lst,
-            layout=ipw.Layout(grid_template_columns="80% 20%"),
-        )
-        append_child(self._cols_setup, r_gb, title="Related")
+            lst.extend(
+                [label(col), checkbox(value=True, indent=False).uid(f"r_ck/{col}")]
+            )
+        _container_impl(proxy.that.r_gb, *lst)
+        self._proxy._registry.update(proxy.that.r_gb._registry)
 
-    def _ck_all_cb(self, change: AnyType) -> None:
+    def _ck_all_cb(self, proxy: Proxy, change: AnyType) -> None:
         val = change["new"]
         if val:
-            for ck, dd, _ in self._primary_cols_dict.values():
-                if not dd.value:
-                    ck.value = True
+            for col, dd in cast(
+                list[tuple[str, Proxy]],
+                self.primary_cols_dd(set_only=False, cols_only=False),
+            ):
+                if not dd.widget.value:
+                    proxy.lookup(f"p_ck/{col}").attrs(value=True)
         else:
-            for ck, dd, _ in self._primary_cols_dict.values():
-                ck.value = False
+            for _, ck in cast(
+                list[tuple[str, Proxy]], self.primary_cols_ck(cols_only=False)
+            ):
+                ck.attrs(value=False)
 
-    def _ck_all_cb2(self, change: AnyType) -> None:
+    def _ck_all_cb2(self, proxy: Proxy, change: AnyType) -> None:
         val = change["new"]
-        for ck in self._related_cols_dict.values():
-            ck.value = val
+        for _, ck in cast(
+            list[tuple[str, Proxy]],
+            self.related_cols_ck(set_only=False, cols_only=False),
+        ):
+            ck.attrs(value=val)
 
-    def _role_2_cb(self, change: dict[str, AnyType]) -> None:
+    def _role_2_cb(self, proxy: Proxy, change: dict[str, AnyType]) -> None:
         role = change["new"]
-        self._role_1.value = "primary" if role == "related" else "related"
+        proxy.that.role_1.attrs(value=("primary" if role == "related" else "related"))
 
-    def _make_dd_cb(self, col: str) -> Callable[..., None]:
-        def _cbk(change: AnyType) -> None:
-            val = change["new"]
-            ck, dd, mw = self._primary_cols_dict[col]
-            if val:
-                ck.value = False
-                ck.disabled = True
-                self._btn_start.disabled = False
-                assert self._primary_wg is not None
-                assert self._primary_wg.output_dtypes is not None
-                if self._primary_wg.output_dtypes[col] == "datetime64":
-                    mw.show()
-                else:
-                    mw.hide()
-            else:
-                mw.hide()
-                ck.disabled = False
-                j = [dd for (_, dd, _) in self._primary_cols_dict.values() if dd.value]
-                if not j:
-                    self._btn_start.disabled = True
-        return _cbk
+    def _dd_cb(self, proxy: Proxy, change: AnyType) -> None:
+        assert proxy._uid is not None
+        _, col = proxy._uid.split("/")
+        ck = proxy.lookup(f"p_ck/{col}")
+        mw = proxy.lookup(f"datetime/{col}")
+        val = change["new"]
+        if val:
+            ck.attrs(value=False, disabled=True)
+            proxy.that.start_btn.attrs(disabled=False)
+            assert self._primary_wg is not None
+            assert self._primary_wg.output_dtypes is not None
+            mw.attrs(
+                selected_index=(self._primary_wg.output_dtypes[col] == "datetime64")
+            )
+        else:
+            mw.attrs(selected_index=0)  # hide
+            ck.attrs(disabled=False)
+            if not self.primary_cols_dd():
+                proxy.that.start_btn.attrs(disabled=True)

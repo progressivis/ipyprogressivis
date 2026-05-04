@@ -25,17 +25,17 @@ from .correlation import CorrelationW
 
 __all__ = [
     "Constructor",
-    "DescStatsW",
+    "DescStatsW",  # disabled
     "GroupByW",
     "AggregateW",
     "DumpPTableW",
     "JoinW",
-    "MultiSeriesW",
+    "MultiSeriesW",  # disabled
     "ScatterplotW",
     "ComputedViewW",
-    "HistogramW",
-    "ScalerW",
-    "FacadeCreatorW",
+    "HistogramW", # disabled
+    "ScalerW",  # disabled
+    "FacadeCreatorW",  # disabled
     "HeatmapW",
     "AnyVegaW",
     "RangeQuery2DW",

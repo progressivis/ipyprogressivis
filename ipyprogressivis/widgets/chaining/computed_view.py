@@ -1,22 +1,14 @@
 from .utils import (
-    make_button,
     starter_callback,
     chaining_widget,
-    dongle_widget,
-    VBoxTyped,
-    IpyHBoxTyped,
-    TypedBase,
-    is_recording,
-    amend_last_record,
+    VBox,
     runner,
     needs_dtypes,
     modules_producer
 )
-import ipywidgets as ipw
 import numpy as np
+from itertools import chain, batched
 from inspect import signature
-from ..df_grid import DataFrameGrid
-import pandas as pd
 from progressivis.table.repeater import Repeater, Computed
 from progressivis.core.api import Sink
 from progressivis.table.compute import (
@@ -37,11 +29,29 @@ from progressivis.table.compute import (
     floor_div,
 
 )
+from ipyprogressivis.ipywel import (
+    Proxy,
+    button,
+    vbox,
+    anybox,
+    hbox,
+    label,
+    dropdown,
+    select_multiple,
+    select,
+    stack,
+    html,
+    text,
+    restore,
+    gridbox,
+    checkbox,
+    _container_impl
+)
 
 from typing import Any as AnyType, Callable
 
 WidgetType = AnyType
-
+N_BOXES = 30
 
 # NB: `np.sctypes` was removed in the NumPy 2.0 release. Access dtypes explicitly instead.
 np_sctypes = [[np.int8, np.int16, np.int32, np.int64],
@@ -73,226 +83,238 @@ ALL_FUNCS.update(
      }
 )
 
-class FuncW(ipw.VBox):
-    def __init__(self, main: "ComputedViewW", colnames: str, fname: str) -> None:
-        self._colnames = colnames
-        self._fname = fname
-        fnc = ALL_FUNCS[fname]
-        self._name = ipw.Text(
-            value=f"{'_'.join(colnames)}_{fnc.__name__}",
-            placeholder="mandatory",
-            description="",
-            disabled=False,
-            layout={"width": "initial"}
+def _s(tpl: tuple[str, ...] | list[str]) -> str:
+    assert isinstance(tpl, (tuple, list))
+    return ",".join(tpl)
+
+def func_view(main: "ComputedViewW", abox: Proxy, colnames: list[str], fname: str) -> None:
+    fnc = ALL_FUNCS[fname]
+    if isinstance(fnc, np.ufunc):
+        type_ = main.dtypes[colnames[0]]  # TODO: improve it using ufunc.types information
+    elif isinstance(fnc, np.vectorize):
+        type_ = fnc.pyfunc.__annotations__.get("return", object).__name__
+    else:
+        type_ = fnc.__annotations__.get("return", object).__name__
+    if type_ == "int":
+        type_ = "int64"
+    elif type_ == "float":
+        type_ = "float64"
+    elif type_ == "str":
+        type_ = "object"
+    if type_ not in DTYPES:
+        type_ = "object"
+    if len(colnames) > 1:
+        vars = signature(fnc.pyfunc if isinstance(fnc, np.vectorize) else fnc).parameters.keys()
+    _container_impl(
+        abox,
+        hbox(
+            label("Name:"),
+            text(
+                value=f"{'_'.join(colnames)}_{fnc.__name__}",
+                placeholder="mandatory",
+                layout={"width": "initial"}
+            ).uid(f"gname/{_s(colnames)}/{fname}"),  # given name
+            html().uid(f"col_var_map/{_s(colnames)}/{fname}")
+            if len(colnames) <= 1 else
+            gridbox(
+                label(""), label("Variable"),  # header
+                *chain.from_iterable([(label(col), dropdown(
+                    placeholder="var",
+                    options=[""]+list(vars),
+                    value="",
+                    ensure_option=True,
+                    layout={"width": "initial"},
+                )) for col in colnames]))
+            .layout(
+                grid_template_columns="150px 70px",
+                border="solid")
+            .uid(f"col_var_map/{_s(colnames)}/{fname}"),
+            hbox(
+                label("Output dtype:"),
+                dropdown(
+                    placeholder="dtype",
+                    options=DTYPES,
+                    value=type_,
+                    ensure_option=True,
+                    layout={"width": "initial"}
+                ).uid(f"dtype/{_s(colnames)}/{fname}")
+            ),
+            checkbox("Use",
+                     value=False
+            ).uid(f"use/{_s(colnames)}/{fname}").observe(main.update_func_list)
         )
-        hbox_name = ipw.HBox([ipw.Label("Name:"), self._name])
-        if isinstance(fnc, np.ufunc):
-            type_ = main.dtypes[colnames[0]]  # TODO: improve it using ufunc.types information
-        elif isinstance(fnc, np.vectorize):
-            type_ = fnc.pyfunc.__annotations__.get("return", object).__name__
-        else:
-            type_ = fnc.__annotations__.get("return", object).__name__
-        if type_ == "int":
-            type_ = "int64"
-        elif type_ == "float":
-            type_ = "float64"
-        elif type_ == "str":
-            type_ = "object"
-        if type_ not in DTYPES:
-            type_ = "object"
-        self._col_var_map: ipw.HTML | DataFrameGrid
-        if len(colnames) <= 1:
-            self._col_var_map = dongle_widget()
-        else:
-            df = pd.DataFrame(  # type: ignore
-                index=colnames,
-                columns=["Variable"],
-                dtype=object,
-            )
-            vars = signature(fnc.pyfunc if isinstance(fnc, np.vectorize) else fnc).parameters.keys()
-            df.loc[:, "Variable"] = lambda: ipw.Dropdown(value="",
-                                                    placeholder="var",
-                                                    options=[""]+list(vars),
-                                                    description="",
-                                                    ensure_option=True,
-                                                    disabled=False,
-                                                    layout={"width": "initial"}
-                                                    )
-
-            self._col_var_map = DataFrameGrid(df, first="50%", index_title="Column")
-            self._col_var_map.layout.border = "solid"
-        self._dtype = ipw.Dropdown(
-            value=type_,
-            placeholder="dtype",
-            options=DTYPES,
-            description="",
-            ensure_option=True,
-            disabled=False,
-            layout={"width": "initial"}
-        )
-        hbox_dtype = ipw.HBox([ipw.Label("Output dtype:"), self._dtype])
-        self._use = ipw.Checkbox(value=False, description="Use", disabled=False)
-        self._use.observe(main.update_func_list, names="value")
-        super().__init__([hbox_name, self._col_var_map, hbox_dtype, self._use])
-
-    def get_map(self) -> AnyType:
-        if len(self._colnames) == 1:
-            return {}
-        assert len(self._colnames) > 1
-        assert isinstance(self._col_var_map, DataFrameGrid)
-        return {row["Variable"].value: cname for (cname, row) in
-                       self._col_var_map.df.iterrows()
-                       if row["Variable"].value}
-
-layout_refresh = ipw.Layout(width='30px', height='30px')
-
-class ColsFuncs(IpyHBoxTyped):
-    class Typed(TypedBase):
-        cols: ipw.SelectMultiple
-        funcs: ipw.Select
-        computed: FuncW | None
+    )
 
 
-class KeepStored(IpyHBoxTyped):
-    class Typed(TypedBase):
-        stored_cols: ipw.SelectMultiple
-        keep_all: ipw.Checkbox
-
-class OptsBar(IpyHBoxTyped):
-    class Typed(TypedBase):
-        numpy_ufuncs: ipw.Checkbox
-        refresh_btn: ipw.Button
-        label: ipw.Label
 
 @chaining_widget(label="Computed view")
-class ComputedViewW(VBoxTyped):
-    class Typed(TypedBase):
-        opts: OptsBar
-        # custom_funcs: ipw.Accordion
-        cols_funcs: ColsFuncs
-        func_table: ipw.Label | ipw.GridBox | None
-        keep_stored: KeepStored
-        btn_apply: ipw.Button
-
+class ComputedViewW(VBox):
     @needs_dtypes
     def initialize(self) -> None:
-        self._col_widgets: dict[tuple[str, str], FuncW] = {}
-        self._computed: list[FuncW | None] = []
-        self.c_.opts = OptsBar()
-        wg: AnyType
-        wg = self.c_.opts.c_.numpy_ufuncs = ipw.Checkbox(
-            value=False, description="Show Numpy universal functions", disabled=False, indent=False
-        )
-        wg.observe(self._numpy_ufuncs_cb, names="value")
-        wg = self.c_.opts.c_.refresh_btn = make_button(
-            "", cb=self._refresh_funcs_cb, disabled=False, icon="refresh",
-            layout=layout_refresh
-        )
-        wg.observe(self._refresh_funcs_cb, names="value")
-        self.c_.opts.c_.label = ipw.Label("Refresh custom function list")
         cols_t = [f"{c}:{t}" for (c, t) in self.dtypes.items()]
         col_list = list(zip(cols_t, self.dtypes.keys()))
-        cols_funcs = ColsFuncs()
-        cols_funcs.c_.cols = ipw.SelectMultiple(
-            disabled=False, options=[("", "")] + col_list, rows=7
-        )
-        cols_funcs.c_.cols.observe(self._columns_cb, names="value")
         from .custom import CUSTOMER_FNC
         ALL_FUNCS.update(CUSTOMER_FNC)
-        cols_funcs.c_.funcs = ipw.Select(
-            disabled=True, options=[""] + list(ALL_FUNCS.keys()), rows=7
+        self._proxy = anybox(
+            self,
+            hbox(  # opts bar
+                checkbox("Show Numpy universal functions", indent=False)
+                .uid("numpy_ufuncs")
+                .observe(self._numpy_ufuncs_cb),
+                button(icon="refresh")
+                .uid("refresh_btn")
+                .on_click(self._refresh_funcs_cb)
+                .layout(width='30px', height='30px'),
+                label("Refresh custom function list")
+            ),
+            hbox(  # cols funcs
+                select_multiple(
+                    options=[("", "")] + col_list,
+                    rows=7
+                ).uid("cols").observe(self._columns_cb),
+                select(
+                    disabled=True,
+                    options=[""] + list(ALL_FUNCS.keys()),
+                    rows=7
+                ).uid("funcs").observe(self._functions_cb),
+                stack(
+                    vbox(),
+                    *[vbox(local_index=i+1).uid(f"free_{i+1}") for i in range(N_BOXES)],
+                    selected_index=0
+                ).uid("computed")
+            ),
+            gridbox().uid("func_table"),
+            hbox(  # keep stored
+                select_multiple(
+                    "Keep also:",
+                    options=col_list,
+                    value=[],
+                    rows=5,
+                ).uid("stored_cols"),
+                checkbox("Select all").uid("keep_all").observe(self._keep_all_cb)
+            ),
+            button("Apply").uid("apply_btn").on_click(self._apply_btn_cb)
+
         )
-        cols_funcs.c_.funcs.observe(self._functions_cb, names="value")
-        self.c_.cols_funcs = cols_funcs
-        keep_stored = KeepStored()
-        keep_stored.c_.stored_cols = ipw.SelectMultiple(
-            options=col_list,
-            value=[],
-            rows=5,
-            description="Keep also:",
-            disabled=False,
-        )
-        keep_stored.c_.keep_all = ipw.Checkbox(
-            value=False, description="Select all", disabled=False
-        )
-        keep_stored.c_.keep_all.observe(self._keep_all_cb, names="value")
-        self.c_.keep_stored = keep_stored
-        self.c_.btn_apply = make_button("Apply", disabled=False, cb=self._btn_apply_cb)
 
 
-    def _keep_all_cb(self, change: AnyType) -> None:
+    def _keep_all_cb(self, proxy: Proxy, change: AnyType) -> None:
         val = change["new"]
-        self.c_.keep_stored.c_.stored_cols.value = (
-            list(self.dtypes.keys()) if val else []
-        )
+        self._proxy.that.stored_cols.attrs(value=list(self.dtypes.keys()) if val else [])
 
-    def _refresh_funcs_cb(self, change: AnyType) -> None:
+    def _refresh_funcs_cb(self, proxy: Proxy, change: AnyType) -> None:
         from .custom import CUSTOMER_FNC
         ALL_FUNCS.update(CUSTOMER_FNC)
-        self.c_.cols_funcs.c_.funcs.options = list(ALL_FUNCS.keys())
+        self._proxy.that.funcs.attrs(options = [""] + list(ALL_FUNCS.keys()))
 
-    def _numpy_ufuncs_cb(self, change: AnyType) -> None:
+    def _numpy_ufuncs_cb(self, proxy: Proxy, change: AnyType) -> None:
         if change["new"]:
             ALL_FUNCS.update(UFUNCS)
         else:
             for k in UFUNCS.keys():
                 del ALL_FUNCS[k]
-        self.c_.cols_funcs.c_.funcs.options = [""] + list(ALL_FUNCS.keys())
+        self._proxy.that.funcs.attrs(options = [""] + list(ALL_FUNCS.keys()))
 
-    def _columns_cb(self, change: AnyType) -> None:
+    def _columns_cb(self, proxy: Proxy, change: AnyType) -> None:
         val = change["new"]
-        self.c_.cols_funcs.c_.funcs.disabled = False
+        self._proxy.that.funcs.attrs(disabled=False)
         if not val:
-            self.c_.cols_funcs.c_.funcs.value = ""
-            self.c_.cols_funcs.c_.funcs.disabled = True
-            self.c_.cols_funcs.c_.computed = None
-        elif self.c_.cols_funcs.c_.funcs.value:
+            self._proxy.that.funcs.attrs(disabled=True, value="")
+            self._proxy.that.computed.attrs(selected_index=0)  # hide
+        elif self._proxy.that.funcs.widget.value:
             self.set_selection()
         else:
-            self.c_.cols_funcs.c_.computed = None
+            self._proxy.that.computed.attrs(selected_index=0)  # hide
 
-    def _functions_cb(self, change: AnyType) -> None:
+    def _functions_cb(self, proxy: Proxy, change: AnyType) -> None:
         val = change["new"]
         if not val:
-            self.c_.cols_funcs.c_.computed = None
+            self._proxy.that.computed.attrs(selected_index=0)  # hide
         else:
             self.set_selection()
 
     def set_selection(self) -> None:
-        key = (
-            self.c_.cols_funcs.c_.cols.value,
-            self.c_.cols_funcs.c_.funcs.value,
-        )
-        if key not in self._col_widgets:
-            self._col_widgets[key] = FuncW(self, *key)
-        self.c_.cols_funcs.c_.computed = self._col_widgets[key]
+        cols_v = self._proxy.that.cols.widget.value
+        funcs_v = self._proxy.that.funcs.widget.value
+        key = f"grid/{_s(cols_v)}/{funcs_v}"
+        if key not in self._proxy._registry:
+            for uid in self._proxy._registry.keys():
+                if not uid.startswith("free_"):
+                    continue
+                break
+            else:
+                raise ValueError("no more free entries")  # TODO: extend
+        abox = self._proxy._registry[uid]  # uid == free_xx
+        del self._proxy._registry[uid]
+        func_view(main=self, abox=abox, colnames=cols_v, fname=funcs_v)
+        abox.uid(key)
+        self._proxy._registry.update(abox._registry)
+        self._proxy._registry[key] = abox
+        assert hasattr(abox.widget, "local_index")
+        self._proxy.that.computed.attrs(selected_index=abox.widget.local_index)
 
     def _make_computed_list(self) -> list[dict[str, str]]:
-        return [
-            dict(cols=cols, fname=fname, map=wg.get_map(), wg_name=wg._name.value, wg_dtype=wg._dtype.value)
-            for (cols, fname), wg in self._col_widgets.items()
-            if wg._use.value
-        ]
+        res = []
+        for uid in self._proxy._registry.keys():
+            if not uid.startswith("grid/"):
+                continue
+            _, s_cols, func = uid.split("/")
+            use_uid = f"use/{s_cols}/{func}"
+            if not self._proxy.lookup(use_uid).widget.value:
+                continue
+            gname_uid = f"gname/{s_cols}/{func}"
+            wg_name = self._proxy.lookup(gname_uid).widget.value
+            dtype_uid = f"dtype/{s_cols}/{func}"
+            wg_dtype = self._proxy.lookup(dtype_uid).widget.value
+            map_uid = f"col_var_map/{s_cols}/{func}"
+            map_wg = self._proxy.lookup(map_uid)
+            if hasattr(map_wg.widget, "children"):  # gridbox case
+                lst = map_wg._children
+                assert lst is not None
+                rows = list(batched(lst, 2))
+                map_ = {var.widget.value: col.widget.value for (col, var) in rows[1:] if var.widget.value}
+            else:  # html dongle case
+                map_ = {}
+            res.append(dict(cols=s_cols.split(","),
+                            fname=func,
+                            map=map_,
+                            wg_name=wg_name,
+                            wg_dtype=wg_dtype)
+                       )
+        return res
 
     @starter_callback
-    def _btn_apply_cb(self, btn: AnyType) -> None:
+    def _apply_btn_cb(self, proxy: Proxy, btn: AnyType) -> None:
         comp_list = self._make_computed_list()
-        cols = list(self.c_.keep_stored.c_.stored_cols.value)
-        if is_recording():
-            amend_last_record({"frozen": dict(comp_list=comp_list, columns=cols)})
-        self.output_module = self.init_module(comp_list, columns=cols)
+        cols = list(self._proxy.that.stored_cols.widget.value)
+        self.record = self._proxy.dump()
+        self.output_module = self.init_modules(comp_list, columns=cols)
+
+    def init_ui(self) -> None:
+        from .custom import CUSTOMER_FNC
+        ALL_FUNCS.update(UFUNCS)
+        ALL_FUNCS.update(CUSTOMER_FNC)
+        content = self.record
+        self._proxy = restore(content, globals(), obj=self)
+        assert hasattr(self._proxy.widget, "children")
+        self.children = self._proxy.widget.children
 
     @runner
     def run(self) -> None:
-        content = self.frozen_kw
-        self.output_module = self.init_module(**content)
+        ui_dumped = self.record
+        self._proxy = restore(ui_dumped, globals(), obj=self)
+        self.children = self._proxy.widget.children  # type: ignore
+        comp_list = self._make_computed_list()
+        cols = list(self._proxy.that.stored_cols.widget.value)
+        self.output_module = self.init_modules(comp_list, columns=cols)
         self.output_slot = "result"
 
     @modules_producer
-    def init_module(self, comp_list: list[dict[str, list[str]]],
+    def init_modules(self, comp_list: list[dict[str, list[str]]],
                     columns: list[str]) -> Repeater:
         comp = Computed()
         from .custom import CUSTOMER_FNC
+        ALL_FUNCS.update(UFUNCS)
         ALL_FUNCS.update(CUSTOMER_FNC)
         for d_ in comp_list:
             func = ALL_FUNCS[d_["fname"]]  # type: ignore
@@ -317,27 +339,34 @@ class ComputedViewW(VBoxTyped):
             sink.input.inp = rep.output.result
             return rep
 
-    def make_func_button(self, key: tuple[str, str], wg: FuncW) -> ipw.Button:
-        kcol, kfun = key
+    def _func_btn_cb(self, proxy: Proxy, b: AnyType) -> None:
+        assert proxy._uid is not None
+        btn, s_cols, func = proxy._uid.split("/")
+        assert btn == "btn"
+        cols = s_cols.split(",")
+        self._proxy.that.cols.attrs(value=cols)
+        self._proxy.that.funcs.attrs(value=func)
 
-        def _cb(btn: AnyType) -> None:
-            self.c_.cols_funcs.c_.cols.value = kcol
-            self.c_.cols_funcs.c_.funcs.value = kfun
-
-        btn = make_button(wg._name.value, cb=_cb)
-        btn.layout = ipw.Layout(width="auto", height="40px")
-        return btn
-
-    def update_func_list(self, wg: FuncW) -> None:
+    def update_func_list(self, proxy: Proxy, change: AnyType) -> None:
         table_width = 4
-        seld = {k: wg for (k, wg) in self._col_widgets.items() if wg._use.value}
-        if not seld:
-            self.c_.func_table = None
-            return
-        lst = [self.make_func_button(key, wg) for (key, wg) in seld.items()]
+        seld = []
+        for uid in self._proxy._registry.keys():
+            if not uid.startswith("grid/"):
+                continue
+            _, s_cols, func = uid.split("/")
+            use_uid = f"use/{s_cols}/{func}"
+            if not self._proxy.lookup(use_uid).widget.value:
+                continue
+            gname_uid = f"gname/{s_cols}/{func}"
+            wg_name = self._proxy.lookup(gname_uid).widget.value
+            seld.append(dict(s_cols=s_cols,
+                             fname=func,
+                             wg_name=wg_name))
+        lst = [button(d["wg_name"])
+               .uid(f"btn/{d['s_cols']}/{d['fname']}")
+               .on_click(self._func_btn_cb) for d in seld]
         resume = table_width - len(lst) % table_width
-        lst2 = [dongle_widget()] * resume
-        self.c_.func_table = ipw.GridBox(
-            lst + lst2,
-            layout=ipw.Layout(grid_template_columns=f"repeat({table_width}, 200px)"),
-        )
+        lst2 = [label()] * resume
+        grid = self._proxy.that.func_table
+        _container_impl(grid, *(lst + lst2)).layout(grid_template_columns=f"repeat({table_width}, 200px)")
+        self._proxy._registry.update(grid._registry)

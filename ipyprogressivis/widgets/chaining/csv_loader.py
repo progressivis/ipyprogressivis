@@ -248,6 +248,7 @@ class CsvLoaderW(VBox):
         self.restore_ui(content)
         assert hasattr(self._proxy.widget, "children")
         self.children = self._proxy.widget.children
+        self._proxy.back("sniffer").update_backend(self._proxy)
 
     def _reuse_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
         base_name = proxy.lookup("reuse_file").widget.value

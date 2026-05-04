@@ -697,8 +697,7 @@ class TreeTab(HandyTab):
 
 
 def norm_rename_cols(sniffer: Any) -> list[str]:
-    return sniffer._rename or normalize_columns(sniffer._df.columns)
-
+    return normalize_columns(sniffer.get_names())
 
 def get_schema(sniffer: Sniffer) -> AnyType:
     params = sniffer.params
@@ -715,15 +714,15 @@ def get_schema(sniffer: Sniffer) -> AnyType:
 
     assert hasattr(sniffer, "_df")
     assert sniffer._df is not None
-    norm_cols = dict(zip(sniffer._df.columns, norm_rename_cols(sniffer)))
+    norm_cols = dict(zip(sniffer.get_names(), norm_rename_cols(sniffer)))
     dtypes = {col: _ds(col, dt)  # type: ignore
-              for (col, dt) in sniffer._df.dtypes.to_dict().items()}
+              for (col, dt) in sniffer.get_names_types().items()}
     for col, dt in retype.items():
         dtypes[col] = dt
     if usecols is not None:
         dtypes = {norm_cols[col]: dtypes[col] for col in usecols}
     else:
-        dtypes = {norm_cols[col]: t for (col, t) in dtypes.items()}  # type: ignore
+        dtypes = {norm_cols[col]: t for (col, t) in dtypes.items()}
     return dtypes
 
 
