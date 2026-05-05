@@ -90,20 +90,20 @@ class GroupByW(VBox):
 
     @starter_callback
     def _add_group_by_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
-        if proxy.that.grouping_mode_stack.widget.selected_index == 1:  # type: ignore
-            by = proxy.that.by_box_selm.widget.value
+        if self._proxy.that.grouping_mode_radio.widget.value == "columns":
+            by = self._proxy.that.by_box_selm.widget.value
             assert by
             if len(by) == 1:
                 by = by[0]
         else:
-            dd = proxy.that.by_box_dd.widget.value
-            sel = proxy.that.by_box_time.widget.value
+            dd = self._proxy.that.by_box_dd.widget.value
+            sel = self._proxy.that.by_box_time.widget.value
             col = dd
             by = SC(col).dt["".join(sel)]
             by = dict(col=col, subcols="".join(sel))
         self.record = self._proxy.dump()
-        proxy.that.by_box_dd.attrs(disabled = True)
-        proxy.that.by_box_time.attrs(disabled = True)
+        self._proxy.that.by_box_dd.attrs(disabled = True)
+        self._proxy.that.by_box_time.attrs(disabled = True)
         self.output_module = self.init_modules(by)
         self.output_slot = "result"
 
@@ -118,7 +118,7 @@ class GroupByW(VBox):
         ui_dumped = self.record
         self._proxy = restore(ui_dumped, globals(), obj=self)
         self.children = self._proxy.widget.children  # type: ignore
-        if self._proxy.that.grouping_mode_stack.widget.selected_index == 1:  # type: ignore
+        if self._proxy.that.grouping_mode_radio.widget.value == "columns":
             by = self._proxy.that.by_box_selm.widget.value
             assert by
             if len(by) == 1:

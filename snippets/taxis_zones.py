@@ -21,7 +21,7 @@ try:
     con = duckdb.connect(database=":memory:")
     n_rows = pq.ParquetFile(taxis_file).metadata.num_rows
     con.execute(SQL)
-    reader = con.fetch_record_batch(1000)
+    reader = con.to_arrow_reader(1000)
 finally:
     td.cleanup()
 

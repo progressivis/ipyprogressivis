@@ -1,18 +1,12 @@
 from .utils import (
-    make_button,
     starter_callback,
     is_leaf,
     no_progress_bar,
     chaining_widget,
-    VBoxTyped,
-    TypedBase,
+    VBox,
     ModuleOrFacade,
-    amend_last_record,
-    is_recording,
-    disable_all,
     runner,
     needs_dtypes,
-    GuestWidget,
     dot_progressivis,
     Coro,
     modules_producer
@@ -21,8 +15,7 @@ from ..utils import historized_widget
 import ipywidgets as ipw
 from ..vega import VegaWidget
 from ..json_editor import JsonEditor
-from ..df_grid import DataFrameGrid
-import pandas as pd
+from itertools import chain, batched
 import numpy as np
 from progressivis.core.api import Module, Sink, notNone, asynchronize
 from progressivis.table.table_facade import TableFacade
@@ -33,6 +26,24 @@ import time
 import os
 from ipytablewidgets.source_adapter import SourceAdapter  # type: ignore
 
+from ipyprogressivis.ipywel import (
+    Proxy,
+    button,
+    anybox,
+    label,
+    dropdown,
+    restore,
+    gridbox,
+    hbox,
+    text,
+    _container_impl
+)
+
+def json_editor(descr: str | None = None, **kw: AnyType) -> Proxy:
+    kw2 = dict() if descr is None else dict(description=descr)
+    proxy = Proxy(JsonEditor())
+    proxy.attrs(**kw, **kw2)
+    return proxy
 
 class ProgressivisAdapter(SourceAdapter):  # type: ignore
     """
@@ -84,21 +95,26 @@ class AfterRun(Coro):
         # indices = np.random.randint(0, len_tbl, max_size)
         data = ProgressivisAdapter(m.result.loc[start_sl:, self.columns])  # type: ignore
         def _func() -> None:
-            self.leaf.child.vega.update("data", remove="true", insert=data)  # type: ignore
+            assert self.leaf is not None
+            assert hasattr(self.leaf, "_proxy")
+            vega_box = self.leaf._proxy.that.vega_box.widget
+            if not vega_box.children:
+                return
+            vega_box.children[0].update("data", remove="true", insert=data)
         await asynchronize(_func)
 
 @is_leaf
 @no_progress_bar
 @chaining_widget(label="Any Vega")
-class AnyVegaW(VBoxTyped):
-    class Typed(TypedBase):
+class AnyVegaW(VBox):
+    """class Typed(TypedBase):
         schemas: ipw.Dropdown | None
         editor: JsonEditor
         save_schema: ipw.HBox | None
         grid: DataFrameGrid | None
         btn_apply: ipw.Button | None
         vega: VegaWidget | None
-
+    """
     def __init__(self, *args: AnyType, **kw: AnyType) -> None:
         super().__init__(*args, **kw)
         self.cols_mapping: dict[str, Tuple[ModuleOrFacade, str, str, str]] = {}
@@ -106,55 +122,48 @@ class AnyVegaW(VBoxTyped):
 
     @needs_dtypes
     def initialize(self) -> None:
-        self.c_.editor = JsonEditor()
-        self.c_.editor.data = {}
-        self.c_.schemas = ipw.Dropdown(
-            options=[""] + os.listdir(self.widget_dir),
-            value="",
-            rows=5,
-            description="Schemas",
-            disabled=False,
-            layout=ipw.Layout(width="60%"),
-        )
-        self.c_.schemas.observe(self._schemas_cb, names="value")
-        self.c_.save_schema = ipw.HBox(
-            [
-                make_button("Fetch info", disabled=False, cb=self._btn_fetch_cols_cb),
-                make_button(
-                    "Save schema ...",
-                    cb=self._save_schema_cb,
-                    disabled=False,
-                ),
-                ipw.Text(
-                    value=time.strftime("vega%Y%m%d_%H%M%S"),
-                    placeholder="",
-                    description="File:",
-                    disabled=False,
-                    layout=ipw.Layout(width="100%"),
-                ),
-            ]
-        )
-        self.output_dtypes = None  # type: ignore
-        self.c_.btn_apply = self._btn_ok = make_button(
-            "Apply", disabled=False, cb=self._btn_apply_cb
+        self._proxy = anybox(
+            self,
+            json_editor().uid("editor"),
+            dropdown("Schemas",
+                     options=[""] + os.listdir(self.widget_dir),
+                     value="",
+                     rows=5,
+            )
+            .layout(width="60%")
+            .uid("schemas")
+            .observe(self._schemas_cb),
+            hbox(
+                button("Fetch info").on_click(self._btn_fetch_cols_cb),
+                button("Save schema ...").on_click(self._save_schema_cb),
+                text("File:",
+                     value=time.strftime("vega%Y%m%d_%H%M%S"),
+                     placeholder="",
+                ).uid("base_name").layout(width="100%"),
+
+            ),
+            gridbox().uid("grid").layout(grid_template_columns="100px 200px 100px 100px"),
+            button("Apply").on_click(self._btn_apply_cb),
+            hbox().uid("vega_box")
         )
 
-    def _save_schema_cb(self, btn: AnyType) -> None:
+    def _save_schema_cb(self, proxy: Proxy, btn: AnyType) -> None:
         pv_dir = dot_progressivis()
         assert pv_dir
-        base_name = self.c_.save_schema.children[2].value
+        base_name = self._proxy.that.base_name.widget.value
         file_name = f"{self.widget_dir}/{base_name}"
         with open(file_name, "w") as f:
-            json.dump(self.c_.editor.data, f, indent=4)
-        self.c_.schemas.options = [""] + os.listdir(self.widget_dir)
+            json.dump(self._proxy.that.editor.widget.data, f, indent=4)  # type: ignore
+        self._proxy.that.schemas.attrs(options = [""] + os.listdir(self.widget_dir))
 
-    def _observe_keys(self, change: Dict[str, AnyType]) -> None:
-        obj = change["owner"]
-        grid = self.c_.grid
-        row, col = grid.get_coords(obj)
-        assert col == "Mapping"
-        m_key = obj.value
-        k_widget = grid.df.loc[row, "Key"]
+    def _observe_keys(self, proxy: Proxy, change: Dict[str, AnyType]) -> None:
+        uid = proxy._uid
+        assert uid is not None
+        prefix, col, what = uid.split("/")
+        assert prefix == "cell"
+        assert what == "mapping"
+        m_key = proxy.widget.value
+        k_widget = self._proxy.lookup(f"cell/{col}/key")
         facade = self.input_module
         if isinstance(facade, TableFacade):
             mod_cls = facade.registry[m_key].module_cls
@@ -162,18 +171,16 @@ class AnyVegaW(VBoxTyped):
             for outp in mod_cls.outputs:
                 if outp.name == name:
                     assert outp.datashape is not None
-                    k_widget.options = list(outp.datashape.keys())
-                    k_widget.disabled = False
+                    k_widget.attrs(options = list(outp.datashape.keys()), disabled = False)
                     break
             else:
                 print(f"{name} not found")
                 return
         else:
-             k_widget.options = [m_key]
-             k_widget.value = m_key
+             k_widget.attrs(options = [m_key], value = m_key)
 
-    def _btn_fetch_cols_cb(self, btn: ipw.Button) -> None:
-        edit_val = self.c_.editor.data
+    def _btn_fetch_cols_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+        edit_val = self._proxy.that.editor.widget.data  # type: ignore
         en_ = edit_val.get("encoding")
         if en_ is None:
             return
@@ -183,53 +190,62 @@ class AnyVegaW(VBoxTyped):
             members = [m for m in facade.members if "/" in m]  # only configured members
         else:
             members = getattr(self.input_module, self.input_slot).columns
-        df = pd.DataFrame(
-            index=cols, columns=["Mapping", "Key", "Processing"], dtype=object
-        )
-        df.loc[:, "Mapping"] = lambda: ipw.Dropdown(  # type: ignore
-            options=members + [""],
-            value="",
-            disabled=False,
-            layout={"width": "max-content"},
-        )
-        df.loc[:, "Key"] = lambda: ipw.Dropdown(  # type: ignore
-            options=[""],
-            value="",
-            disabled=True,
-        )
-        df.loc[:, "Processing"] = lambda: ipw.Dropdown(  # type: ignore
-            options=["", "enumerate", "cbrt"],
-            value="",
-            disabled=False,
-        )
-        self.c_.grid = DataFrameGrid(
-            df,
-            index_title="Vega columns",
-            grid_template_columns="100px 200px 100px 100px",
-        )
-        self.c_.grid.observe_col("Mapping", self._observe_keys)
+        header = [label("Vega columns"),label("Mapping"),label("Key"),label("Processing")]
+        lst = [
+            [
+                label(col),
+                dropdown(
+                    options=members + [""],
+                )
+                .layout(width="max-content")
+                .uid(f"cell/{col}/mapping")
+                .observe(self._observe_keys),
+                dropdown(
+                    options=[""],
+                )
+                .uid(f"cell/{col}/key"),
+                dropdown(
+                    options=["", "enumerate", "cbrt"],
+                )
+                .uid(f"cell/{col}/processing"),
 
-    def _schemas_cb(self, change: Dict[str, AnyType]) -> None:
+            ] for col in cols
+        ]
+        grid = self._proxy.that.grid
+        _container_impl(
+            grid,
+            *(header+list(chain.from_iterable(lst)))
+        )
+        self._proxy._registry.update(grid._registry)
+
+    def _schemas_cb(self, proxy: Proxy, change: Dict[str, AnyType]) -> None:
         base_name = change["new"]
         if not base_name:
-            self.c_.editor.data = {}
+            self._proxy.that.editor.attrs(data=dict())
             return
         file_name = f"{self.widget_dir}/{base_name}"
         with open(file_name) as f:
-            self.c_.editor.data = json.load(f)
+            self._proxy.that.editor.attrs(data=json.load(f))
 
-    @starter_callback
-    def _btn_apply_cb(self, btn: ipw.Button) -> None:
-        df_dict = self.c_.grid.df.to_dict(orient="index")
-        for i, row in df_dict.items():
-            for k, wg in row.items():
-                row[k] = wg.value
-        js_val = self.c_.editor.data.copy()
-        if is_recording():
-            amend_last_record(
-                {"frozen": dict(mapping_dict=df_dict, vega_schema=js_val)}
+    def get_mapping_dict(self) -> dict[str, dict[str, str]]:
+        grid = self._proxy.that.grid
+        lst = grid._children
+        assert lst is not None
+        rows = list(batched(lst, 4))[1:]
+        mapping_dict = dict()
+        for col, map_, key, proc in rows:
+            mapping_dict[col.widget.value] = dict(
+                Mapping=map_.widget.value,
+                Key=key.widget.value,
+                Processing=proc.widget.value
             )
-        self.init_modules(mapping_dict=df_dict, vega_schema=js_val)
+        return mapping_dict
+    @starter_callback
+    def _btn_apply_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+        mapping_dict = self.get_mapping_dict()
+        js_val = self._proxy.that.editor.widget.data.copy()  # type: ignore
+        self.record = self._proxy.dump()
+        self.init_modules(mapping_dict=mapping_dict, vega_schema=js_val)
 
     @modules_producer
     def init_modules(
@@ -267,16 +283,23 @@ class AnyVegaW(VBoxTyped):
             for (col, (m, attr, sl, proc)) in self.cols_mapping.items():
                 if col in vega_schema.get("encoding", {}):
                     vega_schema["encoding"][col]["field"] = sl
-        self.vega_schema = vega_schema
-        self.child.vega = VegaWidget(spec=vega_schema)
+        vegabox = self._proxy.that.vega_box.widget
+        assert hasattr(vegabox, "children")
+        if not vegabox.children:
+            vegabox.children = [VegaWidget(spec=vega_schema)]
 
-
-    def provide_surrogate(self, title: str) -> GuestWidget:
-        disable_all(self)
-        return self
+    def init_ui(self) -> None:
+        content = self.record
+        self._proxy = restore(content, globals(), obj=self, custom=dict(JsonEditor=json_editor))
+        assert hasattr(self._proxy.widget, "children")
+        self.children = self._proxy.widget.children
 
     @runner
-    def run(self) -> AnyType:
-        content = self.frozen_kw
-        self.init_modules(**content)
-        return self.child.vega
+    def run(self) -> None:
+        ui_dumped = self.record
+        self._proxy = restore(ui_dumped, globals(), obj=self, custom=dict(JsonEditor=json_editor))
+        self.children = self._proxy.widget.children  # type: ignore
+        mapping_dict = self.get_mapping_dict()
+        js_val = self._proxy.that.editor.widget.data.copy()  # type: ignore
+        self.init_modules(mapping_dict=mapping_dict, vega_schema=js_val)
+        # return self.child.vega
