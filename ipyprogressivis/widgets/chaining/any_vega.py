@@ -107,14 +107,6 @@ class AfterRun(Coro):
 @no_progress_bar
 @chaining_widget(label="Any Vega")
 class AnyVegaW(VBox):
-    """class Typed(TypedBase):
-        schemas: ipw.Dropdown | None
-        editor: JsonEditor
-        save_schema: ipw.HBox | None
-        grid: DataFrameGrid | None
-        btn_apply: ipw.Button | None
-        vega: VegaWidget | None
-    """
     def __init__(self, *args: AnyType, **kw: AnyType) -> None:
         super().__init__(*args, **kw)
         self.cols_mapping: dict[str, Tuple[ModuleOrFacade, str, str, str]] = {}

@@ -77,7 +77,6 @@ class GroupByW(VBox):
 
     @modules_producer
     def init_modules(self, by: AnyType) -> GroupBy:
-        print("by", by)
         if isinstance(by, dict):
             by = SC(by["col"]).dt[by["subcols"]]
         s = self.input_module.scheduler
