@@ -114,36 +114,37 @@ def func_view(main: "ComputedViewW", abox: Proxy, colnames: list[str], fname: st
                 placeholder="mandatory",
                 layout={"width": "initial"}
             ).uid(f"gname/{_s(colnames)}/{fname}"),  # given name
-            html().uid(f"col_var_map/{_s(colnames)}/{fname}")
-            if len(colnames) <= 1 else
-            gridbox(
-                label(""), label("Variable"),  # header
-                *chain.from_iterable([(label(col), dropdown(
-                    placeholder="var",
-                    options=[""]+list(vars),
-                    value="",
-                    ensure_option=True,
-                    layout={"width": "initial"},
-                )) for col in colnames]))
-            .layout(
-                grid_template_columns="150px 70px",
-                border="solid")
-            .uid(f"col_var_map/{_s(colnames)}/{fname}"),
-            hbox(
-                label("Output dtype:"),
-                dropdown(
-                    placeholder="dtype",
-                    options=DTYPES,
-                    value=type_,
-                    ensure_option=True,
-                    layout={"width": "initial"}
-                ).uid(f"dtype/{_s(colnames)}/{fname}")
-            ),
-            checkbox("Use",
-                     value=False
-            ).uid(f"use/{_s(colnames)}/{fname}").observe(main.update_func_list)
-        )
+        ),
+        html().uid(f"col_var_map/{_s(colnames)}/{fname}")
+        if len(colnames) <= 1 else
+        gridbox(
+            label(""), label("Variable"),  # header
+            *chain.from_iterable([(label(col), dropdown(
+                placeholder="var",
+                options=[""]+list(vars),
+                value="",
+                ensure_option=True,
+                layout={"width": "initial"},
+            )) for col in colnames]))
+        .layout(
+            grid_template_columns="150px 70px",
+            border="solid")
+        .uid(f"col_var_map/{_s(colnames)}/{fname}"),
+        hbox(
+            label("Output dtype:"),
+            dropdown(
+                placeholder="dtype",
+                options=DTYPES,
+                value=type_,
+                ensure_option=True,
+                layout={"width": "initial"}
+            ).uid(f"dtype/{_s(colnames)}/{fname}")
+        ),
+        checkbox("Use",
+                 value=False
+                 ).uid(f"use/{_s(colnames)}/{fname}").observe(main.update_func_list)
     )
+
 
 
 
@@ -236,7 +237,7 @@ class ComputedViewW(VBox):
     def set_selection(self) -> None:
         cols_v = self._proxy.that.cols.widget.value
         funcs_v = self._proxy.that.funcs.widget.value
-        key = f"grid/{_s(cols_v)}/{funcs_v}"
+        key = f"funcbox/{_s(cols_v)}/{funcs_v}"
         if key not in self._proxy._registry:
             for uid in self._proxy._registry.keys():
                 if not uid.startswith("free_"):
@@ -244,7 +245,7 @@ class ComputedViewW(VBox):
                 break
             else:
                 raise ValueError("no more free entries")  # TODO: extend
-        abox = self._proxy._registry[uid]  # uid == free_xx
+        abox = self._proxy._registry[uid]  # uid == free_xx, i.e. an empty vbox
         del self._proxy._registry[uid]
         func_view(main=self, abox=abox, colnames=cols_v, fname=funcs_v)
         abox.uid(key)
@@ -256,7 +257,7 @@ class ComputedViewW(VBox):
     def _make_computed_list(self) -> list[dict[str, str]]:
         res = []
         for uid in self._proxy._registry.keys():
-            if not uid.startswith("grid/"):
+            if not uid.startswith("funcbox/"):
                 continue
             _, s_cols, func = uid.split("/")
             use_uid = f"use/{s_cols}/{func}"
@@ -351,7 +352,7 @@ class ComputedViewW(VBox):
         table_width = 4
         seld = []
         for uid in self._proxy._registry.keys():
-            if not uid.startswith("grid/"):
+            if not uid.startswith("funcbox/"):
                 continue
             _, s_cols, func = uid.split("/")
             use_uid = f"use/{s_cols}/{func}"

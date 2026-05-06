@@ -317,6 +317,7 @@ def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
             content = copy.copy(self_.frozen_kw)
             if not is_replay_batch():
                 amend_last_record({"frozen": content})
+            time.sleep(0.5) # avoiding 'IOPub message rate exceeded.' server error
             return self_.post_run(self_.carrier.title)
 
     return wrapper

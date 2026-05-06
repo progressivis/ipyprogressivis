@@ -225,7 +225,7 @@ class Proxy:
             return small_dict(
                 classname=classname,
                 uid=self._uid,
-                updates=self._updates,
+                updates=dict() if isinstance(self.widget, ipw.FileUpload) else self._updates,
                 # backends={bn: bk.serialize() for (bn, bk) in self._backends.items()},
                 hints=self._hints,
                 layout=self._layout,

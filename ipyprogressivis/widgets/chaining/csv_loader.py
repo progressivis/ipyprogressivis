@@ -187,7 +187,7 @@ class CsvLoaderW(VBox):
                         html(),
                         text(value="xxxxxxxxxxxxxxxxxxxx").uid("hidden_parameters"),
                         )
-                ),
+                ).layout(width="100%"),
                 selected_index=1,
             ).uid("global_stack"),
         )

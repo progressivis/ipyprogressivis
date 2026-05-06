@@ -116,7 +116,6 @@ class AnyVegaW(VBox):
     def initialize(self) -> None:
         self._proxy = anybox(
             self,
-            json_editor().uid("editor"),
             dropdown("Schemas",
                      options=[""] + os.listdir(self.widget_dir),
                      value="",
@@ -125,6 +124,7 @@ class AnyVegaW(VBox):
             .layout(width="60%")
             .uid("schemas")
             .observe(self._schemas_cb),
+            json_editor().uid("editor"),
             hbox(
                 button("Fetch info").on_click(self._btn_fetch_cols_cb),
                 button("Save schema ...").on_click(self._save_schema_cb),
@@ -294,4 +294,4 @@ class AnyVegaW(VBox):
         mapping_dict = self.get_mapping_dict()
         js_val = self._proxy.that.editor.widget.data.copy()  # type: ignore
         self.init_modules(mapping_dict=mapping_dict, vega_schema=js_val)
-        # return self.child.vega
+
