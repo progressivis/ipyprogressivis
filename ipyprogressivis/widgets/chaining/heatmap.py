@@ -3,12 +3,10 @@ from .utils import (
     is_leaf,
     no_progress_bar,
     chaining_widget,
-    disable_all,
     VBox,
     needs_dtypes,
     # replay_next,
     runner,
-    GuestWidget,
     Coro,
     modules_producer,
 )
@@ -222,17 +220,6 @@ class HeatmapW(VBox):
             self.after_run = AfterRun(heatmap)
             self.after_run.proxy = self._proxy
             return heatmap
-
-    def provide_surrogate(self, title: str) -> GuestWidget:
-        disable_all(
-            self,
-            exceptions=(
-                self._proxy.that.image.widget,
-                self._proxy.that.choice_trans.widget,
-                self._proxy.that.gaussian_blur.widget,
-            ),
-        )
-        return self
 
     @runner
     def run(self) -> AnyType:

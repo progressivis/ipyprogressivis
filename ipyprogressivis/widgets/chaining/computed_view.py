@@ -113,9 +113,9 @@ def func_view(main: "ComputedViewW", abox: Proxy, colnames: list[str], fname: st
                 value=f"{'_'.join(colnames)}_{fnc.__name__}",
                 placeholder="mandatory",
                 layout={"width": "initial"}
-            ).uid(f"gname/{_s(colnames)}/{fname}"),  # given name
+            ).uid(f"gname@{_s(colnames)}@{fname}"),  # given name
         ),
-        html().uid(f"col_var_map/{_s(colnames)}/{fname}")
+        html().uid(f"col_var_map@{_s(colnames)}@{fname}")
         if len(colnames) <= 1 else
         gridbox(
             label(""), label("Variable"),  # header
@@ -129,7 +129,7 @@ def func_view(main: "ComputedViewW", abox: Proxy, colnames: list[str], fname: st
         .layout(
             grid_template_columns="150px 70px",
             border="solid")
-        .uid(f"col_var_map/{_s(colnames)}/{fname}"),
+        .uid(f"col_var_map@{_s(colnames)}@{fname}"),
         hbox(
             label("Output dtype:"),
             dropdown(
@@ -138,11 +138,11 @@ def func_view(main: "ComputedViewW", abox: Proxy, colnames: list[str], fname: st
                 value=type_,
                 ensure_option=True,
                 layout={"width": "initial"}
-            ).uid(f"dtype/{_s(colnames)}/{fname}")
+            ).uid(f"dtype@{_s(colnames)}@{fname}")
         ),
         checkbox("Use",
                  value=False
-                 ).uid(f"use/{_s(colnames)}/{fname}").observe(main.update_func_list)
+                 ).uid(f"use@{_s(colnames)}@{fname}").observe(main.update_func_list)
     )
 
 
@@ -237,14 +237,20 @@ class ComputedViewW(VBox):
     def set_selection(self) -> None:
         cols_v = self._proxy.that.cols.widget.value
         funcs_v = self._proxy.that.funcs.widget.value
-        key = f"funcbox/{_s(cols_v)}/{funcs_v}"
-        if key not in self._proxy._registry:
-            for uid in self._proxy._registry.keys():
-                if not uid.startswith("free_"):
-                    continue
-                break
-            else:
-                raise ValueError("no more free entries")  # TODO: extend
+        key = f"funcbox@{_s(cols_v)}@{funcs_v}"
+        if key in self._proxy._registry:
+            # computed column already exists
+            abox = self._proxy._registry[key]
+            assert hasattr(abox.widget, "local_index")
+            self._proxy.that.computed.attrs(selected_index=abox.widget.local_index)
+            return
+        # new selection
+        for uid in self._proxy._registry.keys():
+            if not uid.startswith("free_"):
+                continue
+            break
+        else:
+            raise ValueError("no more free entries")  # TODO: extend
         abox = self._proxy._registry[uid]  # uid == free_xx, i.e. an empty vbox
         del self._proxy._registry[uid]
         func_view(main=self, abox=abox, colnames=cols_v, fname=funcs_v)
@@ -257,17 +263,17 @@ class ComputedViewW(VBox):
     def _make_computed_list(self) -> list[dict[str, str]]:
         res = []
         for uid in self._proxy._registry.keys():
-            if not uid.startswith("funcbox/"):
+            if not uid.startswith("funcbox@"):
                 continue
-            _, s_cols, func = uid.split("/")
-            use_uid = f"use/{s_cols}/{func}"
+            _, s_cols, func = uid.split("@")
+            use_uid = f"use@{s_cols}@{func}"
             if not self._proxy.lookup(use_uid).widget.value:
                 continue
-            gname_uid = f"gname/{s_cols}/{func}"
+            gname_uid = f"gname@{s_cols}@{func}"
             wg_name = self._proxy.lookup(gname_uid).widget.value
-            dtype_uid = f"dtype/{s_cols}/{func}"
+            dtype_uid = f"dtype@{s_cols}@{func}"
             wg_dtype = self._proxy.lookup(dtype_uid).widget.value
-            map_uid = f"col_var_map/{s_cols}/{func}"
+            map_uid = f"col_var_map@{s_cols}@{func}"
             map_wg = self._proxy.lookup(map_uid)
             if hasattr(map_wg.widget, "children"):  # gridbox case
                 lst = map_wg._children
@@ -342,29 +348,30 @@ class ComputedViewW(VBox):
 
     def _func_btn_cb(self, proxy: Proxy, b: AnyType) -> None:
         assert proxy._uid is not None
-        btn, s_cols, func = proxy._uid.split("/")
+        btn, s_cols, func = proxy._uid.split("@")
         assert btn == "btn"
         cols = s_cols.split(",")
         self._proxy.that.cols.attrs(value=cols)
         self._proxy.that.funcs.attrs(value=func)
 
+
     def update_func_list(self, proxy: Proxy, change: AnyType) -> None:
         table_width = 4
         seld = []
         for uid in self._proxy._registry.keys():
-            if not uid.startswith("funcbox/"):
+            if not uid.startswith("funcbox@"):
                 continue
-            _, s_cols, func = uid.split("/")
-            use_uid = f"use/{s_cols}/{func}"
+            _, s_cols, func = uid.split("@")
+            use_uid = f"use@{s_cols}@{func}"
             if not self._proxy.lookup(use_uid).widget.value:
                 continue
-            gname_uid = f"gname/{s_cols}/{func}"
+            gname_uid = f"gname@{s_cols}@{func}"
             wg_name = self._proxy.lookup(gname_uid).widget.value
             seld.append(dict(s_cols=s_cols,
                              fname=func,
                              wg_name=wg_name))
         lst = [button(d["wg_name"])
-               .uid(f"btn/{d['s_cols']}/{d['fname']}")
+               .uid(f"btn@{d['s_cols']}@{d['fname']}")
                .on_click(self._func_btn_cb) for d in seld]
         resume = table_width - len(lst) % table_width
         lst2 = [label()] * resume

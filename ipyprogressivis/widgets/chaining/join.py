@@ -163,11 +163,10 @@ class JoinW(VBox):
         related_on = related_on[0] if len(related_on) == 1 else related_on
         inv_mask = None
         assert self._primary_wg is not None
-        assert self._primary_wg.output_dtypes is not None
         assert self._proxy is not None
         if (
             isinstance(primary_on, str)
-            and self._primary_wg.output_dtypes[primary_on] == "datetime64"
+            and self._proxy.lookup(f"datetime/{primary_on}").widget.selected_index == 1  # type: ignore
         ):
             msk = get_dt(self._proxy, primary_on)
             if msk != "YMDhms":

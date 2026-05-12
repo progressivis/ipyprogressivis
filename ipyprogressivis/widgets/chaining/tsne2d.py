@@ -2,7 +2,6 @@ from .utils import (
     make_button,
     starter_callback,
     chaining_widget,
-    disable_all,
     VBoxTyped,
     TypedBase,
     needs_dtypes,
@@ -10,7 +9,7 @@ from .utils import (
     is_recording,
     amend_last_record,
     runner,
-    GuestWidget, IpyHBoxTyped,
+    IpyHBoxTyped,
     Coro,
     modules_producer
 )
@@ -138,10 +137,6 @@ class TSNE2DW(VBoxTyped):
             self.after_run.widget = self
             tsne.on_after_run(self.after_run)  # Install the callback
         return tsne
-
-    def provide_surrogate(self, title: str) -> GuestWidget:
-        disable_all(self)
-        return self
 
     @runner
     def run(self) -> AnyType:

@@ -27,7 +27,6 @@ from collections import defaultdict
 from .. import DagWidgetController  # type: ignore
 from ..quality_visualization import QualityVisualization
 from ..psboard import PsBoard
-from ..cell_out import CellOut
 from pathlib import Path
 import copy
 import io
@@ -1391,22 +1390,15 @@ class GuestWidget:
             os.mkdir(widget_dir)
         return widget_dir
 
-    def provide_surrogate(self, title: str) -> "GuestWidget":
-        # return Surrogate(title)
-        disable_all(self)
-        return self
-
     def init_ui(self) -> None:
         pass
 
     def post_run(self, title: str) -> "NodeCarrier":
         self.dag_running()
-        surrogate = self.provide_surrogate(title)
         self.carrier.children = (
             BTN_DEL,
-            surrogate,
+            self,
         )  # type: ignore
-        surrogate._GuestWidget__carrier = ref(self.carrier)  # type: ignore
         batch = not PARAMS["replay_before_resume"]
         self.make_footer(batch=batch)
         replay_next_if(self.carrier)
@@ -1430,11 +1422,6 @@ class VBox(ipw.VBox, GuestWidget):
         ipw.VBox.__init__(self, *args, **kw)
         GuestWidget.__init__(self)
 
-
-class Surrogate(CellOut, GuestWidget):
-    def __init__(self, *args: Any, **kw: Any) -> None:
-        CellOut.__init__(self, *args, **kw)
-        GuestWidget.__init__(self)
 
 
 class LeafVBox(ipw.VBox, ChainingWidget):
