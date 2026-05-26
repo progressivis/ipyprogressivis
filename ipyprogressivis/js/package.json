@@ -75,6 +75,7 @@
     "jquery-sparkline": "^2.4.0",
     "jupyter-tablewidgets": "^0.3.2",
     "jupyter-vega": "^4.0.0",
+    "license-webpack-plugin": "^4.0.2",
     "multiclass-density-maps": "^0.1.5",
     "ndarray": "^1.0.19",
     "ndarray-unpack": "^1.0.0",
