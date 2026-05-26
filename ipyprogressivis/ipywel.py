@@ -453,6 +453,8 @@ def restore(
         classname = bulk["classname"]
         if classname in ctx:
             widget_cls = ctx[classname]
+        elif classname in custom:
+            widget_cls = custom[classname]
         else:
             widget_cls = ipw.__dict__[classname]
         if "children" in bulk:

@@ -9,12 +9,13 @@ from .utils import (
     needs_dtypes,
     dot_progressivis,
     Coro,
-    modules_producer
+    json_editor,
+    modules_producer,
+    restore_on_replay
 )
 from ..utils import historized_widget
 import ipywidgets as ipw
 from ..vega import VegaWidget
-from ..json_editor import JsonEditor
 from itertools import chain, batched
 import numpy as np
 from progressivis.core.api import Module, Sink, notNone, asynchronize
@@ -32,18 +33,11 @@ from ipyprogressivis.ipywel import (
     anybox,
     label,
     dropdown,
-    restore,
     gridbox,
     hbox,
     text,
     _container_impl
 )
-
-def json_editor(descr: str | None = None, **kw: AnyType) -> Proxy:
-    kw2 = dict() if descr is None else dict(description=descr)
-    proxy = Proxy(JsonEditor())
-    proxy.attrs(**kw, **kw2)
-    return proxy
 
 class ProgressivisAdapter(SourceAdapter):  # type: ignore
     """
@@ -97,10 +91,11 @@ class AfterRun(Coro):
         def _func() -> None:
             assert self.leaf is not None
             assert hasattr(self.leaf, "_proxy")
-            vega_box = self.leaf._proxy.that.vega_box.widget
+            assert self.leaf._proxy is not None
+            vega_box = cast(ipw.Box, self.leaf._proxy.that.vega_box.widget)
             if not vega_box.children:
                 return
-            vega_box.children[0].update("data", remove="true", insert=data)
+            vega_box.children[0].update("data", remove="true", insert=data)  # type: ignore
         await asynchronize(_func)
 
 @is_leaf
@@ -113,6 +108,7 @@ class AnyVegaW(VBox):
         self._updates_count: int = 0
 
     @needs_dtypes
+    @restore_on_replay
     def initialize(self) -> None:
         self._proxy = anybox(
             self,
@@ -140,6 +136,7 @@ class AnyVegaW(VBox):
         )
 
     def _save_schema_cb(self, proxy: Proxy, btn: AnyType) -> None:
+        assert self._proxy is not None
         pv_dir = dot_progressivis()
         assert pv_dir
         base_name = self._proxy.that.base_name.widget.value
@@ -149,6 +146,7 @@ class AnyVegaW(VBox):
         self._proxy.that.schemas.attrs(options = [""] + os.listdir(self.widget_dir))
 
     def _observe_keys(self, proxy: Proxy, change: Dict[str, AnyType]) -> None:
+        assert self._proxy is not None
         uid = proxy._uid
         assert uid is not None
         prefix, col, what = uid.split("/")
@@ -172,6 +170,7 @@ class AnyVegaW(VBox):
              k_widget.attrs(options = [m_key], value = m_key)
 
     def _btn_fetch_cols_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+        assert self._proxy is not None
         edit_val = self._proxy.that.editor.widget.data  # type: ignore
         en_ = edit_val.get("encoding")
         if en_ is None:
@@ -211,6 +210,7 @@ class AnyVegaW(VBox):
         self._proxy._registry.update(grid._registry)
 
     def _schemas_cb(self, proxy: Proxy, change: Dict[str, AnyType]) -> None:
+        assert self._proxy is not None
         base_name = change["new"]
         if not base_name:
             self._proxy.that.editor.attrs(data=dict())
@@ -220,6 +220,7 @@ class AnyVegaW(VBox):
             self._proxy.that.editor.attrs(data=json.load(f))
 
     def get_mapping_dict(self) -> dict[str, dict[str, str]]:
+        assert self._proxy is not None
         grid = self._proxy.that.grid
         lst = grid._children
         assert lst is not None
@@ -232,8 +233,10 @@ class AnyVegaW(VBox):
                 Processing=proc.widget.value
             )
         return mapping_dict
+
     @starter_callback
     def _btn_apply_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+        assert self._proxy is not None
         mapping_dict = self.get_mapping_dict()
         js_val = self._proxy.that.editor.widget.data.copy()  # type: ignore
         self.record = self._proxy.dump()
@@ -243,6 +246,7 @@ class AnyVegaW(VBox):
     def init_modules(
         self, mapping_dict: dict[str, dict[str, str]], vega_schema: AnyType
     ) -> None:
+        assert self._proxy is not None
         facade = self.input_module
         scheduler = facade.scheduler
         out_m = None
@@ -280,17 +284,8 @@ class AnyVegaW(VBox):
         if not vegabox.children:
             vegabox.children = [VegaWidget(spec=vega_schema)]
 
-    def init_ui(self) -> None:
-        content = self.record
-        self._proxy = restore(content, globals(), obj=self, custom=dict(JsonEditor=json_editor))
-        assert hasattr(self._proxy.widget, "children")
-        self.children = self._proxy.widget.children
-
     @runner
     def run(self) -> None:
-        ui_dumped = self.record
-        self._proxy = restore(ui_dumped, globals(), obj=self, custom=dict(JsonEditor=json_editor))
-        self.children = self._proxy.widget.children  # type: ignore
         mapping_dict = self.get_mapping_dict()
         js_val = self._proxy.that.editor.widget.data.copy()  # type: ignore
         self.init_modules(mapping_dict=mapping_dict, vega_schema=js_val)

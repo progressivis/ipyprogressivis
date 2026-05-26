@@ -4,7 +4,8 @@ from .utils import (
     VBox,
     runner,
     needs_dtypes,
-    modules_producer
+    modules_producer,
+    restore_on_replay
 )
 import numpy as np
 from itertools import chain, batched
@@ -42,7 +43,6 @@ from ipyprogressivis.ipywel import (
     stack,
     html,
     text,
-    restore,
     gridbox,
     checkbox,
     _container_impl
@@ -151,6 +151,7 @@ def func_view(main: "ComputedViewW", abox: Proxy, colnames: list[str], fname: st
 @chaining_widget(label="Computed view")
 class ComputedViewW(VBox):
     @needs_dtypes
+    @restore_on_replay
     def initialize(self) -> None:
         cols_t = [f"{c}:{t}" for (c, t) in self.dtypes.items()]
         col_list = list(zip(cols_t, self.dtypes.keys()))
@@ -200,15 +201,18 @@ class ComputedViewW(VBox):
 
 
     def _keep_all_cb(self, proxy: Proxy, change: AnyType) -> None:
+        assert self._proxy is not None
         val = change["new"]
         self._proxy.that.stored_cols.attrs(value=list(self.dtypes.keys()) if val else [])
 
     def _refresh_funcs_cb(self, proxy: Proxy, change: AnyType) -> None:
+        assert self._proxy is not None
         from .custom import CUSTOMER_FNC
         ALL_FUNCS.update(CUSTOMER_FNC)
         self._proxy.that.funcs.attrs(options = [""] + list(ALL_FUNCS.keys()))
 
     def _numpy_ufuncs_cb(self, proxy: Proxy, change: AnyType) -> None:
+        assert self._proxy is not None
         if change["new"]:
             ALL_FUNCS.update(UFUNCS)
         else:
@@ -217,6 +221,7 @@ class ComputedViewW(VBox):
         self._proxy.that.funcs.attrs(options = [""] + list(ALL_FUNCS.keys()))
 
     def _columns_cb(self, proxy: Proxy, change: AnyType) -> None:
+        assert self._proxy is not None
         val = change["new"]
         self._proxy.that.funcs.attrs(disabled=False)
         if not val:
@@ -228,6 +233,7 @@ class ComputedViewW(VBox):
             self._proxy.that.computed.attrs(selected_index=0)  # hide
 
     def _functions_cb(self, proxy: Proxy, change: AnyType) -> None:
+        assert self._proxy is not None
         val = change["new"]
         if not val:
             self._proxy.that.computed.attrs(selected_index=0)  # hide
@@ -235,6 +241,7 @@ class ComputedViewW(VBox):
             self.set_selection()
 
     def set_selection(self) -> None:
+        assert self._proxy is not None
         cols_v = self._proxy.that.cols.widget.value
         funcs_v = self._proxy.that.funcs.widget.value
         key = f"funcbox@{_s(cols_v)}@{funcs_v}"
@@ -261,6 +268,7 @@ class ComputedViewW(VBox):
         self._proxy.that.computed.attrs(selected_index=abox.widget.local_index)
 
     def _make_computed_list(self) -> list[dict[str, str]]:
+        assert self._proxy is not None
         res = []
         for uid in self._proxy._registry.keys():
             if not uid.startswith("funcbox@"):
@@ -292,25 +300,15 @@ class ComputedViewW(VBox):
 
     @starter_callback
     def _apply_btn_cb(self, proxy: Proxy, btn: AnyType) -> None:
+        assert self._proxy is not None
         comp_list = self._make_computed_list()
         cols = list(self._proxy.that.stored_cols.widget.value)
         self.record = self._proxy.dump()
         self.output_module = self.init_modules(comp_list, columns=cols)
 
-    def init_ui(self) -> None:
-        from .custom import CUSTOMER_FNC
-        ALL_FUNCS.update(UFUNCS)
-        ALL_FUNCS.update(CUSTOMER_FNC)
-        content = self.record
-        self._proxy = restore(content, globals(), obj=self)
-        assert hasattr(self._proxy.widget, "children")
-        self.children = self._proxy.widget.children
-
     @runner
     def run(self) -> None:
-        ui_dumped = self.record
-        self._proxy = restore(ui_dumped, globals(), obj=self)
-        self.children = self._proxy.widget.children  # type: ignore
+        assert self._proxy is not None
         comp_list = self._make_computed_list()
         cols = list(self._proxy.that.stored_cols.widget.value)
         self.output_module = self.init_modules(comp_list, columns=cols)
@@ -347,6 +345,7 @@ class ComputedViewW(VBox):
             return rep
 
     def _func_btn_cb(self, proxy: Proxy, b: AnyType) -> None:
+        assert self._proxy is not None
         assert proxy._uid is not None
         btn, s_cols, func = proxy._uid.split("@")
         assert btn == "btn"
@@ -356,6 +355,7 @@ class ComputedViewW(VBox):
 
 
     def update_func_list(self, proxy: Proxy, change: AnyType) -> None:
+        assert self._proxy is not None
         table_width = 4
         seld = []
         for uid in self._proxy._registry.keys():

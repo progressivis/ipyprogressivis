@@ -140,7 +140,8 @@ class ParquetLoaderW(VBox):
         self._to_sniff: str = ""
 
     def _activate_reuse_cb(self, proxy: Proxy, change: dict[str, Any]) -> None:
-        proxy.lookup("reuse_btn").attrs(disabled=not proxy.widget.value)
+        assert self._proxy is not None
+        self._proxy.that.reuse_btn.attrs(disabled=not proxy.widget.value)
 
     def initialize(self) -> None:
         pv_dir = dot_progressivis()
@@ -160,10 +161,12 @@ class ParquetLoaderW(VBox):
         self._proxy = self.loader_ui(bookmarks)
 
     def _save_file_cb(self, proxy: Proxy, change: dict[str, Any]) -> None:
-        proxy.lookup("save_btn").attrs(disabled=not change["new"])
+        assert self._proxy is not None
+        self._proxy.that.save_btn.attrs(disabled=not change["new"])
 
     def _reuse_cb(self, proxy: Proxy, b: ipw.Button) -> None:
-        base_name = proxy.lookup("reuse_file").widget.value
+        assert self._proxy is not None
+        base_name = self._proxy.that.reuse_file.widget.value
         file_name = f"{self.widget_dir}/{base_name}"
         with open(file_name) as f:
             content = json.load(f)
@@ -175,12 +178,15 @@ class ParquetLoaderW(VBox):
         self._to_sniff_cb(restored, dict())  # sets self._urls self._to_sniff
 
     def _reuse_ck_cb(self, proxy: Proxy, change: dict[str, Any]) -> None:
-        proxy.lookup("global_stack").attrs(selected_index=not change["new"])
+        assert self._proxy is not None
+        self._proxy.that.global_stack.attrs(selected_index=not change["new"])
 
     def _to_sniff_cb(self, proxy: Proxy, change: dict[str, Any]) -> None:
-        to_sniff = proxy.lookup("to_sniff")
-        bookmarks = proxy.lookup("bookmarks")
-        urls_wg = proxy.lookup("urls_wg")
+        assert self._proxy is not None
+        self_proxy = self._proxy
+        to_sniff = self_proxy.that.to_sniff
+        bookmarks = self_proxy.that.bookmarks
+        urls_wg = self_proxy.that.urls_wg
         urls = list(bookmarks.widget.value) + urls_wg.widget.value.strip().split("\n")
         urls = [elt for elt in urls if elt]
         if not urls:
@@ -196,28 +202,32 @@ class ParquetLoaderW(VBox):
         if not to_sniff_url:
             return
         self._to_sniff = to_sniff_url
-        sniff_btn = proxy.lookup("sniff_btn")
+        sniff_btn = self_proxy.that.sniff_btn
         sniff_btn.attrs(disabled=not self._to_sniff)
 
     def _sniffer_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
         # to_sniff = proxy.lookup("to_sniff")
         # bookmarks = proxy.lookup("bookmarks")
         # urls_wg = proxy.lookup("urls_wg")
+        assert self._proxy is not None
+        self_proxy = self._proxy
         for uid in ("start_stack", "save_stack", "save_file_stack"):
-            proxy.lookup(uid).attrs(selected_index=0)
+            self_proxy.lookup(uid).attrs(selected_index=0)
         snf_proxy = sniffer(self._to_sniff)
-        sniff_stack = proxy.lookup("sniffer")
+        sniff_stack = self_proxy.that.sniffer
         if not sniff_stack._children:
             merge_trees(self._proxy, sniff_stack, snf_proxy)
         sniff_stack.attrs(selected_index=0)
-        proxy.lookup("sniff_btn").attrs(disabled=True)
+        self_proxy.that.sniff_btn.attrs(disabled=True)
 
     @starter_callback
     def _start_loader_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+        assert self._proxy is not None
+        self_proxy = self._proxy
         urls = relative_urls(self._urls)
-        throttle = proxy.lookup("throttle").widget.value
-        shuffle = proxy.lookup("shuffle_ck").widget.value
-        dtypes = get_dtypes(proxy)
+        throttle = self_proxy.that.throttle.widget.value
+        shuffle = self_proxy.that.shuffle_ck.widget.value
+        dtypes = get_dtypes(self_proxy)
         kw = dict(urls=urls, throttle=throttle, shuffle=shuffle, dtypes=dtypes)
         if is_recording():
             amend_last_record({"frozen": kw})
@@ -227,9 +237,10 @@ class ParquetLoaderW(VBox):
         self.output_dtypes = dtypes
 
     def _save_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+        assert self._proxy is not None
         pv_dir = dot_progressivis()
         assert pv_dir
-        base_name = proxy.lookup("save_file_name").widget.value
+        base_name = self._proxy.that.save_file_name.widget.value
         file_name = f"{self.widget_dir}/{base_name}"
         with open(file_name, "w") as f:
             json.dump(self._proxy.dump(), f, indent=4)

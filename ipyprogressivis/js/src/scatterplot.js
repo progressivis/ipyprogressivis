@@ -236,7 +236,6 @@ function Scatterplot(ipyView) {
     element.appendChild(temp.content);
     this.cedit = register_config_editor(id);
   }
-
   function multiclass2d_dragstart(event) {
     event.sourceEvent.stopPropagation();
     d3.select(this).classed("dragging", true);
@@ -250,8 +249,13 @@ function Scatterplot(ipyView) {
 
   function multiclass2d_dragend(event, d) {
     const msg = {};
-    d[0] = xAxis.scale().invert(event.x);
-    d[1] = yAxis.scale().invert(event.y);
+    let old_x = xAxis.scale().invert(event.x);
+    let old_y = yAxis.scale().invert(event.y);
+    d[0] = x.invert(event.x);
+    d[1] = y.invert(event.y);
+    console.log("Event x, y:", event.x, event.y);
+    console.log("Current inv. x,y:", d[0], d[1]);
+    console.log("Axis based inv x,y:", old_x, old_y);
     d3.select(this).classed("dragging", false);
     let i = d3.select(this).text();
     if (collection_in_progress) {

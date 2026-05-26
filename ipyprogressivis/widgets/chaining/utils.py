@@ -27,9 +27,12 @@ from collections import defaultdict
 from .. import DagWidgetController  # type: ignore
 from ..quality_visualization import QualityVisualization
 from ..psboard import PsBoard
+from ..json_editor import JsonEditor
+from ipyprogressivis.ipywel import Proxy, restore
 from pathlib import Path
 import copy
 import io
+import importlib
 from typing import (
     Any,
     Tuple,
@@ -73,6 +76,11 @@ ITRASH = 0
 IGUEST = 1
 BOX_SIZE = 5
 
+def json_editor(descr: str | None = None, **kw: AnyType) -> Proxy:
+    kw2 = dict() if descr is None else dict(description=descr)
+    proxy = Proxy(JsonEditor())
+    proxy.attrs(**kw, **kw2)
+    return proxy
 
 def dongle_widget(v: str = "") -> ipw.HTML:
     return ipw.HTML(v)
@@ -284,7 +292,6 @@ def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
             def _edit_cb(b: Any) -> "NodeCarrier":
                 assert isinstance(self_, GuestWidget)
                 self_.carrier.children = wg_copy
-                self_.carrier.children[1].init_ui()  # type: ignore
                 self_._do_replay_next = True
                 return self_.carrier
 
@@ -316,7 +323,7 @@ def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
             content = copy.copy(self_.frozen_kw)
             if not is_replay_batch():
                 amend_last_record({"frozen": content})
-            time.sleep(0.5) # avoiding 'IOPub message rate exceeded.' server error
+            #time.sleep(5) # avoiding 'IOPub message rate exceeded.' server error
             return self_.post_run(self_.carrier.title)
 
     return wrapper
@@ -335,9 +342,13 @@ def needs_dtypes(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
                 self_.carrier._output_dtypes = None
                 func(*args, **kwargs)
                 return
-            else:
-                self_.parent.compute_dtypes_then_call(func, args, kwargs)
+            if is_replay() and "previous_input_dtypes" in self_.record:
+                self_.carrier._dtypes = self_.record["previous_input_dtypes"]
+                self_.carrier._output_dtypes = None
+                func(*args, **kwargs)
                 return
+            self_.parent.compute_dtypes_then_call(func, args, kwargs)
+            return
         else:
             func(*args, **kwargs)
             return
@@ -571,6 +582,7 @@ def replay_sequence(obj: "Constructor") -> None:
             rw=False,
             run=True,
         )
+        time.sleep(5)
 
 
 def create_root(backup: BackupWidget) -> None:
@@ -755,7 +767,7 @@ recording_state: bool = False
 def get_tag_class(tag: str) -> str:
     key, nb = parse_tag(tag)
     node = widget_by_key[(key, nb)]
-    return type(node.children[1]).__name__
+    return type(node.children[IGUEST]).__name__
 
 
 def set_parent_widget(obj: Union["NodeCarrier", "Constructor"]) -> None:
@@ -794,7 +806,6 @@ def create_stage_widget(
     if frozen is not None:
         guest.frozen_kw = frozen
     stage = NodeCarrier(ctx, guest)
-    guest.initialize()
     if is_recording():
         guest._record_index = cast(int, get_last_record_index()) + 1
     widget_numbers[key] += 1
@@ -839,7 +850,6 @@ def create_loader_widget(
     if frozen is not None:
         loader.frozen_kw = frozen
     stage = NodeCarrier(ctx, loader)
-    loader.initialize()
     loader.add_class("progressivis_guest_widget")
     widget_numbers[key] += 1
     obj.subwidgets.append(stage)
@@ -1108,6 +1118,8 @@ def add_new_stage(
     end = ""
     if frozen is not None and is_replay():
         end = ".run()"
+        stage._is_replaying = True
+    stage.children[IGUEST].initialize()  # type: ignore
     if alias:
         md = f"## {alias}"
         tag = alias
@@ -1155,6 +1167,8 @@ def add_new_loader(
     end = ""
     if frozen is not None and is_replay():
         end = ".run()"
+        stage._is_replaying = True
+    stage.children[IGUEST].initialize()  # type: ignore
     if alias:
         md = f"## {alias}"
         tag = alias
@@ -1250,6 +1264,18 @@ class GuestWidget:
         self.frozen_kw: dict[str, Any]
         self._do_replay_next: bool = False
         self._record_index: int = 0
+        self._proxy: Proxy | None = None
+
+    def process_replay(self) -> None:
+        if self.is_replaying:
+            cls = type(self)
+            m = importlib.import_module(cls.__module__)
+            content = self.record
+            self._proxy = restore(content, m.__dict__, obj=self, custom=dict(JsonEditor=json_editor))
+            assert hasattr(self._proxy.widget, "children")
+            self.children = self._proxy.widget.children
+            #for bk in self._proxy._backends.values():
+            #    bk().update_backend(self._proxy)
 
     def initialize(self) -> None:
         pass
@@ -1258,6 +1284,10 @@ class GuestWidget:
     def carrier(self) -> "NodeCarrier":
         assert not isinstance(self.__carrier, int)
         return cast("NodeCarrier", self.__carrier())
+
+    @property
+    def is_replaying(self) -> bool:
+        return self.carrier._is_replaying
 
     @property
     def dtypes(self) -> dict[str, str]:
@@ -1335,6 +1365,8 @@ class GuestWidget:
     @record.setter
     def record(self, value: dict[str, Any]) -> None:
         if is_recording():
+            if isinstance(value, dict):
+                value["previous_input_dtypes"] = self.input_dtypes
             amend_last_record({"frozen": value})
 
     def _make_guess_types(
@@ -1456,10 +1488,13 @@ class NodeCarrier(NodeVBox):
             (make_trash_box(self), guest),  # type: ignore
         )
         guest._GuestWidget__carrier = ref(self)  # type: ignore
+        self._is_replaying = False
         self.dag_register()
 
     def run(self) -> None:
         assert self.children[IGUEST].frozen_kw is not None  # type: ignore
+        self._is_replaying = True
+        self.children[IGUEST].initialize()  # type: ignore
         return self.children[IGUEST].run()  # type: ignore
 
     def make_footer(self, batch: bool = False) -> None:
@@ -1589,6 +1624,21 @@ class Coro:
         self._last_display = int(time.time())
         self.calls_counter += 1
 
+def restore_on_replay(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyType]:
+    """
+    Decorator for initialize method
+    """
+
+    @wraps(to_decorate)
+    def _wrapper(self_: GuestWidget, *args: AnyType, **kwargs: AnyType) -> AnyType:
+        """
+        Get a trace of modules created by to_decorate() method
+        """
+        if self_.is_replaying:
+            return self_.process_replay()
+        return to_decorate(self_, *args, **kwargs)
+
+    return _wrapper
 
 def modules_producer(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyType]:
     """

@@ -3,13 +3,12 @@ from .utils import (
     no_progress_bar,
     starter_callback,
     chaining_widget,
-    disable_all,
     VBox,
     needs_dtypes,
     runner,
-    GuestWidget,
     Coro,
     modules_producer,
+    restore_on_replay
 )
 import asyncio as aio
 import ipywidgets as ipw
@@ -25,33 +24,22 @@ from ipyprogressivis.ipywel import (
     anybox,
     dropdown,
     int_text,
-    restore,
+    box
 )
-from typing import Any as AnyType
+from typing import Any as AnyType, cast
 
 WidgetType = AnyType
 _l = ipw.Label
 
 MAX_DIM = 512
 
-class MyScatterplot(Scatterplot):
-    def __init__(self,*args: AnyType, **kw: AnyType) -> None:
-        super().__init__(*args, enable_centroids=True, **kw)
-        self.to_hide = ["historyGrp"]  # type: ignore
-
-def scatterplot_wg(descr: str | None = None, **kw: AnyType) -> Proxy:
-    kw2 = dict() if descr is None else dict(description=descr)
-    proxy = Proxy(MyScatterplot())
-    proxy.attrs(**kw, **kw2)
-    return proxy
-
 class AfterRun(Coro):
-    proxy: Proxy | None = None
+    widget: ipw.Box | None = None
 
     async def action(self, m: Module, run_number: int) -> None:
-        if self.proxy is None:
+        if self.widget is None:
             return
-        wg = self.proxy.that.scatterplot_.widget
+        wg = self.widget.children[0]
         assert wg is not None
         val = m.to_json()
         data_ = {
@@ -81,6 +69,8 @@ class AfterRun(Coro):
                 wg.first_time = True  # type: ignore
         await asynchronize(_func)
 
+
+
 @is_leaf
 @no_progress_bar
 @chaining_widget(label="MBKMeans")
@@ -88,16 +78,21 @@ class MBKMeansW(VBox):
     def __init__(self) -> None:
         super().__init__()
         self._last_display: int = 0
-        self.column_x: str = ""
-        self.column_y: str = ""
 
     def obs_columns(self, proxy: Proxy, change: dict[str, AnyType]) -> None:
         if proxy.that.choice_x.widget.value and proxy.that.choice_y.widget.value:
             proxy.that.start_btn.attrs(disabled=False)
-            self.column_x = proxy.that.choice_x.widget.value.split(":")[0]
-            self.column_y = proxy.that.choice_y.widget.value.split(":")[0]
         else:
             proxy.that.start_btn.attrs(disabled=True)
+    @property
+    def column_x(self) -> str:
+        assert self._proxy is not None
+        return cast(str, self._proxy.that.choice_x.widget.value.split(":")[0])
+
+    @property
+    def column_y(self) -> str:
+        assert self._proxy is not None
+        return cast(str, self._proxy.that.choice_y.widget.value.split(":")[0])
 
     def get_num_cols(self) -> list[str]:
         return [
@@ -107,6 +102,7 @@ class MBKMeansW(VBox):
         ] + [""]
 
     @needs_dtypes
+    @restore_on_replay
     def initialize(self) -> None:
         self.output_dtypes = self.dtypes
         self.col_types = {k: str(t) for (k, t) in self.dtypes.items()}
@@ -136,11 +132,12 @@ class MBKMeansW(VBox):
                 value=5,
             ).uid("n_clusters"),
             button("Start").uid("start_btn").on_click(self._start_btn_cb),
-            scatterplot_wg().uid("scatterplot_"),  # TODO: customize
+            box().uid("scatterplot_"),
         )
 
     @starter_callback
     def _start_btn_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+        assert self._proxy is not None
         assert self.column_x and self.column_y
         content = self._proxy.dump()
         self.record = content  # saved for replay
@@ -148,15 +145,18 @@ class MBKMeansW(VBox):
         self.output_module = self.init_modules(xy)
 
     def fetch_parameters(self) -> dict[str, AnyType]:
+        assert self._proxy is not None
+        self_proxy = self._proxy
         return dict(
-            X=self._proxy.that.choice_x.widget.value.split(":")[0],
-            Y=self._proxy.that.choice_y.widget.value.split(":")[0],
-            batch_size=self._proxy.that.batch_size.widget.value,
-            n_clusters=self._proxy.that.n_clusters.widget.value,
+            X=self_proxy.that.choice_x.widget.value.split(":")[0],
+            Y=self_proxy.that.choice_y.widget.value.split(":")[0],
+            batch_size=self_proxy.that.batch_size.widget.value,
+            n_clusters=self_proxy.that.n_clusters.widget.value,
         )
 
     @modules_producer
     def init_modules(self, ctx: dict[str, AnyType]) -> MCScatterPlot:
+        assert self._proxy is not None
         assert isinstance(self.input_module, Module)
         s = self.input_module.scheduler
         x_col = ctx["X"]
@@ -186,36 +186,21 @@ class MBKMeansW(VBox):
             sp.create_dependent_modules()
             sp.move_point = mbkmeans.dep.moved_center  # type: ignore
             self.after_run = AfterRun(sp)
-            self.after_run.proxy = self._proxy
+            img_box = self._proxy.that.scatterplot_.widget
+            assert hasattr(img_box, "children")
+            if not img_box.children:
+                sc_widget = Scatterplot()
+                sc_widget.to_hide = ["historyGrp"]  # type: ignore
+                img_box.children = [sc_widget]
+            self.after_run.widget = cast(ipw.Box, img_box)
             #after_run.widget = self.proxy.that.scatterplot.widget
             #self._awake = self.child.image.link_module(sp, refresh=False)
             #self.child.awake_btn.disabled = False
             #sp.on_after_run(after_run)  # Install the callback
             return sp
 
-    def provide_surrogate(self, title: str) -> GuestWidget:
-        disable_all(
-            self,
-            exceptions=(
-                self._proxy.that.scatterplot_.widget,
-            ),
-        )
-        return self
     @runner
     def run(self) -> AnyType:
-        ui_dumped = self.record
-        self._proxy = restore(ui_dumped, globals(), obj=self, custom=dict(MyScatterplot=scatterplot_wg))
-        assert hasattr(self._proxy.widget, "children")
-        self.children = self._proxy.widget.children
         content = self.fetch_parameters()
         self.output_module = self.init_modules(content)
         self.output_slot = "result"
-
-    def init_ui(self) -> None:
-        ui_dumped = self.record
-        self._proxy = restore(ui_dumped, globals(), obj=self, custom=dict(MyScatterplot=scatterplot_wg))
-        options = self.get_num_cols()
-        self._proxy.that.choice_x.attrs(options=options)
-        self._proxy.that.choice_y.attrs(options=options)
-        assert hasattr(self._proxy.widget, "children")
-        self.children = self._proxy.widget.children

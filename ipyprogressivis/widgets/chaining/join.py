@@ -62,6 +62,8 @@ class JoinW(VBox):
 
     @needs_dtypes
     def initialize(self) -> None:
+        if self.is_replaying:
+            return self.init_ui()
         self.output_dtypes = None  # type: ignore
         dd_list = [
             (f"{k}[{n}]" if n else k, (k, n)) for (k, n) in self.current_widget_keys
@@ -192,6 +194,7 @@ class JoinW(VBox):
     def init_ui(self) -> None:
         content = self.record
         self._proxy = restore(content, globals(), obj=self)
+        assert self._proxy is not None
         assert hasattr(self._proxy.widget, "children")
         self.children = self._proxy.widget.children
         primary_inp = json.loads(self._proxy.that.primary_wg_frozen.widget.value)
@@ -209,9 +212,7 @@ class JoinW(VBox):
 
     @runner
     def run(self) -> None:
-        ui_dumped = self.record
-        self._proxy = restore(ui_dumped, globals(), obj=self)
-        self.children = self._proxy.widget.children  # type: ignore
+        assert self._proxy is not None
         primary_inp = json.loads(self._proxy.that.primary_wg_frozen.widget.value)
         related_inp = json.loads(self._proxy.that.related_wg_frozen.widget.value)
         if (key := primary_inp) != "parent":

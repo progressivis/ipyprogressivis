@@ -8,6 +8,7 @@ from .utils import (
     runner,
     Coro,
     modules_producer,
+    restore_on_replay
 )
 
 import ipywidgets as ipw
@@ -24,7 +25,6 @@ from ipyprogressivis.ipywel import (
     anybox,
     label,
     dropdown,
-    restore,
     gridbox,
     box,
 )
@@ -66,6 +66,7 @@ class AfterRun(Coro):
 @chaining_widget(label="MCDensityMap")
 class MCDensityMapW(VBox):
     @needs_dtypes
+    @restore_on_replay
     def initialize(self) -> None:
         self.output_dtypes = self.dtypes
         self.col_types = {k: str(t) for (k, t) in self.dtypes.items()}
@@ -107,6 +108,7 @@ class MCDensityMapW(VBox):
         )
 
     def get_params(self) -> list[dict[str, str]]:
+        assert self._proxy is not None
         class_dict: dict[str, dict[str, str]] = defaultdict(dict)
         gbox = self._proxy.that.columns.widget
         assert hasattr(gbox, "children")
@@ -120,18 +122,14 @@ class MCDensityMapW(VBox):
 
     @starter_callback
     def _start_btn_cb(self, p: Proxy, btn: ipw.Button) -> None:
+        assert self._proxy is not None
         ctx = self.get_params()
         self.record = self._proxy.dump()
         self.init_modules(ctx=ctx)
 
-    def init_ui(self) -> None:
-        content = self.record
-        self._proxy = restore(content, globals(), obj=self)
-        assert hasattr(self._proxy.widget, "children")
-        self.children = self._proxy.widget.children
-
     @modules_producer
     def init_modules(self, ctx: list[dict[str, AnyType]]) -> MCScatterPlot:
+        assert self._proxy is not None
         assert isinstance(self.input_module, Module)
         s = self.input_module.scheduler
         # self.child.image = Scatterplot()
@@ -150,9 +148,6 @@ class MCDensityMapW(VBox):
 
     @runner
     def run(self) -> AnyType:
-        ui_dumped = self.record
-        self._proxy = restore(ui_dumped, globals(), obj=self)
-        self.children = self._proxy.widget.children  # type: ignore
         ctx = self.get_params()
         self.output_module = self.init_modules(ctx)
         self.output_slot = "result"

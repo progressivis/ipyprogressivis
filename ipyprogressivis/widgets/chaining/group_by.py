@@ -1,7 +1,9 @@
 from .utils import (VBox, chaining_widget,
                     starter_callback,
                     runner, needs_dtypes,
-                    modules_producer)
+                    modules_producer,
+                    restore_on_replay,
+                    )
 from ipyprogressivis.ipywel import (
     Proxy,
     button,
@@ -9,7 +11,6 @@ from ipyprogressivis.ipywel import (
     select_multiple,
     stack,
     radiobuttons,
-    restore,
     html,
     hbox,
     dropdown,
@@ -30,6 +31,7 @@ from typing import Any as AnyType
 @chaining_widget(label="Group by")
 class GroupByW(VBox):
     @needs_dtypes
+    @restore_on_replay
     def initialize(self) -> None:
         self._proxy = anybox(
             self,
@@ -89,6 +91,7 @@ class GroupByW(VBox):
 
     @starter_callback
     def _add_group_by_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+        assert self._proxy is not None
         if self._proxy.that.grouping_mode_radio.widget.value == "columns":
             by = self._proxy.that.by_box_selm.widget.value
             assert by
@@ -106,25 +109,18 @@ class GroupByW(VBox):
         self.output_module = self.init_modules(by)
         self.output_slot = "result"
 
-    def init_ui(self) -> None:
-        content = self.record
-        self._proxy = restore(content, globals(), obj=self)
-        assert hasattr(self._proxy.widget, "children")
-        self.children = self._proxy.widget.children
-
     @runner
     def run(self) -> AnyType:
-        ui_dumped = self.record
-        self._proxy = restore(ui_dumped, globals(), obj=self)
-        self.children = self._proxy.widget.children  # type: ignore
-        if self._proxy.that.grouping_mode_radio.widget.value == "columns":
-            by = self._proxy.that.by_box_selm.widget.value
+        assert self._proxy is not None
+        self_proxy = self._proxy
+        if self_proxy.that.grouping_mode_radio.widget.value == "columns":
+            by = self_proxy.that.by_box_selm.widget.value
             assert by
             if len(by) == 1:
                 by = by[0]
         else:
-            dd = self._proxy.that.by_box_dd.widget.value
-            sel = self._proxy.that.by_box_time.widget.value
+            dd = self_proxy.that.by_box_dd.widget.value
+            sel = self_proxy.that.by_box_time.widget.value
             col = dd
             by = SC(col).dt["".join(sel)]
             by = dict(col=col, subcols="".join(sel))
@@ -132,35 +128,41 @@ class GroupByW(VBox):
         self.output_slot = "result"
 
     def _on_grouping_cb(self, proxy: Proxy, val: AnyType) -> None:
+        assert self._proxy is not None
+        self_proxy = self._proxy
         selected_index = val["new"] != "columns"
-        proxy.that.by_box.attrs(selected_index=selected_index)
-        if proxy.that.grouping_mode_radio.widget.value == "columns":
-            proxy.that.by_box_selm.attrs(disabled=False)
-            proxy.that.by_box_dd.attrs(disabled=True)
-            proxy.that.by_box_time.attrs(disabled=True)
+        self_proxy.that.by_box.attrs(selected_index=selected_index)
+        if self_proxy.that.grouping_mode_radio.widget.value == "columns":
+            self_proxy.that.by_box_selm.attrs(disabled=False)
+            self_proxy.that.by_box_dd.attrs(disabled=True)
+            self_proxy.that.by_box_time.attrs(disabled=True)
 
-        elif proxy.that.grouping_mode_radio.widget.value == "datetime subcolumn":
-            proxy.that.by_box_selm.attrs(disabled=True)
-            proxy.that.by_box_dd.attrs(disabled=False)
-            proxy.that.by_box_time.attrs(disabled=True)
+        elif self_proxy.that.grouping_mode_radio.widget.value == "datetime subcolumn":
+            self_proxy.that.by_box_selm.attrs(disabled=True)
+            self_proxy.that.by_box_dd.attrs(disabled=False)
+            self_proxy.that.by_box_time.attrs(disabled=True)
 
         else:
-            assert proxy.that.grouping_mode_radio.widget.value == "multi index subcolumn"
-            proxy.that.by_box_selm.attrs(disabled=True)
-            proxy.that.by_box_dd.attrs(disabled=True)
-            proxy.that.by_box_time.attrs(disabled=False)
+            assert self_proxy.that.grouping_mode_radio.widget.value == "multi index subcolumn"
+            self_proxy.that.by_box_selm.attrs(disabled=True)
+            self_proxy.that.by_box_dd.attrs(disabled=True)
+            self_proxy.that.by_box_time.attrs(disabled=False)
 
 
     def selm_cb(self, proxy: Proxy, change: dict[str, AnyType]) -> None:
-        proxy.that.start_btn.attrs(disabled=not change["new"])
+        assert self._proxy is not None
+        self._proxy.that.start_btn.attrs(disabled=not change["new"])
 
     def dd_cb(self, proxy: Proxy, val: AnyType) -> None:
+        assert self._proxy is not None
+        self_proxy = self._proxy
         if val["new"]:
-           proxy.that.by_box_time.attrs(disabled=False)
+           self_proxy.that.by_box_time.attrs(disabled=False)
         else:
-           proxy.that.by_box_time.attrs(disabled=True)
-           proxy.that.start_btn.attrs(disabled=True)
+           self_proxy.that.by_box_time.attrs(disabled=True)
+           self_proxy.that.start_btn.attrs(disabled=True)
 
     def sel_cb(self, proxy: Proxy, val: AnyType) -> None:
-        proxy.that.start_btn.attrs(disabled=not val["new"])
+        assert self._proxy is not None
+        self._proxy.that.start_btn.attrs(disabled=not val["new"])
 

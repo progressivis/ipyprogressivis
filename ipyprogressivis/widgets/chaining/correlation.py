@@ -9,6 +9,7 @@ from .utils import (
     needs_dtypes,
     modules_producer,
     Coro,
+    restore_on_replay
 )
 from ..utils import sanitize
 import ipywidgets as ipw
@@ -24,7 +25,6 @@ from ipyprogressivis.ipywel import (
     radiobuttons,
     box,
     select_multiple,
-    restore,
 )
 from typing import Any as AnyType
 
@@ -48,14 +48,8 @@ class AfterRun(Coro):
 @no_progress_bar
 @chaining_widget(label="Corr")
 class CorrelationW(VBox):
-    """
-    class Typed(TypedBase):
-        selection: ipw.SelectMultiple
-        mode: ipw.RadioButtons
-        start_btn: ipw.Button
-        vega: VegaWidget | None
-    """
     @needs_dtypes
+    @restore_on_replay
     def initialize(self) -> None:
         self.output_dtypes = self.dtypes
         self.col_types = {k: str(t) for (k, t) in self.dtypes.items()}
@@ -93,9 +87,6 @@ class CorrelationW(VBox):
 
     @runner
     def run(self) -> AnyType:
-        ui_dumped = self.record
-        self._proxy = restore(ui_dumped, globals(), obj=self)
-        self.children = self._proxy.widget.children  # type: ignore
         content = dict(
             selection=self._proxy.that.selection.widget.value,
             mode=self._proxy.that.mode.widget.value
@@ -133,10 +124,4 @@ class CorrelationW(VBox):
             )
         self.record = self._proxy.dump()
         self.init_modules(content)
-
-    def init_ui(self) -> None:
-        content = self.record
-        self._proxy = restore(content, globals(), obj=self)
-        assert hasattr(self._proxy.widget, "children")
-        self.children = self._proxy.widget.children
 

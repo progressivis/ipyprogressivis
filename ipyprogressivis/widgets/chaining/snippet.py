@@ -1,63 +1,50 @@
-from .utils import (make_button, dongle_widget, VBoxTyped, chaining_widget, starter_callback,
-                    TypedBase, amend_last_record, GuestWidget, IpyHBoxTyped,
-                    is_recording, disable_all, runner, needs_dtypes, labcommand, modules_producer)
-from ..df_grid import DataFrameGrid
-import pandas as pd
+from .utils import (VBox, chaining_widget, starter_callback,
+                    disable_all, runner, needs_dtypes, labcommand, modules_producer, restore_on_replay)
+
 import ipywidgets as ipw
+from itertools import chain, batched
 from progressivis.core.api import Sink
 from .custom import register_snippet, SnippetResult
 from typing import Any as AnyType, Callable
+from ipyprogressivis.ipywel import (
+    Proxy,
+    button,
+    anybox,
+    label,
+    dropdown,
+    radiobuttons,
+    file_upload,
+    select_multiple,
+    gridbox,
+    text,
+    html,
+    stack,
+    hbox,
+    box,
+)
+
 
 layout_refresh = ipw.Layout(width='30px', height='30px')
 _ = register_snippet, SnippetResult
 
-class SnippetBar(IpyHBoxTyped):
-    class Typed(TypedBase):
-        choice: ipw.Dropdown
-        refresh_btn: ipw.Button
-
-class UploadBar(IpyHBoxTyped):
-    class Typed(TypedBase):
-        label: ipw.Label
-        files: ipw.FileUpload
-        # run_cells: ipw.Checkbox
-
 @chaining_widget(label="Snippet")
-class SnippetW(VBoxTyped):
-    class Typed(TypedBase):
-        upload: UploadBar
-        snippet: SnippetBar
-        #refresh_btn: ipw.Button
-        cols_mode: ipw.RadioButtons
-        columns: DataFrameGrid
-        start_btn: ipw.Button
-        widget: ipw.DOMWidget
-
+class SnippetW(VBox):
     @needs_dtypes
+    @restore_on_replay
     def initialize(self) -> None:
         from .custom import CUSTOMER_SNIPPET
         inp_module = self.input_module
-        self.child.upload = UploadBar()
-        self.child.upload.child.label = ipw.Label("Upload snippets:")
-        up = self.child.upload.child.files = ipw.FileUpload(
-            accept='.py',
-            description="",
-            multiple=True  # True to accept multiple files upload else False
-        )
-        up.observe(self._upload_cb, names="value")
-        self.child.snippet = SnippetBar()
-        wg = self.child.snippet.child.choice = ipw.Dropdown(
-            description="Snippet:",
-            options=[""] + list(CUSTOMER_SNIPPET.keys()),
-            value = ""
-        )
-        wg.observe(self._snippet_cb, names="value")
-        self.child.snippet.child.refresh_btn = make_button(
-            "", cb=self._refresh_btn_cb, disabled=False, icon="refresh",
-            layout=layout_refresh
-        )
-        if not isinstance(inp_module, Sink):  # i.e. not a custom loader
-            self.child.cols_mode = ipw.RadioButtons(
+        self._proxy = anybox(
+            self,
+            hbox(label("Upload snippets:"), file_upload(accept='.py').observe(self._upload_cb)),
+            hbox(dropdown("Snippet:",
+                          options=[""] + list(CUSTOMER_SNIPPET.keys()),
+                          ).uid("choice").observe(self._snippet_cb),
+                 button(icon="refresh")
+                 .layout(width='30px', height='30px')
+                 .on_click(self._refresh_btn_cb)
+            ),
+            html().uid("cols_mode") if isinstance(inp_module, Sink) else radiobuttons(
                 options=[("All", "all"),
                          ("Selection as list", "aslist"),
                          ("Selection as dict", "asdict")],
@@ -65,14 +52,34 @@ class SnippetW(VBoxTyped):
                 description="Columns to process:",
                 disabled=False,
                 style={"description_width": "initial"},
-                )
-            self.child.cols_mode.observe(self._cols_mode_cb, names="value")
-        else:
-            self.child.cols_mode = dongle_widget()
-        self.child.start_btn = make_button(
-            "Start", cb=self._start_btn_cb, disabled=True
+            ).uid("cols_mode").observe(self._cols_mode_cb),
+            stack(
+                html(),
+                select_multiple(
+                    options=[(f"{col}:{t}", col) for (col, t) in self.dtypes.items()] if self.dtypes is not None else [],
+                    rows=5,
+                ).uid("aslist_mode"),
+                gridbox(
+                    label(""), label("Key"),
+                    *list(
+                        chain.from_iterable(
+                            [
+                                [label(col), text(placeholder="enter a key name to select")]
+                                for col in self.dtypes.keys()
+                            ] if self.dtypes is not None else []
+                        )
+
+                    )
+                ).layout(width="100%", grid_template_columns="100px 100px").uid("asdict_mode"),
+                selected_index=0
+            ).uid("columns"),
+            button("Start", disabled=True)
+            .uid("start_btn")
+            .on_click(self._start_btn_cb),
+            box().uid("custom_widget")
         )
-    def _upload_cb(self, change: dict[str, AnyType]) -> None:
+
+    def _upload_cb(self, p: Proxy, change: dict[str, AnyType]) -> None:
         from .custom import CUSTOMER_SNIPPET
         _ = CUSTOMER_SNIPPET
         for item in change["new"]:
@@ -83,75 +90,74 @@ class SnippetW(VBoxTyped):
                        index=2,  # i.e. insert it after #root & co
                        run=False)
         self._refresh_btn_cb()
-    def _cols_mode_cb(self, val: AnyType) -> None:
+
+    def _cols_mode_cb(self, p: Proxy, val: AnyType) -> None:
+        assert self._proxy is not None
+        columns = self._proxy.that.columns
+
         if val["new"] == "all":
-            self.child.columns = dongle_widget()
+            columns.attrs(selected_index=0)
         elif val["new"] == "aslist":
-            self.child.columns = ipw.SelectMultiple(
-                options=[(f"{col}:{t}", col) for (col, t) in self.dtypes.items()],
-                value=[],
-                rows=5,
-                description="",
-                disabled=False,
-            )
+            columns.attrs(selected_index=1)
         else:
             assert val["new"] == "asdict"
-            # col_dtypes = [(f"{col}:{t}", col) for (col, t) in self.dtypes.items()]
-            df = pd.DataFrame(
-                index=list(self.dtypes.keys()),
-                columns=["Key"],
-                dtype=object,
-            )
-            df.loc[:, "Key"] = lambda: ipw.Text(value="", description="",  # type: ignore
-                                                placeholder="enter a key name to select",
-                                                disabled=False)
-            self.child.columns = DataFrameGrid(df)
+            columns.attrs(selected_index=2)
 
-    def _snippet_cb(self, val: AnyType) -> None:
-        self.child.start_btn.disabled = not val["new"]
+    def _snippet_cb(self, p: Proxy, val: AnyType) -> None:
+        assert self._proxy is not None
+        self._proxy.that.start_btn.attrs(disabled = not val["new"])
 
-    def _refresh_btn_cb(self, btn: ipw.Button | None = None) -> None:
+    def _refresh_btn_cb(self, p: Proxy | None = None, btn: ipw.Button | None = None) -> None:
+        assert self._proxy is not None
         from .custom import CUSTOMER_SNIPPET
-        self.child.snippet.child.choice.options = [""] + list(CUSTOMER_SNIPPET.keys())
+        self._proxy.that.choice.attrs(options = [""] + list(CUSTOMER_SNIPPET.keys()))
+
+    def get_params(self, mode: str) -> list[str] | dict[str, str]:
+        assert self._proxy is not None
+        if mode == "aslist":
+            wg = self._proxy.that.aslist_mode.widget
+            assert isinstance(wg, ipw.SelectMultiple)
+            return wg.value
+        elif mode == "asdict":
+            gbox = self._proxy.that.asdict_mode.widget
+            assert hasattr(gbox, "children")
+            rows = list(batched([wg.value for wg in gbox.children], 2))
+            return {key: col for (col, key) in rows[1:] if key}
+        assert mode in ("all", "")
+        return []
 
     @starter_callback(disable_ui=False)
-    def _start_btn_cb(self, btn: ipw.Button) -> None:
+    def _start_btn_cb(self, p: Proxy, btn: ipw.Button) -> None:
+        assert self._proxy is not None
         from .custom import CUSTOMER_SNIPPET
-        snippet = CUSTOMER_SNIPPET[self.child.snippet.child.choice.value]
-        mode = self.child.cols_mode.value
-        columns: list[str] | dict[str, str] = []
-        if mode == "aslist":
-            columns = self.child.columnvalue
-        elif mode == "asdict":
-            columns = {row["Key"].value: cname for (cname, row) in
-                       self.child.columns.df.iterrows()
-                       if row["Key"].value}
-        else:
-            assert mode in ("all", "")
-        if is_recording():
-            amend_last_record({'frozen': dict(snippet=self.child.snippet.child.choice.value, columns=columns)})
+        snippet = CUSTOMER_SNIPPET[self._proxy.that.choice.widget.value]
+        mode = self._proxy.that.cols_mode.widget.value
+        columns: list[str] | dict[str, str] = self.get_params(mode)
+        self.record = self._proxy.dump()
         res = snippet(self.input_module, self.input_slot, columns)
         self.output_module = res.output_module
         self.output_slot = res.output_slot
         if res.widget is not None:
-            self.child.widget = res.widget
+            custom_widget = self._proxy.that.custom_widget.widget
+            assert isinstance(custom_widget, ipw.Box)
+            custom_widget.children = [res.widget]
         disable_all(self, exceptions=(res.widget,))
-
-    def provide_surrogate(self, title: str) -> GuestWidget:
-        # disable_all(self)
-        return self
 
     @runner
     def run(self) -> AnyType:
-        content = self.frozen_kw
-        print("snippet content", content)
+        assert self._proxy is not None
+        mode = self._proxy.that.cols_mode.widget.value
+        columns: list[str] | dict[str, str] = self.get_params(mode)
         from .custom import CUSTOMER_SNIPPET
-        snippet = CUSTOMER_SNIPPET[content["snippet"]]
-        res = self.eval_snippet(snippet, content["columns"])
+        choice = self._proxy.that.choice.widget.value
+        snippet = CUSTOMER_SNIPPET[choice]
+        res = self.eval_snippet(snippet, columns)
         self.output_module = res.output_module
         self.output_slot = res.output_slot
         if res.widget is not None:
-            self.child.widget = res.widget
+            custom_widget = self._proxy.that.custom_widget.widget
+            assert isinstance(custom_widget, ipw.Box)
+            custom_widget.children = [res.widget]
 
     @modules_producer
     def eval_snippet(self, snippet: Callable[..., AnyType], columns: list[str]) -> AnyType:

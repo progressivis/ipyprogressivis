@@ -1,5 +1,7 @@
 from .utils import (VBox, chaining_widget, runner, needs_dtypes,
-                    modules_producer, starter_callback)
+                    modules_producer, starter_callback,
+                    restore_on_replay
+                    )
 import ipywidgets as ipw
 from progressivis.table.api import Aggregate
 from progressivis.core.api import Sink
@@ -8,7 +10,6 @@ from ipyprogressivis.ipywel import (
     button,
     anybox,
     label,
-    restore,
     select,
     gridbox,
     checkbox,
@@ -34,6 +35,7 @@ def is_disabled(dt: str, op: str) -> bool:
 @chaining_widget(label="Aggregate")
 class AggregateW(VBox):
     @needs_dtypes
+    @restore_on_replay
     def initialize(self) -> None:
         fncs = ["hide"] + list(Aggregate.registry.keys())
         self.all_functions = dict(zip(fncs, fncs))
@@ -123,21 +125,8 @@ class AggregateW(VBox):
         self.output_module = self.init_modules(compute)
         self.output_slot = "result"
 
-    def init_ui(self) -> None:
-        content = self.record
-        self._proxy = restore(content, globals(), obj=self)
-        assert hasattr(self._proxy.widget, "children")
-        self.children = self._proxy.widget.children
-        # refreshing column list (e.g. if new columns were added)
-        _container_impl(self._proxy.that.grid, *self.get_checkboxes())
-        self._proxy._registry.update(self._proxy.that.grid._registry)
-
-
     @runner
     def run(self) -> AnyType:
-        ui_dumped = self.record
-        self._proxy = restore(ui_dumped, globals(), obj=self)
-        self.children = self._proxy.widget.children  # type: ignore
         # get compute
         compute = [
             ("" if col == RECORD else col, fnc)
