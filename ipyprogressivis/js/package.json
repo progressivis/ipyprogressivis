@@ -83,9 +83,6 @@
     "vanilla-jsoneditor": "^3.1.1",
     "webcola": "^3.4.0"
   },
-  "resolutions": {
-    "license-webpack-plugin": "4.0.2"
-  },
   "jupyterlab": {
     "extension": "lib/labplugin",
     "outputDir": "../labextension",
