@@ -15,7 +15,7 @@ import random
 from functools import wraps, partial
 from progressivis.table.dshape import dataframe_dshape
 from progressivis.vis import DataShape
-from progressivis.core.api import Sink, Module
+from progressivis.core.api import Sink, Module, Scheduler
 from progressivis.table.api import TableFacade
 from progressivis.core.utils import normalize_columns
 from progressivis.core import aio
@@ -1510,6 +1510,19 @@ class NodeCarrier(NodeVBox):
     def guest(self) -> GuestWidget:
         return cast(GuestWidget, self.children[IGUEST])
 
+    @property
+    def scheduler(self) -> "Scheduler":
+        return self.guest.input_module.scheduler
+
+    @property
+    def profiler(self) -> Any:
+        return self.scheduler.profiler
+
+    def dump_stats(self, fname: str | None = None) -> str:
+        if fname is None:
+            fname = f"/tmp/ipyprogressivis_stats{id(self)}.prof"
+        self.profiler.dump_stats(fname)
+        return fname
 
 class TypedBase:
     # __annotations__ = []
