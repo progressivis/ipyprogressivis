@@ -1,7 +1,6 @@
 from .utils import (
     make_button,
     starter_callback,
-    disable_all,
     VBoxTyped,
     TypedBase,
     needs_dtypes,
@@ -9,7 +8,6 @@ from .utils import (
     is_recording,
     amend_last_record,
     runner,
-    GuestWidget,
     Coro,
     modules_producer
 )
@@ -130,10 +128,6 @@ class KNNDensityW(VBoxTyped):
             after_run.widget = self.child.image
             knn.on_after_run(after_run)  # Install the callback
         return knn
-
-    def provide_surrogate(self, title: str) -> GuestWidget:
-        disable_all(self)
-        return self
 
     @runner
     def run(self) -> AnyType:

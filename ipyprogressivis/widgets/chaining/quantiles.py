@@ -6,6 +6,7 @@ from .utils import (
     runner,
     needs_dtypes,
     modules_producer,
+    restore_on_replay
 )
 import ipywidgets as ipw
 from progressivis import Quantiles
@@ -14,7 +15,6 @@ from ipyprogressivis.ipywel import (
     button,
     anybox,
     select_multiple,
-    restore,
 )
 
 from progressivis.core.api import Sink
@@ -33,6 +33,7 @@ class QuantilesW(VBox):
         ]
 
     @needs_dtypes
+    @restore_on_replay
     def initialize(self) -> None:
         self.output_dtypes = self.dtypes
         self.col_types = {k: str(t) for (k, t) in self.dtypes.items()}
@@ -49,26 +50,8 @@ class QuantilesW(VBox):
 
     @runner
     def run(self) -> AnyType:
-        ui_dumped = self.record
-        self._proxy = restore(ui_dumped, globals(), obj=self)
-        self.children = self._proxy.widget.children
         self.output_module = self.init_modules(self._proxy.that.selection.widget.value)
         self.output_slot = "result"
-
-    def init_ui(self) -> None:
-        ui_dumped = self.record
-        self._proxy = restore(ui_dumped, globals(), obj=self)
-        options = self.get_num_cols()
-        values = self._proxy.that.selection.widget.value
-        new_val = []
-        for v in values:
-            if v in self.dtypes:
-                new_val.append(v)
-        self._proxy.that.selection.attrs(value=[])
-        self._proxy.that.selection.attrs(options=options)
-        self._proxy.that.selection.attrs(value=new_val)
-        assert hasattr(self._proxy.widget, "children")
-        self.children = self._proxy.widget.children
 
     @modules_producer
     def init_modules(self, content: list[str]) -> None:

@@ -27,14 +27,11 @@ def column_box(data: PColumnInfo) -> Proxy:
             text("Name:", value=cname, continuous_update=False, disabled=True).uid(
                 f"c_name_{cname}"
             ),
-            text("Rename:", value=cname, continuous_update=False, disabled=True)
+            text("Rename:", value=cname, continuous_update=True, disabled=True)
             .uid(f"c_rename_{cname}")
             .observe(
                 lambda proxy, change: proxy.back("sniffer")
                 .update_backend(proxy)
-                .rename_columns()
-                .sync_cmdline(proxy)
-                # cb.rename_column
             )
             .hints(col=cname),
             text("Type:", value=data.type, continuous_update=False, disabled=True).uid(
@@ -44,11 +41,6 @@ def column_box(data: PColumnInfo) -> Proxy:
             .uid(f"c_use_{cname}")
             .observe(
                 lambda proxy, change: proxy.back("sniffer")
-                .column[proxy.hint.col]
-                .set_attributes(use=change["new"])
-                .sniffer.update_backend(proxy)
-                .usecols_columns()
-                .retype_columns()
                 .this(proxy)
                 .proc(
                     [
@@ -64,8 +56,7 @@ def column_box(data: PColumnInfo) -> Proxy:
                     else proxy
                 )
                 .back("sniffer")
-                .sync_cmdline(proxy),
-                # cb.usecols_column
+                .update_backend(proxy)
             )
             .hints(col=cname),
             dropdown(
@@ -75,9 +66,6 @@ def column_box(data: PColumnInfo) -> Proxy:
             .observe(
                 lambda proxy, change: proxy.back("sniffer")
                 .update_backend(proxy)
-                .retype_columns()
-                .sync_cmdline(proxy)
-                # cb.retype_column
             )
             .hints(col=cname),
             text("Unique vals:", value=data.nunique, disabled=True).uid(
@@ -87,16 +75,11 @@ def column_box(data: PColumnInfo) -> Proxy:
                 "NA values:",
                 value="",
                 disabled=True,
-                # placeholder="sep. first if many(ex: ,A,B)",
             )
             .uid(f"c_na_{cname}")
             .observe(
                 lambda proxy, change: proxy.back("sniffer")
-                .column[proxy.hint.col]
-                .set_attributes(na_values_=change["new"])
-                .sniffer.na_values_columns()
-                .sync_cmdline(proxy)
-                # cb.na_values_col
+                .update_backend(proxy)
             )
             .hints(col=cname),
         )
@@ -199,18 +182,15 @@ def _sniffer(csv_s: Backend) -> Proxy:
                         .uid("na_values")
                         .observe(
                             lambda proxy, change: proxy.back("sniffer")
-                            ._parse_list("na_values", change["new"])
-                            .this(proxy)
-                            .that.cmdline.attrs(value=proxy.back("sniffer").cmdline)
-                            # cb.na_values
+                            .update_backend(proxy, sync=True)
                         ),
                         checkbox("Per-column NA values")
                         .uid("per_col_na")
                         .observe(
                             lambda proxy, change: proxy.proc(
-                                proxy.that.na_values.attrs(value="")
+                                proxy.that.na_values.attrs(value="", disabled=True)
                                 if change["new"]
-                                else proxy.that.na_values.attrs(disabled=change["new"])
+                                else proxy.that.na_values.attrs(disabled=False)
                             ).proc(
                                 [
                                     (
@@ -222,9 +202,9 @@ def _sniffer(csv_s: Backend) -> Proxy:
                                     for (col, _) in proxy.that.columns.widget.options
                                     if proxy.lookup(f"c_use_{col}").widget.value
                                 ]
-                            )
+                            ).back("sniffer").update_backend(proxy, sync=True)
                             # cb.per_column_na
-                        ),
+                        )
                     )
                     .uid("special_values")
                     .layout(border="solid"),
@@ -291,7 +271,7 @@ def _sniffer(csv_s: Backend) -> Proxy:
                     # cb.test_cmd
                 ),
                 label("CmdLine"),
-                textarea(row=3).layout(width="100%").uid("cmdline"),
+                textarea(rows=5).layout(width="100%").uid("cmdline"),
             ),
             tab(
                 html(value=csv_s().head_text).uid("head_text"),

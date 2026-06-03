@@ -23,6 +23,7 @@ from ipyprogressivis.ipywel import (
     checkbox,
     select,
     dropdown,
+    gridbox,
     select_multiple,
     label,
     file_upload,
@@ -224,7 +225,7 @@ class Proxy:
             return small_dict(
                 classname=classname,
                 uid=self._uid,
-                updates=self._updates,
+                updates=dict() if isinstance(self.widget, ipw.FileUpload) else self._updates,
                 # backends={bn: bk.serialize() for (bn, bk) in self._backends.items()},
                 hints=self._hints,
                 layout=self._layout,
@@ -297,6 +298,9 @@ def vbox(*args: Any, **kw: Any) -> Proxy:
 
 def hbox(*args: Any, **kw: Any) -> Proxy:
     return _container(ipw.HBox(), *args, **kw)
+
+def gridbox(*args: Any, **kw: Any) -> Proxy:
+    return _container(ipw.GridBox(), *args, **kw)
 
 
 def stack(*args: Any, **kw: Any) -> Proxy:
@@ -398,8 +402,8 @@ def _static_value_widget(widget: ipw.DOMWidget, **kw: Any) -> Proxy:
     return proxy
 
 
-def label(*args: Any, **kw: Any) -> Proxy:
-    return _static_value_widget(ipw.Label(*args), **kw)
+def label(value: str = '', **kw: Any) -> Proxy:
+    return _static_value_widget(ipw.Label(), value=value, **kw)
 
 
 def file_upload(descr: str | None = None, **kw: Any) -> Proxy:
@@ -449,6 +453,8 @@ def restore(
         classname = bulk["classname"]
         if classname in ctx:
             widget_cls = ctx[classname]
+        elif classname in custom:
+            widget_cls = custom[classname]
         else:
             widget_cls = ipw.__dict__[classname]
         if "children" in bulk:

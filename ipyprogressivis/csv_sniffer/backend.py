@@ -18,7 +18,7 @@ from ipyprogressivis.ipywel import Proxy
 
 # from traitlets import HasTraits, observe, Instance
 
-from typing import Any, cast, Self
+from typing import Any, cast, Self, Hashable
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,7 @@ class CSVSniffer:
         self.progressivis: dict[str, Any] = {}
         self._df: pd.DataFrame | None = None
         self._df2: pd.DataFrame | None = None
-        self._types: dict[str, str] | None = None
+        self._types: dict[Hashable, str] | None = None
         # self.column_info: List[PColumnInfo] = []
         ## No widgets
         self.column: dict[str, PColumnInfo] = dict()
@@ -114,14 +114,14 @@ class CSVSniffer:
         self.head_text: str = ""
         self.df_text: str = ""
         self.df2_text: str = ""
-        self._rename: list[str] | None = None
         self.dayfirst = False
         self.date_format = "mixed"
         self.header = -1
         self.skiprows = 0
         self.true_values = ""
         self.false_values = ""
-        self.na_values = ""
+        #self.na_values = ""
+        self._names_types: dict[Hashable, str] = dict()
         self.clear()
         self.dataframe()
 
@@ -290,41 +290,41 @@ class CSVSniffer:
             if column not in df.columns:
                 col = self.column[column]
                 del self.column[column]
-        # self.columns = list(df.columns)
-        # self.show_column(df.columns[0])
 
-    def rename_columns(self) -> Self:
-        assert self._df is not None
-        names = [self.column[col].rename for col in self._df.columns]
-        self._rename = names  # type: ignore
-        self.params["names"] = names
-        self.set_cmdline()
-        return self
-
-    def usecols_columns(self) -> Self:
-        assert self._df is not None
-        names = [col for col in self._df.columns if self.column[col].use]
-        if names == list(self._df.columns):
-            if "usecols" in self.params:
-                del self.params["usecols"]
-        else:
-            self.params["usecols"] = names
-        self.set_cmdline()
-        return self
-
-    def retype_columns(self) -> Self:
-        types: dict[str, str] = {}
-        parse_dates: list[str] = []
+    def rename_retype_use_columns(self) -> Self:
+        types: dict[Hashable, str] = dict()
+        parse_dates: list[Hashable] = []
+        usecols: list[Hashable] = []
+        names: list[Hashable] = []
+        needs_names = False
+        names_types: dict[Hashable, str] = dict()
+        na_values: dict[Hashable, list[str]] = dict()
         assert self._df is not None
         for name in list(self._df.columns):
             col = self.column[name]
-            if col.use and col.default_type != col.retype:
-                type = col.retype
-                if type == "datetime":
-                    types[name] = "str"
-                    parse_dates.append(name)
+            rname = col.rename
+            names.append(rname)
+            names_types[rname] = col.retype
+            if rname != col.name:
+                needs_names = True
+            if col.use:
+                usecols.append(rname)
+            else:
+                continue
+            if col.default_type != col.retype:
+                type_ = col.retype
+                if type_ == "datetime":
+                    types[rname] = "str"
+                    parse_dates.append(rname)
                 else:
-                    types[name] = type
+                    types[rname] = type_
+            raw = col.na_values_
+            if raw:
+                na_values[rname] = raw.split(",")
+            else:
+                na_values.pop(rname, None)
+
+        # retypes
         if types:
             self._types = {
                 col: typ for (col, typ) in types.items() if col not in parse_dates
@@ -335,33 +335,40 @@ class CSVSniffer:
                 self.params["dtype"] = self._types
         else:
             self._types = None
-            if "dtype" in self.params:
-                del self.params["dtype"]
+            self.params.pop("dtype", None)
+        self._names_types = names_types
         if parse_dates:
             self.params["parse_dates"] = parse_dates
             self.params["dayfirst"] = self.dayfirst
             self.params["date_format"] = self.date_format
-        self.set_cmdline()
-        return self
-
-    def na_values_columns(self) -> Self:
-        assert self._df is not None
-        na_values: dict[str, Any] = {}
-        for name in list(self._df.columns):
-            col = self.column[name]
-            raw = col.na_values_
-            if raw:
-                na_values[name] = raw.split(",")
-            else:
-                na_values.pop(name, None)
+        # usecols
+        if names == usecols:
+            if "usecols" in self.params:
+                del self.params["usecols"]
+        else:
+            self.params["usecols"] = usecols
+        # renames
+        if needs_names:
+            self.params["names"] = names
+        else:
+            self.params.pop("names", None)
+        # na values
         if na_values:
             self.params["na_values"] = na_values
-        else:
-            self.params.pop("na_values", None)
+        # cmd line
         self.set_cmdline()
         return self
 
-    def update_backend(self, proxy: Proxy, force: bool = False) -> Self:
+    def get_names_types(self) -> dict[Hashable, str]:
+        if not self._names_types:
+            self.rename_retype_use_columns()
+            assert self._names_types
+        return self._names_types
+
+    def get_names(self) -> list[Hashable]:
+        return list(self.get_names_types().keys())
+
+    def update_backend(self, proxy: Proxy, force: bool = False, sync: bool = False) -> Self:
         assert hasattr(proxy.that.columns.widget, "options")
         col_options = proxy.that.columns.widget.options
         for col, _ in col_options:
@@ -372,7 +379,7 @@ class CSVSniffer:
                 continue
             col_info.retype = proxy.lookup(f"c_retype_{col}").widget.value
             col_info.rename = proxy.lookup(f"c_rename_{col}").widget.value
-        self.usecols_columns()
+            col_info.na_values_ = proxy.lookup(f"c_na_{col}").widget.value
         self.delimiter = proxy.that.delimiter.widget.value
         self.dayfirst = proxy.that.dayfirst.widget.value
         self.date_format = proxy.that.date_format.widget.value
@@ -380,10 +387,22 @@ class CSVSniffer:
         self.skiprows = proxy.that.skiprows.widget.value
         self.true_values = proxy.that.true_values.widget.value
         self.false_values = proxy.that.false_values.widget.value
-        self.na_values = proxy.that.na_values.widget.value
+        if not proxy.that.per_col_na.widget.value:
+            na_values = proxy.that.na_values.widget.value
+            if na_values:
+                self.params["na_values"] = na_values.split(",")
+            else:
+                self.params.pop("na_values", None)
+        else:  # per col na values
+            self.params.pop("na_values", None)
+        if sync:
+            self.sync_cmdline(proxy)
         if force:
             self.dataframe(force=True)
+        self.rename_retype_use_columns()
+        proxy.that.cmdline.attrs(value=self.cmdline)
         return self
+
 
     def sync_cmdline(self, proxy: Proxy) -> Self:
         self.update_backend(proxy)
@@ -406,7 +425,6 @@ class PColumnInfo:
         "uint64",
         "float32",
         "float64",
-        "str",
     ]
     object_types = ["object", "str", "category", "datetime"]
 
@@ -429,12 +447,9 @@ class PColumnInfo:
         type = self.series.dtype.name
         if type in self.numeric_types:
             return self.numeric_types
-        elif type == "object":
+        elif type in self.object_types:
             return self.object_types + self.numeric_types
         return [type]
-
-    def retype_column(self, change: dict[str, Any]) -> None:
-        self.sniffer.retype_columns()
 
     def set_attributes(self, **kw: Any) -> Self:
         for k, w in kw.items():

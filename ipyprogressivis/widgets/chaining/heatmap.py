@@ -3,14 +3,13 @@ from .utils import (
     is_leaf,
     no_progress_bar,
     chaining_widget,
-    disable_all,
     VBox,
     needs_dtypes,
     # replay_next,
     runner,
-    GuestWidget,
     Coro,
     modules_producer,
+    restore_on_replay
 )
 from ipyprogressivis.ipywel import (
     Proxy,
@@ -22,7 +21,6 @@ from ipyprogressivis.ipywel import (
     bounded_float_text,
     int_slider,
     image,
-    restore,
 )
 
 import ipywidgets as ipw
@@ -81,9 +79,6 @@ def make_float(
 class HeatmapW(VBox):
     def __init__(self) -> None:
         super().__init__()
-        self.column_x: str = ""
-        self.column_y: str = ""
-        self.has_quantiles: bool = False
         self._heatmap: Heatmap | None = None
         self._last_display: int = 0
 
@@ -95,12 +90,8 @@ class HeatmapW(VBox):
         ] + [("", "")]
 
     def obs_columns(self, proxy: Proxy, change: dict[str, AnyType]) -> None:
-        if proxy.that.choice_x.widget.value and proxy.that.choice_y.widget.value:
-            proxy.that.start_btn.attrs(disabled=False)
-            self.column_x = proxy.that.choice_x.widget.value.split(":")[0]
-            self.column_y = proxy.that.choice_y.widget.value.split(":")[0]
-        else:
-            proxy.that.start_btn.attrs(disabled=True)
+        has_x_y = proxy.that.choice_x.widget.value and proxy.that.choice_y.widget.value
+        proxy.that.start_btn.attrs(disabled=not has_x_y)
 
     def obs_trans(self, proxy: Proxy, change: dict[str, AnyType]) -> None:
         if self._heatmap is not None:
@@ -109,14 +100,16 @@ class HeatmapW(VBox):
     def obs_gaussian_blur(self, proxy: Proxy, change: dict[str, AnyType]) -> None:
         if self._heatmap is not None:
             self._heatmap.params.gaussian_blur = int(change["new"])
-
+    @property
+    def has_quantiles(self) -> bool:
+        return isinstance(self.input_module, Quantiles)
     @needs_dtypes
+    @restore_on_replay
     def initialize(self) -> None:
+        print("initialize heatmap", self.dtypes, flush=True)
         self.output_dtypes = self.dtypes
         self.col_types = {k: str(t) for (k, t) in self.dtypes.items()}
         self.col_typed_names = {f"{n}:{t}": (n, t) for (n, t) in self.col_types.items()}
-
-        self.has_quantiles = isinstance(self.input_module, Quantiles)
         self._proxy = anybox(
             self,
             dropdown(
@@ -168,19 +161,21 @@ class HeatmapW(VBox):
         # replay_next()
 
     def fetch_parameters(self) -> dict[str, AnyType]:
+        assert self._proxy is not None
+        self_proxy = self._proxy
         return dict(
-            X=self._proxy.that.choice_x.widget.value.split(":")[0],
-            Y=self._proxy.that.choice_y.widget.value.split(":")[0],
-            dim=self._proxy.that.choice_dim.widget.value,
-            min_q=self._proxy.that.min_q.widget.value,
-            max_q=self._proxy.that.max_q.widget.value,
-            trans=self._proxy.that.choice_trans.widget.value,
-            blur=self._proxy.that.gaussian_blur.widget.value,
+            X=self_proxy.that.choice_x.widget.value.split(":")[0],
+            Y=self_proxy.that.choice_y.widget.value.split(":")[0],
+            dim=self_proxy.that.choice_dim.widget.value,
+            min_q=self_proxy.that.min_q.widget.value,
+            max_q=self_proxy.that.max_q.widget.value,
+            trans=self_proxy.that.choice_trans.widget.value,
+            blur=self_proxy.that.gaussian_blur.widget.value,
         )
 
     @starter_callback
     def _start_btn_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
-        assert self.column_x and self.column_y
+        assert self._proxy is not None
         content = self._proxy.dump()
         self.record = content  # saved for replay
         xy = self.fetch_parameters()
@@ -190,7 +185,6 @@ class HeatmapW(VBox):
     def init_modules(self, ctx: dict[str, AnyType]) -> Heatmap:
         col_x = ctx["X"]
         col_y = ctx["Y"]
-        print("XY", ctx)
         DIM = ctx["dim"]
         s = self.input_module.scheduler
         query = quantiles = self.input_module
@@ -223,32 +217,8 @@ class HeatmapW(VBox):
             self.after_run.proxy = self._proxy
             return heatmap
 
-    def provide_surrogate(self, title: str) -> GuestWidget:
-        disable_all(
-            self,
-            exceptions=(
-                self._proxy.that.image.widget,
-                self._proxy.that.choice_trans.widget,
-                self._proxy.that.gaussian_blur.widget,
-            ),
-        )
-        return self
-
     @runner
     def run(self) -> AnyType:
-        ui_dumped = self.record
-        self._proxy = restore(ui_dumped, globals(), obj=self)
-        assert hasattr(self._proxy.widget, "children")
-        self.children = self._proxy.widget.children
         content = self.fetch_parameters()
         self.output_module = self.init_modules(content)
         self.output_slot = "result"
-
-    def init_ui(self) -> None:
-        ui_dumped = self.record
-        self._proxy = restore(ui_dumped, globals(), obj=self)
-        options = self.get_num_cols()
-        self._proxy.that.choice_x.attrs(options=options)
-        self._proxy.that.choice_y.attrs(options=options)
-        assert hasattr(self._proxy.widget, "children")
-        self.children = self._proxy.widget.children
