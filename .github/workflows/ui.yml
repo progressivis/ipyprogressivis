@@ -24,9 +24,9 @@ jobs:
 
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
     - name: Setup Python ${{ matrix.python }}
-      uses: actions/setup-python@v2.3.1
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python }}
     - name: Setup Node
@@ -64,7 +64,7 @@ jobs:
         yarn run test:update
     - name: Upload images
       if: failure()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ipyprogressivis-updated-images-${{ matrix.python }}
         path: ui-tests/tests/end2end.test.ts-snapshots/
