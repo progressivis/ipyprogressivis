@@ -47,6 +47,7 @@ HOME = os.getenv("HOME")
 assert HOME is not None
 _0 = CSVSniffer  # keeps ruff happy
 
+
 def clean_nodefault(d: dict[str, Any]) -> dict[str, Any]:
     return {k: v for (k, v) in d.items() if type(v).__name__ != "_NoDefault"}
 
@@ -297,8 +298,9 @@ class CsvLoaderW(VBox):
     def _sniffer_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
         assert self._proxy is not None
         n_lines = self._proxy.that.n_lines.widget.value
-        for uid in ("start_stack", "save_stack", "save_file_stack"):
-            self._proxy.that.uid.attrs(selected_index=0)
+        self._proxy.that.start_stack.attrs(selected_index=0)
+        self._proxy.that.save_stack.attrs(selected_index=0)
+        self._proxy.that.save_file_stack.attrs(selected_index=0)
         snf_proxy = sniffer(self._to_sniff, n_lines)
         sniff_stack = self._proxy.that.sniffer
         if not sniff_stack._children:

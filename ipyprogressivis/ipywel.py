@@ -198,8 +198,8 @@ class Proxy:
 
     def lookup(self, name: str) -> "Proxy":
         root = self.get_root()
-        if name not in root._registry:
-            raise ValueError(f"{name} widget unknown")
+        # if name not in root._registry:
+        #     raise ValueError(f"{name} widget unknown")
         return root._registry[name]
 
     def backend(self, obj: Backend, *, name: str = "_") -> "Proxy":
