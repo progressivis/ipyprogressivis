@@ -8,7 +8,7 @@ from progressivis.core import aio
 class AfterRun(Coro):
     async def action(self, m: Module, run_number: int) -> None:
         assert self.leaf is not None
-        await cast(SlotWg, self.leaf.children[0]).refresh()  # type: ignore
+        await cast(SlotWg, self.leaf.children[0]).refresh()
 
 @chaining_widget(label="Dump table")
 class DumpPTableW(VBox):
