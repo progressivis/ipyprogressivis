@@ -39,6 +39,7 @@ jobs:
         python -m pip install -U ipywidgets
         jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
         python -m pip install hatch
+        rm ipyprogressivis/js/yarn.lock
         hatch build dist/
         python -m pip install dist/*.gz
 
@@ -67,4 +68,6 @@ jobs:
       uses: actions/upload-artifact@v7
       with:
         name: ipyprogressivis-updated-images-${{ matrix.python }}
-        path: ui-tests/tests/end2end.test.ts-snapshots/
+        path: |
+          ui-tests/tests/end2end.test.ts-snapshots/
+          ipyprogressivis/js/yarn.lock
