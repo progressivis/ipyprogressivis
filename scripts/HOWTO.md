@@ -9,19 +9,19 @@ In other words, you can edit and manage the documentation of a `ProgressiBook` i
 Indeed, you can merge the `ProgressiBook` and the underlying markdown file into a new `ProgressiBook` this way:
 
 ```sh
-$ python tools/merge_nb_markdown.py -p notebooks/userguide-widgets1.1.ipynb -m notebooks/userguide-widgets1.1.md -o /tmp/foo.ipynb
+$ python scripts/merge_nb_markdown.py -p notebooks/userguide-widgets1.1.ipynb -m notebooks/userguide-widgets1.1.md -o /tmp/foo.ipynb
 ```
 
 You can also write the result to the current ProgressiBook using the overwrite option:
 
 ```sh
-$ python tools/merge_nb_markdown.py -w -p notebooks/userguide-widgets1.1.ipynb -m notebooks/userguide-widgets1.1.md
+$ python scripts/merge_nb_markdown.py -w -p notebooks/userguide-widgets1.1.ipynb -m notebooks/userguide-widgets1.1.md
 ```
 
 A help is also available:
 
 ```sh
-$ python tools/merge_nb_markdown.py --help
+$ python scripts/merge_nb_markdown.py --help
 Usage: merge_nb_markdown.py [OPTIONS]
 
 Options:
@@ -41,13 +41,13 @@ ProgressiBooks cannot be converted to clean html via `jupyter nbconvert`command 
 
 
 ```sh
-$ python tools/nb_to_doc_html.py -p notebooks/userguide-widgets1.1.ipynb -o notebooks/
+$ python scripts/nb_to_doc_html.py -p notebooks/userguide-widgets1.1.ipynb -o notebooks/
 ```
 
 A help is also available:
 
 ```sh
-$ python tools/nb_to_doc_html.py --help
+$ python scripts/nb_to_doc_html.py --help
 Usage: nb_to_doc_html.py [OPTIONS]
 
 Options:
