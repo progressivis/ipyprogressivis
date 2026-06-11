@@ -15,6 +15,7 @@ import random
 from functools import wraps, partial
 from progressivis.table.dshape import dataframe_dshape
 from progressivis.vis import DataShape
+from progressivis.table.dshape import dshape_fields
 from progressivis.core.api import Sink, Module, Scheduler
 from progressivis.table.api import TableFacade
 from progressivis.core.utils import normalize_columns
@@ -347,6 +348,9 @@ def needs_dtypes(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
                 self_.carrier._output_dtypes = None
                 func(*args, **kwargs)
                 return
+            print("******************************************************************************************************")
+            print("need_types callback **********************************************************************************")
+            print("******************************************************************************************************")
             self_.parent.compute_dtypes_then_call(func, args, kwargs)
             return
         else:
@@ -412,14 +416,14 @@ def labcommand(cmd: str, **kw: AnyType) -> None:
         cell_content = code
         _ = cell_content
         line = code.split("\n")[0]
-        wg = line.replace(".run()", "")
+        wg = line.replace(".replay()", "").replace("await ", "")
         md = kw["md"]
         tag = kw["tag"]
         widget_list.append((md, wg, tag))
         code = (
             "from ipyprogressivis.widgets.chaining.constructor import Constructor\n"
             "from ipyprogressivis.widgets.chaining.utils import get_header\n"
-        ) + code
+        ) + code.replace("await ", "").replace(".replay()", ".run()")
         exec(code)
         return
     hdr = PARAMS["header"]
@@ -582,7 +586,7 @@ def replay_sequence(obj: "Constructor") -> None:
             rw=False,
             run=True,
         )
-        time.sleep(5)
+        # time.sleep(5)
 
 
 def create_root(backup: BackupWidget) -> None:
@@ -948,8 +952,10 @@ def replay_new_stage(
 
 
 class ChainingProtocol(Protocol):
-    _output_dtypes: Optional[dict[str, str]]
+    _output_dtypes: dict[str, str] | None
     _output_module: ModuleOrFacade
+    _chain_it_btn: ipw.Button | None = None
+    _chain_it_sel: ipw.Dropdown | None = None
     title: str
     guest: "GuestWidget"
 
@@ -964,7 +970,10 @@ class ChainingProtocol(Protocol):
 
 class ChainingMixin:
     _output_module: ModuleOrFacade
+    _output_dtypes: dict[str, str] | None
     managed_modules: set[str]
+    _chain_it_btn: ipw.Button | None = None
+    _chain_it_sel: ipw.Dropdown | None = None
 
     def _make_btn_chain_it_cb(
         self: ChainingProtocol,
@@ -1023,7 +1032,7 @@ class ChainingMixin:
 
     def _make_footer(self: ChainingProtocol, batch: bool = False) -> ipw.Box:
         def _on_sel_change(change: Any) -> None:
-            if change["new"]:
+            if change["new"] and self._output_dtypes is not None:
                 btn.disabled = False
             else:
                 btn.disabled = True
@@ -1036,7 +1045,7 @@ class ChainingMixin:
         prog_wg = self._progress_bar() if guest._show_progress else None  # type: ignore
         qual_wg = self._quality_bar() if guest._show_quality else None  # type: ignore
         if guest._is_chainable and not batch:
-            sel = ipw.Dropdown(
+            self._chain_it_sel = sel = ipw.Dropdown(
                 options=[""]
                 + list(sorted(stage_register.keys()))
                 + list(LOADERS.keys()),
@@ -1051,7 +1060,7 @@ class ChainingMixin:
                 disabled=False,
                 style={"description_width": "initial"},
             )
-            btn = make_button(
+            self._chain_it_btn = btn = make_button(
                 "Chain it", disabled=True, cb=self._make_btn_chain_it_cb(sel, alias)
             )
             sel.observe(_on_sel_change, names="value")
@@ -1072,8 +1081,8 @@ def get_previous(obj: "ChainingWidget") -> "ChainingWidget":
     return get_previous(obj.subwidgets[-1])
 
 
-new_stage_cell_0 = "Constructor.widget('{key}'){end}\n"
-new_stage_cell = "Constructor.widget('{key}', {num}){end}"
+new_stage_cell_0 = "{begin}Constructor.widget('{key}'){end}\n"
+new_stage_cell = "{begin}Constructor.widget('{key}', {num}){end}"
 
 
 def is_replay() -> bool:
@@ -1095,13 +1104,15 @@ def is_replay_batch() -> bool:
 def get_stage_cell(
     key: str, num: int, end: str, frozen: AnyType = None
 ) -> tuple[str, bool, bool]:
-    return new_stage_cell.format(key=key, num=num, end=end), False, True
+    begin = "await " if end else ""
+    return new_stage_cell.format(key=key, num=num, begin=begin, end=end), False, True
 
 
 def get_loader_cell(
     key: str, ftype: str, num: int, end: str, frozen: AnyType = None
 ) -> tuple[str, bool, bool]:
-    return new_stage_cell.format(key=key, num=num, end=end), False, True
+    begin = "await " if end else ""
+    return new_stage_cell.format(key=key, num=num, begin=begin, end=end), False, True
 
 
 def add_new_stage(
@@ -1117,7 +1128,7 @@ def add_new_stage(
     n = stage.number
     end = ""
     if frozen is not None and is_replay():
-        end = ".run()"
+        end = ".replay()"
         stage._is_replaying = True
     stage.children[IGUEST].initialize()  # type: ignore
     if alias:
@@ -1166,7 +1177,7 @@ def add_new_loader(
     n = stage.number
     end = ""
     if frozen is not None and is_replay():
-        end = ".run()"
+        end = ".replay()"
         stage._is_replaying = True
     stage.children[IGUEST].initialize()  # type: ignore
     if alias:
@@ -1497,6 +1508,13 @@ class NodeCarrier(NodeVBox):
         self.children[IGUEST].initialize()  # type: ignore
         return self.children[IGUEST].run()  # type: ignore
 
+    async def replay(self) -> None:
+        # TODO: add here the logic for waiting input_dtypes to be computed
+        assert self.children[IGUEST].frozen_kw is not None  # type: ignore
+        self._is_replaying = True
+        self.children[IGUEST].initialize()  # type: ignore
+        return self.children[IGUEST].run()  # type: ignore
+
     def make_footer(self, batch: bool = False) -> None:
         if len(self.children) > BOX_SIZE:
             raise ValueError("The chaining box already exists")
@@ -1653,6 +1671,27 @@ def restore_on_replay(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyT
 
     return _wrapper
 
+def output_dtypes_proc_factory(guest: GuestWidget) -> Callable[..., AnyType]:
+    async def dtype_proc_cb(m: Module, run_n: int) -> None:
+        res = getattr(m, guest.output_slot)
+        if res is None:
+            return
+        dtypes = {
+            k: "datetime64" if str(v)[0] == "6" else str(v)
+            for (k, v) in  dshape_fields(res.dshape)
+        }
+        guest.output_dtypes = dtypes
+        for fnc in m._after_run:
+            if fnc.__name__ == "dtype_proc_cb":
+                m._after_run.remove(fnc)
+                break
+        carrier = guest.carrier
+        if carrier._chain_it_btn is not None and carrier._chain_it_sel is not None and carrier._chain_it_sel.value:
+            carrier._chain_it_btn.disabled = False
+
+
+    return dtype_proc_cb
+
 def modules_producer(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyType]:
     """
     Decorator for method which create modules
@@ -1665,13 +1704,15 @@ def modules_producer(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyTy
         """
         s = self_.input_module.scheduler
         mods_before = set(s.modules().keys())
-        ret = to_decorate(self_, *args, **kwargs)
+        ret_m = to_decorate(self_, *args, **kwargs)
         if s.dataflow:
             mods_after = set(s.dataflow.modules().keys())
         else:
             mods_after = set(s.modules().keys())
         self_.carrier.managed_modules = mods_after.difference(mods_before)
-        return ret
+        if ret_m is not None and self_.output_dtypes is None:
+            ret_m.on_after_run(output_dtypes_proc_factory(self_))
+        return ret_m
 
     return _wrapper
 
