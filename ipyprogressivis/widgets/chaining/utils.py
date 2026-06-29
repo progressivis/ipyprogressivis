@@ -1673,7 +1673,7 @@ def restore_on_replay(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyT
 
 def output_dtypes_proc_factory(guest: GuestWidget) -> Callable[..., AnyType]:
     async def dtype_proc_cb(m: Module, run_n: int) -> None:
-        res = getattr(m, guest.output_slot)
+        res = getattr(m, guest.output_slot, None)
         if res is None:
             return
         dtypes = {
