@@ -35,13 +35,13 @@ jobs:
         node-version: '25'
     - name: Install dependencies
       run: |
-        python -m pip install jupyterlab==4.5.4
         python -m pip install -U ipywidgets
-        jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
         python -m pip install hatch
         rm ipyprogressivis/js/yarn.lock
         hatch build dist/
         python -m pip install dist/*.gz
+        python -m pip install jupyterlab==4.5.4
+        jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
 
     - name: Start Jupyterlab
       run: |
