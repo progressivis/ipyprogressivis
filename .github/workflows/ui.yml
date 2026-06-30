@@ -77,3 +77,9 @@ jobs:
       with:
         name: jupyter-server-log-${{ matrix.python }}
         path: /tmp/jupyterlab.log
+    - name: Upload playwright traces
+      if: failure()
+      uses: actions/upload-artifact@v7
+      with:
+        name: playwright-traces-${{ matrix.python }}
+        path: ui-tests/test-results/
