@@ -71,3 +71,9 @@ jobs:
         path: |
           ui-tests/tests/end2end.test.ts-snapshots/
           ipyprogressivis/js/yarn.lock
+    - name: Upload server logs
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: jupyter-server-log-${{ matrix.python }}
+        path: /tmp/jupyterlab.log
