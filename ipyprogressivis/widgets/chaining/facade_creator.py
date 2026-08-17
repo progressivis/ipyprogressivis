@@ -8,7 +8,8 @@ import progressivis.core.aio as aio
 from progressivis.table.api import RangeQuery, TableFacade
 from progressivis.stats.api import Histogram1D, KLLSketch
 from ..df_grid import DataFrameGrid
-from .utils import (TreeTab, make_button, VBox, TypedBase, IpyVBoxTyped, starter_callback,
+from .tab_tools import TreeTab
+from .utils import (make_button, VBox, TypedBase, IpyVBoxTyped, starter_callback,
                     amend_last_record, is_recording, runner, needs_dtypes,
                     modules_producer)
 from progressivis.io.api import Variable

@@ -27,7 +27,8 @@ from .._hist1d_schema import hist1d_spec_no_data, kll_spec_no_data
 from .._hist2d_schema import hist2d_spec_no_data
 from .._corr_schema import corr_spec_no_data
 from .._bar_schema import bar_spec_no_data
-from .utils import TreeTab, make_button, VBox, needs_dtypes
+from .tab_tools import TreeTab
+from .utils import make_button, VBox, needs_dtypes
 from ..utils import historized_widget, HistorizedBox
 
 from typing import (

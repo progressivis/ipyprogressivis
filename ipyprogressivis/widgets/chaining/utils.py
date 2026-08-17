@@ -41,7 +41,6 @@ from typing import (
     Type,
     Any as AnyType,
     Optional,
-    Set,
     Callable,
     Iterable,
     Sequence,
@@ -78,6 +77,13 @@ IGUEST = 1
 BOX_SIZE = 5
 
 def json_editor(descr: str | None = None, **kw: AnyType) -> Proxy:
+    """
+    ipywel wrapper for the custom JSonEditor
+
+    Args:
+        descr: description
+        **kw: other widget attributes to set
+    """
     kw2 = dict() if descr is None else dict(description=descr)
     proxy = Proxy(JsonEditor())
     proxy.attrs(**kw, **kw2)
@@ -101,6 +107,20 @@ def make_button(
     tooltip: str = "",
     **kw: Any,
 ) -> ipw.Button:
+    """
+    Shortcut function to create a button with its on_click() callback
+
+    Args:
+        label: see ipywidgets.Button
+        disabled: see ipywidgets.Button
+        cb: on_click() callback
+        icon: see ipywidgets.Button
+        button_style: see ipywidgets.Button
+        tooltip: see ipywidgets.Button
+
+    Returns:
+        the created button
+    """
     btn = ipw.Button(
         description=label,
         disabled=disabled,
@@ -122,14 +142,40 @@ BTN_DEL.layout.justify_content = "flex-end"
 
 
 def enable_all(wg: Any, exceptions: Sequence[Any] = tuple()) -> None:
+    """
+    Enable an ipywidget, recurse on containers, skip the exceptions
+
+    Args:
+        wg: the "root" widget
+        exceptions: sub-widgets to skip
+    """
     if hasattr(wg, "disabled") and wg not in exceptions:
         wg.disabled = False
     if hasattr(wg, "children") and wg not in exceptions:
         for ch in wg.children:
             enable_all(ch, exceptions)
 
+def disable_all(wg: Any, exceptions: Sequence[Any] = tuple()) -> None:
+    """
+    the opposite of the function above
+    """
+    if hasattr(wg, "disabled") and wg not in exceptions:
+        wg.disabled = True
+    if hasattr(wg, "children") and wg not in exceptions:
+        for ch in wg.children:
+            disable_all(ch, exceptions)
 
 def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
+    """
+    The Trash button's callback (applied via a partial) deletes a subgraph of widgets.
+    It does not delete the objects directly, but instead builds a list of objects to be
+    deleted and displays a dialog box with the list of items to be deleted, allowing the user to confirm or cancel.
+
+    Args:
+       b: the button widget (part of the standard on_click() callback signature, unused)
+       box: box where to include the suppression dialog - provided via partial()
+       obj: c-widget proposed for deletion (as well as its sub-widgets) - provided via partial()
+    """
     guest_backup = cast(ipw.Box, obj.children[IGUEST]).children
     cast(ipw.Box, obj.children[IGUEST]).children = [dongle_widget()]
     objects = [obj]
@@ -168,10 +214,16 @@ def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
     sio.write(end)
 
     def _cancel(b: AnyType) -> None:
+        """
+        Cancel button callback
+        """
         make_trash_box(obj, box)
         cast(ipw.Box, obj.children[IGUEST]).children = guest_backup
 
     def _confirm(b: AnyType) -> None:
+        """
+        Confirm button callback
+        """
         if obj.parent is not None and obj in obj.parent.subwidgets:
             obj.parent.subwidgets.remove(obj)
         i = obj.children[IGUEST]._record_index  # type: ignore
@@ -188,7 +240,7 @@ def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
                 del widget_by_key[(obj_.label, obj_.number)]
         if not len(widget_by_key):
             enable_all(PARAMS["header"].constructor)
-
+    # building the deletion dialog box
     vbox = ipw.VBox(
         [
             ipw.HTML(sio.getvalue()),
@@ -206,6 +258,9 @@ def _process_trash(b: AnyType, *, box: ipw.HBox, obj: "NodeCarrier") -> None:
 
 
 def make_trash_box(obj: "NodeCarrier", box: ipw.HBox | None = None) -> ipw.HBox:
+    """
+    Build the trash button (first-level, the red trash) with it's callback
+    """
     trash_btn = make_button("", icon="trash", button_style="danger")
     if box is None:
         box = ipw.HBox([trash_btn])
@@ -229,6 +284,13 @@ LOADERS = {"CSV loader": "csv", "PARQUET loader": "parquet", "CUSTOM loader": "c
 
 
 def dot_progressivis() -> str:
+    """
+    Returns:
+        the path to the `.progressivis` dir if it exists else returns ""
+        It check the existence of `.progressivis` in this order:
+        1. In the homedir
+        2. In the root of the source code (where `.progressivis` exists in dev mode)
+    """
     home = HOME
     pv_dir: Path | str = f"{home}/.progressivis/"
     if os.path.isdir(pv_dir):
@@ -276,7 +338,23 @@ def shuffle_urls(urls: list[str]) -> list[str]:
 
 
 def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
+    """
+    Decorator for the `run()` method, whitch defines for each c-widget
+    the replay processing.
+
+    Args:
+        func: the run() method to be wrapped
+
+    Returns:
+        the wrapper below
+    """
     def wrapper(*args: Any, **kwargs: Any) -> "NodeCarrier":
+        """
+        Wraps `func` in different ways depending on the replay mode:
+        * In step-by-step mode, creates and displays a button bar with
+        the appropriate callbacks for Continue/Edit/Delete
+        * In batch mode adds a post-processing that ensures chaining
+        """
         self_ = args[0]
         assert isinstance(self_, GuestWidget)
         if PARAMS["step_by_step"]:
@@ -319,19 +397,36 @@ def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
                 box,
             )
             return self_.carrier
-        else:
+        else:  # batch mode
             func(*args, **kwargs)
             content = copy.copy(self_.frozen_kw)
             if not is_replay_batch():
                 amend_last_record({"frozen": content})
-            #time.sleep(5) # avoiding 'IOPub message rate exceeded.' server error
             return self_.post_run(self_.carrier.title)
 
     return wrapper
 
 
 def needs_dtypes(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
+    """
+    A decorator to apply to `initialize()` method if it requires the schema of the  input table
+    (for example, to display the list of columns). In principle, this could apply to any other
+    situation requiring dtypes, but in practice, such a need has not arisen.
+
+    Args:
+        func: the `initialize()` method to be wrapped
+
+    Returns:
+        the wrapper below
+    """
     def wrapper(*args: Any, **kwargs: Any) -> None:
+        """
+        If the `dtype` attribute is already set, `func()` is called directly.
+        Otherwise, it attempts to set the `dtype` synchronously before calling
+        `func()` (if possible). In the worst-case scenario, a dedicated procedure
+        is launched to determine the input table structure, which will then call
+        `func()` as a callback once the `dtype` has been set.
+        """
         self_ = args[0]
         assert isinstance(self_, GuestWidget)
         if isinstance(self_.input_module, Sink):
@@ -348,9 +443,6 @@ def needs_dtypes(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
                 self_.carrier._output_dtypes = None
                 func(*args, **kwargs)
                 return
-            print("******************************************************************************************************")
-            print("need_types callback **********************************************************************************")
-            print("******************************************************************************************************")
             self_.parent.compute_dtypes_then_call(func, args, kwargs)
             return
         else:
@@ -363,6 +455,24 @@ def needs_dtypes(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
 @dataclass
 class Header:
     _: KW_ONLY
+    """
+    Brings together the global objects necessary for a progressibook to run.
+    They are:
+
+    * Talker: custom ipywidgets-alike object handling communications between the
+      kernel and the jupyterlab frontend
+    * BackupWidget: custom ipywidgets-alike object responsible for saving the
+      states of widgets in the progressibook's metadata
+    * DagWidgetController: custom ipywidgets-alike object responsible for displaying
+      the DAG of c-widgets of the current scenario
+    * Constructor: this is the bootstrap interface
+    * PsBoard: displays infos about modules
+
+    DagWidgetController and PsBoard objects are displayed in individual panels outside
+    the notebook via two Sidecar widgets
+    NB: In practice `Header()` is used as a singleton (unique instance) even though
+    it is not implemented as one
+    """
     start: bool
     talker: Talker
     backup: BackupWidget
@@ -375,6 +485,9 @@ class Header:
 
 def get_header() -> Header:
     """
+    Creates and initialize the global objects of the progressibook then
+    groups them into a `Header()` object.
+
     NB: call this function ONLY from the first cell of the notebook!!
     """
     from ipyprogressivis.widgets.chaining.constructor import Constructor
@@ -411,6 +524,20 @@ def get_backup_widget() -> BackupWidget:
 
 
 def labcommand(cmd: str, **kw: AnyType) -> None:
+    """
+    Sends [jupyterlab commands](https://jupyterlab.readthedocs.io/en/4.4.x/user/commands.html)
+    from the kernel to the jupyterlab frontend. In practice, this function is used mainly to
+    send custom commands defined [here](https://github.com/progressivis/ipyprogressivis/blob/main/ipyprogressivis/js/src/labplugin.js)
+    There is one exception to this behaviour: when "progressivis:create_stage_cells" command
+    is asked in replay-batch mode, the command is not sent to the frontend. Instead, the
+    underlying code is execute synchronously via `exec()` and the cell is not displayed (actually
+    it will be displyed later). That's because the execution of cells via the jupyterlab
+    command is not synchronous and the order of execution is not guaranteed.
+
+    Args:
+        cmd: the jupyterlab command
+        **kw: the command (always named) arguments
+    """
     if is_replay_batch() and cmd == "progressivis:create_stage_cells":
         code = kw["code"]
         cell_content = code
@@ -429,6 +556,14 @@ def labcommand(cmd: str, **kw: AnyType) -> None:
     hdr = PARAMS["header"]
     hdr.talker.labcommand(cmd, kw)
 
+"""
+NB: Backups are base64-encoded,  but not the entire scenario at once.
+To avoid encoding/decoding operations on excessively large volumes, each widget state
+is encoded in its own base-64 block, and the whole set is saved by concatenating the blocks, separated by ";" like this:
+
+    block1;block2; ... ;blockN
+"""
+
 
 def json2b64(json_: AnyType) -> str:
     return base64.b64encode(json.dumps(json_).encode()).decode()
@@ -439,10 +574,16 @@ def b642json(b64str: str) -> AnyType:
 
 
 def bpack(bak: list[AnyType]) -> str:
+    """
+    Concatenate backup blocks
+    """
     return ";".join([json2b64(elt) for elt in bak])
 
 
 def bunpack(bstr: str) -> list[AnyType]:
+    """
+    Split the entire backup in base-64 blocs
+    """
     return bstr.split(";")
 
 
@@ -455,6 +596,16 @@ def dump_backup(s: str) -> AnyType:
 
 
 class Recorder:
+    """
+    Process the entire backup as a tape, where each base-64 block is a "record"
+    NB: Do not confuse this Recorder() and BackupWidget() !
+    The Recorder is a one-way, write-only tool which send the tape content to
+    the jupyterlab frontend via "progressivis:set_backup" jupyterlab command.
+    Lab commands are not able to read content from the frontend
+    In order to read a previous backend stored in the notebook (for replay it) one need
+    BackupWidget()
+    NB: The Record() instance is unique
+    """
     def __init__(self, value: str = "") -> None:
         self.tape = value
 
@@ -462,12 +613,19 @@ class Recorder:
         return not self.tape
 
     def add_to_record(self, content: dict[str, AnyType]) -> None:
+        """
+        Add a new record to the end of the tape and send the whole tape to the frontend
+        If the tape is empty it create a one element tape
+        """
         self.tape = (
             self.tape + ";" + json2b64(content) if self.tape else json2b64(content)
         )
         labcommand("progressivis:set_backup", backup=self.tape)
 
     def amend_nth_record(self, nth: int, content: dict[str, AnyType]) -> None:
+        """
+        Replace a record identified by its index (position in the tape)
+        """
         unpacked = bunpack(self.tape)
         current = b642json(unpacked[nth])
         current.update(content)
@@ -485,6 +643,10 @@ class Recorder:
 def get_recorder() -> Recorder:
     return cast(Recorder, PARAMS.get("recorder"))
 
+#
+# Since Recorder instance is unique all Recorder methods are available
+# via homonymes shortcut functions below:
+#
 
 def add_to_record(content: dict[str, AnyType]) -> None:
     rec = get_recorder()
@@ -521,13 +683,14 @@ def reset_recorder(previous: str = "", init_val: str = "") -> None:
     labcommand("progressivis:set_backup", backup=init_val)
 
 
-def restore_recorder() -> None:
-    if "previous_recorder" in PARAMS:
-        PARAMS["recorder"] = PARAMS["previous_recorder"]
-        labcommand("progressivis:set_backup", backup=PARAMS["recorder"].tape)
-
-
 def replay_next(obj: Optional[Union["Constructor", "NodeVBox"]] = None) -> None:
+    """
+    Replay the next stage (c-widget). It is the first element in `replay_list`
+    because elements are removed from the list before where replayed
+
+    Args:
+        obj: known when it is the `Constructor()` or in step-by-step mode. Else it is None
+    """
     if not is_replay():
         return
     if not replay_list:
@@ -559,12 +722,24 @@ def replay_next(obj: Optional[Union["Constructor", "NodeVBox"]] = None) -> None:
 
 
 def replay_next_if(obj: Optional[Union["Constructor", "NodeVBox"]] = None) -> None:
+    """
+    Conditional replay_next. See `replay_next()` above
+    """
     if is_replay_batch():
         return
     return replay_next(obj)
 
 
 def replay_sequence(obj: "Constructor") -> None:
+    """
+    Replay the current scenario in batch mode. Triggered from the "Replay all" button in Constructor() interface
+    The replay is done in two steps:
+
+    1. The cell codes are executed synchronously (see the exception explained in `labcommand()`
+    docstring) and the `widget_list` is filled. REPLAY_BATCH is switched to False which will
+    change the labcommand() behaviour (accoding to the exception mentioned above).
+    2. The `widget_list` is iterate over and the underlying cells are displayed
+    """
     global REPLAY_BATCH
     REPLAY_BATCH = True
     md_list.clear()
@@ -586,10 +761,14 @@ def replay_sequence(obj: "Constructor") -> None:
             rw=False,
             run=True,
         )
-        # time.sleep(5)
 
 
 def create_root(backup: BackupWidget) -> None:
+    """
+    Function in charge of the bootstrap. It is called from the cell "zero"
+    of the progressibook (see ipyprogressivis/blob/main/ipyprogressivis/js/nb/ProgressiBook.ipynb)
+    and it must not be called elsewhere. It creates the "root" cells (two cells: markdown+code)
+    """
     code = (
         "# do not run this cell\n"
         "display(header.constructor)\n"
@@ -624,6 +803,7 @@ WidgetType = AnyType
 
 
 def get_param(d: dict[str, list[str]], key: str, default: list[str]) -> list[str]:
+    "normalized missing or null value"
     if key not in d:
         return default
     val = d[key]
@@ -632,90 +812,18 @@ def get_param(d: dict[str, list[str]], key: str, default: list[str]) -> list[str
     return val
 
 
-def set_child(wg: ipw.Tab, i: int, child: ipw.DOMWidget, title: str = "") -> None:
-    children = list(wg.children)
-    children[i] = child
-    wg.children = tuple(children)
-    if title:
-        wg.set_title(i, title)
 
 
-def append_child(wg: ipw.Tab, child: ipw.DOMWidget, title: str = "") -> None:
-    children = list(wg.children)
-    last = len(children)
-    children.append(child)
-    wg.children = tuple(children)
-    if title:
-        wg.set_title(last, title)
-
-
-class HandyTab(ipw.Tab):
-    def set_next_title(self, name: str) -> None:
-        pos = len(self.children) - 1
-        self.set_title(pos, name)
-
-    def get_titles(self) -> list[str]:
-        return [self.get_title(pos) for pos in range(len(self.children))]
-
-    def set_tab(self, title: str, wg: WidgetType, overwrite: bool = True) -> None:
-        all_titles = self.get_titles()
-        if title in all_titles:
-            if not overwrite:
-                return
-            pos = all_titles.index(title)
-            children_ = list(self.children)
-            children_[pos] = wg
-            self.children = tuple(children_)
-        else:
-            self.children += (wg,)  # type: ignore
-            self.set_next_title(title)
-
-    def remove_tab(self, title: str) -> None:
-        all_titles = self.get_titles()
-        if title not in all_titles:
-            return
-        pos = all_titles.index(title)
-        children_ = list(self.children)
-        children_ = children_[:pos] + children_[pos + 1 :]
-        titles_ = all_titles[:pos] + all_titles[pos + 1 :]
-        self.children = tuple(children_)
-        for i, t in enumerate(titles_):
-            self.set_title(i, t)
-
-    def get_selected_title(self) -> Optional[str]:
-        if self.selected_index is None or self.selected_index >= len(self.titles):
-            # logger.warning("no selected title")
-            return None
-        # logger.warning(f"selected title {self.selected_index} {self.titles}")
-        return self.get_title(self.selected_index)
-
-    def get_selected_child(self) -> ipw.DOMWidget:
-        if self.selected_index is None:
-            return None
-        return self.children[self.selected_index]
-
-
-class TreeTab(HandyTab):
-    def __init__(
-        self, upper: Optional["TreeTab"], known_as: str, *args: AnyType, **kw: AnyType
-    ) -> None:
-        super().__init__(*args, **kw)
-        self.upper = upper
-        self.known_as = known_as
-        self.mod_dict: dict[str, Set[str]] = {}
-
-    def is_visible(self, sel: str) -> bool:
-        if self.get_selected_title() != sel:
-            return False
-        if self.upper is None:
-            return True
-        return self.upper.is_visible(self.known_as)
-
-
-def norm_rename_cols(sniffer: Any) -> list[str]:
+def norm_rename_cols(sniffer: Sniffer) -> list[str]:
+    """
+    auxiliary of get_schema()
+    """
     return normalize_columns(sniffer.get_names())
 
 def get_schema(sniffer: Sniffer) -> AnyType:
+    """
+    Formatting cols info generated by the sniffer to meet the needs of c-widgets
+    """
     params = sniffer.params
     usecols = params.get("usecols")
     parse_dates = get_param(params, "parse_dates", [])
@@ -742,44 +850,57 @@ def get_schema(sniffer: Sniffer) -> AnyType:
     return dtypes
 
 
-def disable_all(wg: Any, exceptions: Sequence[Any] = tuple()) -> None:
-    if hasattr(wg, "disabled") and wg not in exceptions:
-        wg.disabled = True
-    if hasattr(wg, "children") and wg not in exceptions:
-        for ch in wg.children:
-            disable_all(ch, exceptions)
-
-
 def make_replay_next_btn() -> ipw.Button:
+    """
+    Shortkut for creating a "Next" button with its appopriate callback.
+    Currently used only by DumpTableW
+    """
     def _fnc(btn: ipw.Button) -> None:
         replay_next()
         btn.disabled = True
 
     return make_button("Next", cb=_fnc, disabled=False)
 
+#: Associates labels with widget types. Populated by the class decorator @chaining_widget
+stage_register: dict[str, AnyType] = {} # NB: dict values are widget classes
 
-stage_register: dict[str, AnyType] = {}
-parent_widget: Union["NodeCarrier", "Constructor"] | None = None
-parent_dtypes: Optional[dict[str, str]] = None
+# c-widget instances indexing
+
+#: associates ids (made using id() calls) with (label, number) tuples
 key_by_id: dict[int, Tuple[str, int]] = {}
-widget_by_id: dict[int, "NodeCarrier"] = {}
-widget_by_key: dict[Tuple[str, int], "NodeCarrier"] = {}
-widget_numbers: dict[str, int] = defaultdict(int)
-recording_state: bool = False
 
+#: associates ids (made using id() calls) with the actual widget instance
+widget_by_id: dict[int, "NodeCarrier"] = {}
+
+#: associates (label, number) ids with the actual widget instance
+widget_by_key: dict[Tuple[str, int], "NodeCarrier"] = {}
+
+#: numbering widget instances register
+widget_numbers: dict[str, int] = defaultdict(int)
+
+
+
+#parent_dtypes: Optional[dict[str, str]] = None
 
 def get_tag_class(tag: str) -> str:
     key, nb = parse_tag(tag)
     node = widget_by_key[(key, nb)]
     return type(node.children[IGUEST]).__name__
 
+parent_widget: Union["NodeCarrier", "Constructor"] | None = None
 
 def set_parent_widget(obj: Union["NodeCarrier", "Constructor"]) -> None:
+    """
+    ...
+    """
     global parent_widget
     parent_widget = obj
 
 
 class _Dag:
+    """
+    Convenience wrapper for DAGWidget
+    """
     def __init__(
         self, label: str, number: int, dag: DAGWidget, alias: str = ""
     ) -> None:
@@ -791,21 +912,48 @@ class _Dag:
         self._dag = dag
         self._alias = alias
 
+"""
+Below, we'll distinguish between two types of widgets:
+1. loader_widgets (currently CSV, PARQUET and Custom). They are always attached to the "root"
+2. stage_widget (the others)
+
+They are created via `create_stage_widget` and `create_loader_widget` below
+
+A NodeCarrier is a vertical box widget that houses (and carry) the functional widget (a.k.a guest)
+by framing it with button and display bars at the top and bottom.
+
+The NodeCarrier is generic (identical for all stages) asd the guest is specific and implements a
+fragment of the scenario.
+"""
 
 def create_stage_widget(
     key: str, alias: str, frozen: AnyType = None, number: int | None = None
 ) -> "NodeCarrier":
+    """
+    Create a NodeCarrier with its guest (not yet initialized). Link the created
+    NodeCarrier to it's parent (var parent_widget). The link is bidirectional (
+    the parent knows it's subwidgets)
+
+    Args:
+        key: the label provided via @chaining_widget(label="MyCWidget") class decorator
+        alias: Custom name provided by the user (Ex: Scatterplot instead AnyVega)
+        frozen: backup info
+        number: numbering for widgets of the same type
+
+    Returns:
+        the created NodeCarrier
+    """
     obj = parent_widget
     assert obj is not None
     dtypes = obj._output_dtypes
-    if dtypes is None:
-        dtypes = parent_dtypes
+    #if dtypes is None:
+    #    dtypes = parent_dtypes
     if number is not None and number > widget_numbers[key]:
         widget_numbers[key] = number
     number_ = widget_numbers[key] if number is None else number
     dag = _Dag(label=key, number=number_, dag=get_dag(), alias=alias)
     ctx = dict(parent=obj, dtypes=dtypes, input_module=obj._output_module, dag=dag)
-    guest = stage_register[key]()
+    guest = stage_register[key]()  # the guest is created but not yet initialized
     guest.add_class("progressivis_guest_widget")
     if frozen is not None:
         guest.frozen_kw = frozen
@@ -830,6 +978,19 @@ def create_stage_widget(
 def create_loader_widget(
     key: str, ftype: str, alias: str, frozen: AnyType = None, number: int | None = None
 ) -> "NodeCarrier":
+    """
+    Create a NodeCarrier with its guest it is always a loader (csv, parquet, custom).
+
+    Args:
+        key: the label provided via @chaining_widget(label="MyCWidget") class decorator
+        ftype: csv, parquet or custom. Specific parameter for loaders
+        alias: Custom name provided by the user (Ex: Scatterplot instead AnyVega)
+        frozen: backup info
+        number: numbering for widgets of the same type
+
+    Returns:
+        the created NodeCarrier
+    """
     obj = parent_widget
     dtypes = None
     assert obj is not None
@@ -877,37 +1038,16 @@ def get_widget_by_key(key: str, num: int) -> "NodeCarrier":
     return widget_by_key[(key, num)]
 
 
+#: global variable used only by the following 2 functions
+recording_state: bool = False
+
 def is_recording() -> bool:
     return recording_state
-
 
 def set_recording_state(val: bool) -> None:
     global recording_state
     recording_state = val
 
-
-def _make_btn_start_loader(
-    obj: "Constructor", ftype: str, alias: WidgetType, frozen: AnyType = None
-) -> Callable[..., None]:
-    def _cbk(btn: ipw.Button) -> None:
-        global parent_widget
-        parent_widget = obj
-        assert parent_widget
-        if obj._do_record:
-            reset_recorder()
-            set_recording_state(True)
-        add_new_loader(obj, ftype, alias.value, frozen)
-        alias.value = ""
-        disable_all(
-            obj,
-            exceptions=(
-                obj.c_.loader.c_.csv,
-                obj.c_.loader.c_.parquet,
-                obj.c_.loader.c_.custom,
-            ),
-        )
-
-    return _cbk
 
 
 def replay_start_loader(
@@ -918,8 +1058,12 @@ def replay_start_loader(
     number: int | None = None,
     **kw: AnyType,
 ) -> None:
-    global parent_widget
-    parent_widget = obj
+    """
+    Calling `add_new_loader()` in a replay context. The parent is "forced" at each step.
+    """
+    #global parent_widget
+    #parent_widget = obj
+    set_parent_widget(obj)
     assert parent_widget
     add_new_loader(
         obj, ftype, alias, frozen=frozen, number=number, markdown=kw.get("markdown", "")
@@ -934,13 +1078,10 @@ def replay_new_stage(
     number: int | None = None,
     **kw: AnyType,
 ) -> None:
-    class _FakeSel:
-        value: str
-
-    sel = _FakeSel()
-    sel.value = title
-    global parent_widget
-    parent_widget = obj
+    """
+    See above
+    """
+    set_parent_widget(obj)
     add_new_stage(
         obj,
         title,
@@ -952,6 +1093,10 @@ def replay_new_stage(
 
 
 class ChainingProtocol(Protocol):
+    """
+    Allows duck typing via typing.Protocol for the main
+    chaining mechanism
+    """
     _output_dtypes: dict[str, str] | None
     _output_module: ModuleOrFacade
     _chain_it_btn: ipw.Button | None = None
@@ -969,6 +1114,9 @@ class ChainingProtocol(Protocol):
 
 
 class ChainingMixin:
+    """
+    Implements the chaining mechanism
+    """
     _output_module: ModuleOrFacade
     _output_dtypes: dict[str, str] | None
     managed_modules: set[str]
@@ -982,20 +1130,28 @@ class ChainingMixin:
         frozen: AnyType = None,
         number: int | None = None,
     ) -> Callable[..., None]:
+        """
+        Chaaining button callback
+        """
         def _cbk(btn: ipw.Button) -> None:
-            global parent_widget
+            #global parent_widget
             if sel.value in LOADERS:
                 cons = PARAMS["constructor"]
-                parent_widget = cons
+                #parent_widget = cons
+                set_parent_widget(cons)
                 add_new_loader(cons, LOADERS[sel.value], alias.value, frozen)
             else:
-                parent_widget = self  # type: ignore
+                #parent_widget = self  # type: ignore
+                set_parent_widget(self)  # type: ignore
                 add_new_stage(self, sel.value, alias.value, frozen=frozen, number=number)  # type: ignore
             sel.value = ""
 
         return _cbk
 
     def _progress_bar(self) -> ipw.IntProgress:
+        """
+        create the progress bar widget with the underlying logic
+        """
         prog_wg = ipw.IntProgress(
             description="Progress", min=0, max=1000, layout={"width": "100%"}
         )
@@ -1013,6 +1169,9 @@ class ChainingMixin:
         return prog_wg
 
     def _quality_bar(self) -> QualityVisualization | None:
+        """
+        create the quality bar widget with the underlying logic
+        """
         from ipyprogressivis.views.quality import display_quality
 
         scheduler = self._output_module.scheduler
@@ -1031,6 +1190,9 @@ class ChainingMixin:
         return qv
 
     def _make_footer(self: ChainingProtocol, batch: bool = False) -> ipw.Box:
+        """
+        Creates the main footer bar (implementing chaining options)
+        """
         def _on_sel_change(change: Any) -> None:
             if change["new"] and self._output_dtypes is not None:
                 btn.disabled = False
@@ -1081,10 +1243,6 @@ def get_previous(obj: "ChainingWidget") -> "ChainingWidget":
     return get_previous(obj.subwidgets[-1])
 
 
-new_stage_cell_0 = "{begin}Constructor.widget('{key}'){end}\n"
-new_stage_cell = "{begin}Constructor.widget('{key}', {num}){end}"
-
-
 def is_replay() -> bool:
     return cast(bool, PARAMS.get("is_replay", False))
 
@@ -1100,6 +1258,8 @@ def is_step() -> bool:
 def is_replay_batch() -> bool:
     return REPLAY_BATCH and not PARAMS["step_by_step"]
 
+#: template instanciate below
+new_stage_cell = "{begin}Constructor.widget('{key}', {num}){end}"
 
 def get_stage_cell(
     key: str, num: int, end: str, frozen: AnyType = None
@@ -1123,6 +1283,13 @@ def add_new_stage(
     number: int | None = None,
     markdown: str = "",
 ) -> None:
+    """
+    - create the widget (carrier+guest) via `create_stage_widget()`
+    - initialize the guest widget,
+    - prepare the content for the 2 cells (mardown+code) to be created
+    - send (via labcommand()) the jupyterlab command which creates the 2 cells and execute them
+    - create the record for replay
+    """
     stage = create_stage_widget(title, alias, frozen, number=number)
     parent_key = key_by_id[id(parent)]
     n = stage.number
@@ -1172,6 +1339,9 @@ def add_new_loader(
     number: int | None = None,
     markdown: str = "",
 ) -> None:
+    """
+    Same tasks as `add_new_stage()` for loaders
+    """
     title = f"{ftype.upper()} loader"
     stage = create_loader_widget(title, ftype, alias, frozen=frozen, number=number)
     n = stage.number
@@ -1216,6 +1386,9 @@ def add_new_loader(
 
 
 class ChainingWidget:
+    """
+    Base class for "carrier" widgets
+    """
     def __init__(self, kw: Any) -> None:
         assert "parent" in kw
         self.parent: Optional["NodeVBox"] = kw["parent"]
@@ -1266,6 +1439,9 @@ class ChainingWidget:
 
 
 class GuestWidget:
+    """
+    Base class for functional widgets (like GroupByW, HeatmapW etc) a.k.a "guests"
+    """
     _show_progress: bool = True
     _show_quality: bool = True
     _is_chainable: bool = True
@@ -1278,6 +1454,9 @@ class GuestWidget:
         self._proxy: Proxy | None = None
 
     def process_replay(self) -> None:
+        """
+        when replay it restore the widget tree from the backup (see ipywel for details)
+        """
         if self.is_replaying:
             cls = type(self)
             m = importlib.import_module(cls.__module__)
@@ -1383,6 +1562,17 @@ class GuestWidget:
     def _make_guess_types(
         self, fun: Callable[..., None], args: Iterable[Any], kw: dict[str, Any]
     ) -> Callable[[Module, int], None]:
+        """
+        Provides the callback required by `compute_dtypes_then_call()` function below
+
+        Args:
+            fun: the function to be called when dtypes are available
+            *args: positional args for fun
+            **kw: named args for fun
+
+        Returns:
+            the required callback
+        """
         def _guess2(m: Module, run_number: int) -> None:
             assert hasattr(m, "result")
             if m.result is None:
@@ -1409,6 +1599,18 @@ class GuestWidget:
         args: Iterable[Any] = (),
         kw: dict[str, Any] = {},
     ) -> None:
+        """
+        When `func` (in practice `initialize()`) ask for dtypes (via @need_dtypes) this function
+        may be called (as a last resort). In order to "catch" the parent output table structure it
+        create an ephemeral module (DataShape) chained to the same parent module with an on_after_run
+        callback which sets dtypes when available then call `func()` and delete the DataShape module.
+
+        Args:
+            func: the function to be called when dtypes are available
+            *args: positional args for fun
+            **kw: named args for fun
+
+        """
         if is_replay_batch():
             self.output_dtypes = {}
             return
@@ -1422,6 +1624,13 @@ class GuestWidget:
 
     @property
     def widget_dir(self) -> str:
+        """
+        Get the settings path for the current guest type, i.e.
+        ~/.progressivis/widget_settings/MyGuestW
+
+        Returns:
+            thedir path
+        """
         pv_dir = dot_progressivis()
         if not pv_dir:
             return ""
@@ -1437,6 +1646,11 @@ class GuestWidget:
         pass
 
     def post_run(self, title: str) -> "NodeCarrier":
+        """
+        Post processing triggered by the "Next" button
+        to ensure continuity
+        (see @runner decorator)
+        """
         self.dag_running()
         self.carrier.children = (
             BTN_DEL,
@@ -1448,6 +1662,11 @@ class GuestWidget:
         return self.carrier
 
     def post_delete(self) -> "NodeCarrier":
+        """
+        Post processing triggered by the "Delete" button
+        to ensure the netx step after delete
+        (see @runner decorator)
+        """
         self.carrier.children = (
             BTN_DEL,
             ipw.Label("deleted"),
@@ -1456,11 +1675,20 @@ class GuestWidget:
         return self.carrier
 
     def manage_replay(self) -> None:
+        """
+        Used by the @starter_callback post processing
+        to ensure continuity
+        """
         if self._do_replay_next:
             replay_next_if()
 
 
 class VBox(ipw.VBox, GuestWidget):
+    """
+    We opted for multiple inheritance rather than having GuestWidget inherit directly
+    from VBox, to account for the possibility that GuestWidget might be another kind
+    of container (HBox, Tab etc.)
+    """
     def __init__(self, *args: Any, **kw: Any) -> None:
         ipw.VBox.__init__(self, *args, **kw)
         GuestWidget.__init__(self)
@@ -1468,6 +1696,9 @@ class VBox(ipw.VBox, GuestWidget):
 
 
 class LeafVBox(ipw.VBox, ChainingWidget):
+    """
+    We opted for multiple inheritance here for the same reasons as above
+    """
     def __init__(
         self, ctx: dict[str, Any], children: Sequence[GuestWidget] = ()
     ) -> None:
@@ -1477,6 +1708,9 @@ class LeafVBox(ipw.VBox, ChainingWidget):
 
 
 class NodeVBox(LeafVBox, ChainingMixin):
+    """
+    Abstract super-class of NodeCarrier
+    """
     def __init__(
         self, ctx: dict[str, Any], children: Sequence[GuestWidget] = ()
     ) -> None:
@@ -1485,6 +1719,9 @@ class NodeVBox(LeafVBox, ChainingMixin):
 
 
 class RootVBox(LeafVBox):
+    """
+    Inherited by the Constructor
+    """
     def __init__(
         self, ctx: dict[str, Any], children: Sequence[GuestWidget] = ()
     ) -> None:
@@ -1493,6 +1730,9 @@ class RootVBox(LeafVBox):
 
 
 class NodeCarrier(NodeVBox):
+    """
+    Currently this is the unique wrapper for all "guests" in use
+    """
     def __init__(self, ctx: dict[str, Any], guest: GuestWidget) -> None:
         super().__init__(
             ctx,
@@ -1543,7 +1783,25 @@ class NodeCarrier(NodeVBox):
         return fname
 
 class TypedBase:
-    # __annotations__ = []
+    """
+    TypedBase and TypedBox are the two base classes that allow for the definition of
+    typed containers. One advantage of typed containers is the ability to define paths
+    to widgets within the container.
+
+    A typed container must:
+
+    1. inherit from TypedBox + an ipywidgets container (ex: VBox)
+    2. define an inner class always named Types which inherits from TypedBase
+
+    This technique allows defining clean access paths to an inner widgets this way:
+    `self.child.widget1.child.widget2` etc.
+    For a concrete example, take a look at Constructor class and also at slides 28-37 (in french)
+    of https://sed.saclay.inria.fr/demandez-le-programme/presentations/2023-06-27.pdf
+
+    This technique was initially used for all guest widgets and has been replaced by ipywel
+    wherever widget persistence was required. It is still used in the definition of the
+    Constructor widget (constructor.py) and CoroBar below.
+    """
     def __init__(self) -> None:
         self._main: Optional[ReferenceType["TypedBox"]] = None
 
@@ -1569,6 +1827,9 @@ class TypedBase:
 
 
 class TypedBox:
+    """
+    See explanations above
+    """
     Typed: type
 
     def __init__(self) -> None:
@@ -1615,6 +1876,11 @@ class CoroBar(IpyHBoxTyped):
 
 
 class Coro:
+    """
+    A base class that allows you to write `after_run` callbacks with a predefined,
+    consistent rendering for all guest widgets. To use it, the guest must define
+    a subclass of `Coro` that implements the `action` method
+    """
     __name__ = "action"  # raise clean exceptions in Module
 
     def __init__(self, m: Module | None = None) -> None:
@@ -1643,6 +1909,9 @@ class Coro:
             m.on_after_run(self)
 
     async def action(self, m: Module, run_n: int) -> None:
+        """
+        Mandatory in any subclass
+        """
         raise ValueError("'action' method must be defined in a 'Coro' subclass")
 
     async def __call__(self, m: Module, run_n: int) -> None:
@@ -1657,7 +1926,14 @@ class Coro:
 
 def restore_on_replay(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyType]:
     """
-    Decorator for initialize method
+    Decorate the `initialize()` method whenever restoration is desired during replay and
+    the restoration does not involve any special considerations
+
+    Args:
+        to_decorate: the `initialize()` method
+
+    Returns:
+        the wrapped `initialized()` method
     """
 
     @wraps(to_decorate)
@@ -1672,6 +1948,16 @@ def restore_on_replay(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyT
     return _wrapper
 
 def output_dtypes_proc_factory(guest: GuestWidget) -> Callable[..., AnyType]:
+    """
+    Provides an `on_after_run` callback capable tu provide the module output_dtypes when
+    missing. Triggered on `@module_producer`
+
+    Args:
+        guest: a GuestWidget
+
+    Returns:
+        the callback capable to provide  output_dtypes
+    """
     async def dtype_proc_cb(m: Module, run_n: int) -> None:
         res = getattr(m, guest.output_slot, None)
         if res is None:
@@ -1694,7 +1980,11 @@ def output_dtypes_proc_factory(guest: GuestWidget) -> Callable[..., AnyType]:
 
 def modules_producer(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyType]:
     """
-    Decorator for method which create modules
+    Decorator for method which create modules (usually named `init_modules()`)
+    Serves two purposes:
+
+    1. Determine the list of modules created by the current stage (useful on stage deletion)
+    2. Compute triggers output_dtypes_proc_factory (see above)
     """
 
     @wraps(to_decorate)
@@ -1718,6 +2008,10 @@ def modules_producer(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyTy
 
 
 def chaining_widget(label: str) -> Callable[..., AnyType]:
+    """
+    Provide the decorator which registers a Guest with a displayable label
+    It is mandatory on all GuestWidget subclasses
+    """
     def decorator(cls: AnyType) -> AnyType:
         stage_register[label] = cls
         return cls
@@ -1734,6 +2028,22 @@ def starter_callback(
     dag_running: bool = True,
     manage_display: bool = True,
 ) -> Callable[..., AnyType]:
+    """
+    Since a widget can contain multiple buttons, the `@starter_callback` decorator is used
+    only on the button that triggers the processing to declare its role. The decorator
+    will add post-processing specific to that role. Each guest must define one button with
+    a callback decorated this way
+
+    Args:
+        func: the raw callback
+        disable_btn: disabled the current button after being clicked (to prevent other clicks)
+        disable_ui: disable the entire UI after current button being clicked when subsequent UI
+            actions are not pertinent
+        footer: when False prevent displaying the standard footer (used when displaying
+            the footer is not pertinent)
+        dag_running: mark the underlying node as "running" in the DAG widget
+        manage_display: allow chaining the next step
+    """
     def decorator(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
         @wraps(func)
         def wrapper(
