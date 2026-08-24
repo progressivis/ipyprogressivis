@@ -1,6 +1,6 @@
 from .utils import (VBox, chaining_widget,
                     starter_callback,
-                    runner, needs_dtypes,
+                    runner,
                     modules_producer,
                     restore_on_replay,
                     )
@@ -30,7 +30,6 @@ from typing import Any as AnyType
 
 @chaining_widget(label="Group by")
 class GroupByW(VBox):
-    @needs_dtypes
     @restore_on_replay
     def initialize(self) -> None:
         self._proxy = anybox(

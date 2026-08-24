@@ -6,7 +6,6 @@ from .utils import (
     VBox,
     ModuleOrFacade,
     runner,
-    needs_dtypes,
     dot_progressivis,
     Coro,
     json_editor,
@@ -107,7 +106,6 @@ class AnyVegaW(VBox):
         self.cols_mapping: dict[str, Tuple[ModuleOrFacade, str, str, str]] = {}
         self._updates_count: int = 0
 
-    @needs_dtypes
     @restore_on_replay
     def initialize(self) -> None:
         self._proxy = anybox(

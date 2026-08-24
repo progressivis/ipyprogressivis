@@ -4,8 +4,6 @@ from .utils import (
     no_progress_bar,
     chaining_widget,
     VBox,
-    needs_dtypes,
-    # replay_next,
     runner,
     Coro,
     modules_producer,
@@ -103,7 +101,7 @@ class HeatmapW(VBox):
     @property
     def has_quantiles(self) -> bool:
         return isinstance(self.input_module, Quantiles)
-    @needs_dtypes
+
     @restore_on_replay
     def initialize(self) -> None:
         print("initialize heatmap", self.dtypes, flush=True)

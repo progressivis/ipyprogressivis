@@ -4,7 +4,6 @@ from .utils import (
     starter_callback,
     chaining_widget,
     VBox,
-    needs_dtypes,
     runner,
     Coro,
     modules_producer,
@@ -101,7 +100,6 @@ class MBKMeansW(VBox):
             if (t.startswith("float") or t.startswith("int"))
         ] + [""]
 
-    @needs_dtypes
     @restore_on_replay
     def initialize(self) -> None:
         self.output_dtypes = self.dtypes

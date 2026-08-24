@@ -3,7 +3,6 @@ from .utils import (
     starter_callback,
     VBox,
     runner,
-    needs_dtypes,
     modules_producer,
 )
 import ipywidgets as ipw
@@ -60,13 +59,15 @@ class JoinW(VBox):
         super().__init__()
         self._proxy: Proxy | None = None
 
-    @needs_dtypes
     def initialize(self) -> None:
         if self.is_replaying:
             return self.init_ui()
         self.output_dtypes = None  # type: ignore
+        this_key = self.carrier.title, self.carrier.number
         dd_list = [
-            (f"{k}[{n}]" if n else k, (k, n)) for (k, n) in self.current_widget_keys
+            (f"{k}[{n}]" if n else k, (k, n)) for (k, n)
+            in self.current_widget_keys
+            if (k, n) != this_key
         ]
         self._proxy = anybox(
             self,
@@ -78,7 +79,8 @@ class JoinW(VBox):
                     label("primary").uid("role_1"),
                     dropdown(
                         options=dd_list, style={"description_width": "initial"}
-                    ).uid("input_2"),
+                    ).uid("input_2")
+                    .observe(self._input_2_cb),
                     dropdown(
                         options=["primary", "related"],
                         value="related",
@@ -94,7 +96,8 @@ class JoinW(VBox):
                 text().uid("related_wg_frozen"),
                 selected_index=0,
             ),
-            button("OK").on_click(self._ok_btn_cb),
+            html().uid("retry_msg"),
+            button("OK", disabled=True).uid("ok_btn").on_click(self._ok_btn_cb),
             tab(
                 gridbox().uid("p_gb").layout(grid_template_columns="20% 10% 40% 30%"),
                 gridbox().uid("r_gb").layout(grid_template_columns="80% 20%"),
@@ -107,7 +110,7 @@ class JoinW(VBox):
                     value="inner",
                     style={"description_width": "initial"},
                 ).uid("how_dd"),
-                button("Start").uid("start_btn").on_click(self._start_btn_cb),
+                button("Start", disabled=True).uid("start_btn").on_click(self._start_btn_cb),
             ),
         )
         self._primary_wg: VBox | None = None
@@ -275,8 +278,10 @@ class JoinW(VBox):
         widget_1_frozen = "parent"
         widget_2 = self.get_widget_by_key(input_2.widget.value)
         widget_2_frozen = input_2.widget.value
+        self._proxy.that.retry_msg.attrs(value="")
         if widget_2.output_dtypes is None:
-            widget_2.compute_dtypes_then_call(self._ok_btn_cb, [proxy, b])
+            # This case is theoretically possible, but very, very unlikely
+            self._proxy.that.retry_msg.attrs(value="<spread style='color: red;'>Wait 2–3 seconds and try again.</spread>")
             return
         self.dag.add_parent(
             self.title, widget_2.title
@@ -339,6 +344,7 @@ class JoinW(VBox):
             )
         _container_impl(proxy.that.r_gb, *lst)
         self._proxy._registry.update(proxy.that.r_gb._registry)
+        proxy.attrs(disabled=True)
 
     def _ck_all_cb(self, proxy: Proxy, change: AnyType) -> None:
         val = change["new"]
@@ -362,6 +368,10 @@ class JoinW(VBox):
             self.related_cols_ck(set_only=False, cols_only=False),
         ):
             ck.attrs(value=val)
+
+    def _input_2_cb(self, proxy: Proxy, change: dict[str, AnyType]) -> None:
+        assert self._proxy is not None
+        self._proxy.that.ok_btn.attrs(disabled=not change["new"])
 
     def _role_2_cb(self, proxy: Proxy, change: dict[str, AnyType]) -> None:
         role = change["new"]

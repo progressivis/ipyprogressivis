@@ -4,7 +4,6 @@ from .utils import (
     chaining_widget,
     VBoxTyped,
     TypedBase,
-    needs_dtypes,
     replay_next,
     is_recording,
     amend_last_record,
@@ -63,7 +62,6 @@ class TSNE2DW(VBoxTyped):
         self.array_column: str = ""
         self._init_max_iter = 0
 
-    @needs_dtypes
     def initialize(self) -> None:
         self.col_types = {k: str(t) for (k, t) in self.dtypes.items()}
         self.col_typed_names = {f"{n}:{t}": (n, t) for (n, t) in self.col_types.items()}

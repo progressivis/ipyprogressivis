@@ -9,7 +9,6 @@ from .utils import (
     get_last_record_index,
     is_recording,
     runner,
-    needs_dtypes,
     modules_producer
 )
 import ipywidgets as ipw
@@ -52,7 +51,6 @@ class RangeQuery2DW(VBoxTyped):
             "Unfilter", cb=self._unfilter_btn_cb, disabled=True
         )
 
-    @needs_dtypes
     def initialize(self) -> None:
         self.output_dtypes = self.dtypes
         self.col_types = {k: str(t) for (k, t) in self.dtypes.items()}

@@ -7,7 +7,7 @@ import progressivis.core.aio as aio
 from progressivis.io.api import Variable
 from progressivis.stats.scaling import MinMaxScaler
 from typing import Any, Callable, cast
-from .utils import make_button, VBoxTyped, TypedBase, needs_dtypes, starter_callback
+from .utils import make_button, VBoxTyped, TypedBase, starter_callback
 
 spec_no_data = {
     "data": {"name": "data"},
@@ -283,7 +283,6 @@ class ScalerW(VBoxTyped):
         out: IScalerOut
         start_btn: ipw.Button
 
-    @needs_dtypes
     def initialize(self) -> None:
         self.child.inp = IScalerIn(self)
         self.child.inp.disabled = True

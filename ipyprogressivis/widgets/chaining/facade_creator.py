@@ -10,7 +10,7 @@ from progressivis.stats.api import Histogram1D, KLLSketch
 from ..df_grid import DataFrameGrid
 from .tab_tools import TreeTab
 from .utils import (make_button, VBox, TypedBase, IpyVBoxTyped, starter_callback,
-                    amend_last_record, is_recording, runner, needs_dtypes,
+                    amend_last_record, is_recording, runner,
                     modules_producer)
 from progressivis.io.api import Variable
 from ..vega import VegaWidget
@@ -667,7 +667,6 @@ class FacadeCreatorW(VBox):
     def __init__(self) -> None:
         super().__init__()
 
-    @needs_dtypes
     def initialize(self) -> None:
         self._dyn_viewer = DynViewer(
             self.dtypes, cast(Module, self.input_module), self.input_slot

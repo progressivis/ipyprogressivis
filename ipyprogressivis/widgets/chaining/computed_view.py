@@ -3,7 +3,6 @@ from .utils import (
     chaining_widget,
     VBox,
     runner,
-    needs_dtypes,
     modules_producer,
     restore_on_replay
 )
@@ -150,7 +149,6 @@ def func_view(main: "ComputedViewW", abox: Proxy, colnames: list[str], fname: st
 
 @chaining_widget(label="Computed view")
 class ComputedViewW(VBox):
-    @needs_dtypes
     @restore_on_replay
     def initialize(self) -> None:
         cols_t = [f"{c}:{t}" for (c, t) in self.dtypes.items()]

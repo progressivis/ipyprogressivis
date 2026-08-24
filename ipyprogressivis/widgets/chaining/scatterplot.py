@@ -1,4 +1,4 @@
-from .utils import make_button, VBoxTyped, TypedBase, needs_dtypes, chaining_widget
+from .utils import make_button, VBoxTyped, TypedBase, chaining_widget
 from ..utils import historized_widget
 from ._multi_series import scatterplot_no_data
 import ipywidgets as ipw
@@ -25,7 +25,6 @@ class ScatterplotW(VBoxTyped):
         btn_apply: ipw.Button
         vega: HVegaWidget
 
-    @needs_dtypes
     def initialize(self) -> None:
         self.output_dtypes = None  # type: ignore
         self._axis = {}

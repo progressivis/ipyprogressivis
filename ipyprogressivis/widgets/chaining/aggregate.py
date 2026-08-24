@@ -1,4 +1,4 @@
-from .utils import (VBox, chaining_widget, runner, needs_dtypes,
+from .utils import (VBox, chaining_widget, runner,
                     modules_producer, starter_callback,
                     restore_on_replay
                     )
@@ -34,7 +34,7 @@ def is_disabled(dt: str, op: str) -> bool:
 
 @chaining_widget(label="Aggregate")
 class AggregateW(VBox):
-    @needs_dtypes
+
     @restore_on_replay
     def initialize(self) -> None:
         fncs = ["hide"] + list(Aggregate.registry.keys())

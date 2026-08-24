@@ -3,7 +3,6 @@ from .utils import (
     starter_callback,
     VBoxTyped,
     TypedBase,
-    needs_dtypes,
     replay_next,
     is_recording,
     amend_last_record,
@@ -45,7 +44,6 @@ class KNNDensityW(VBoxTyped):
         self.column_x: str = ""
         self.column_y: str = ""
 
-    @needs_dtypes
     def initialize(self) -> None:
         self.output_dtypes = self.dtypes
         self.col_types = {k: str(t) for (k, t) in self.dtypes.items()}

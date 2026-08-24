@@ -6,7 +6,6 @@ from .utils import (
     chaining_widget,
     VBox,
     runner,
-    needs_dtypes,
     modules_producer,
     Coro,
     restore_on_replay
@@ -48,7 +47,6 @@ class AfterRun(Coro):
 @no_progress_bar
 @chaining_widget(label="Corr")
 class CorrelationW(VBox):
-    @needs_dtypes
     @restore_on_replay
     def initialize(self) -> None:
         self.output_dtypes = self.dtypes

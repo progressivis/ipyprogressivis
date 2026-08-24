@@ -4,7 +4,6 @@ from .utils import (
     no_progress_bar,
     chaining_widget,
     VBox,
-    needs_dtypes,
     runner,
     Coro,
     modules_producer,
@@ -65,7 +64,6 @@ class AfterRun(Coro):
 @no_progress_bar
 @chaining_widget(label="MCDensityMap")
 class MCDensityMapW(VBox):
-    @needs_dtypes
     @restore_on_replay
     def initialize(self) -> None:
         self.output_dtypes = self.dtypes

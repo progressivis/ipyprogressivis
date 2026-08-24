@@ -14,9 +14,8 @@ from glob import glob
 import random
 from functools import wraps, partial
 from progressivis.table.dshape import dataframe_dshape
-from progressivis.vis import DataShape
 from progressivis.table.dshape import dshape_fields
-from progressivis.core.api import Sink, Module, Scheduler
+from progressivis.core.api import Module, Scheduler
 from progressivis.table.api import TableFacade
 from progressivis.core.utils import normalize_columns
 from progressivis.core import aio
@@ -29,6 +28,7 @@ from .. import DagWidgetController  # type: ignore
 from ..quality_visualization import QualityVisualization
 from ..psboard import PsBoard
 from ..json_editor import JsonEditor
+from .custom import SnippetResult
 from ipyprogressivis.ipywel import Proxy, restore
 from pathlib import Path
 import copy
@@ -403,51 +403,6 @@ def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
             if not is_replay_batch():
                 amend_last_record({"frozen": content})
             return self_.post_run(self_.carrier.title)
-
-    return wrapper
-
-
-def needs_dtypes(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
-    """
-    A decorator to apply to `initialize()` method if it requires the schema of the  input table
-    (for example, to display the list of columns). In principle, this could apply to any other
-    situation requiring dtypes, but in practice, such a need has not arisen.
-
-    Args:
-        func: the `initialize()` method to be wrapped
-
-    Returns:
-        the wrapper below
-    """
-    def wrapper(*args: Any, **kwargs: Any) -> None:
-        """
-        If the `dtype` attribute is already set, `func()` is called directly.
-        Otherwise, it attempts to set the `dtype` synchronously before calling
-        `func()` (if possible). In the worst-case scenario, a dedicated procedure
-        is launched to determine the input table structure, which will then call
-        `func()` as a callback once the `dtype` has been set.
-        """
-        self_ = args[0]
-        assert isinstance(self_, GuestWidget)
-        if isinstance(self_.input_module, Sink):
-            func(*args, **kwargs)
-            return
-        if self_.dtypes is None:
-            if self_.parent.output_dtypes:
-                self_.carrier._dtypes = self_.parent.output_dtypes
-                self_.carrier._output_dtypes = None
-                func(*args, **kwargs)
-                return
-            if is_replay() and "previous_input_dtypes" in self_.record:
-                self_.carrier._dtypes = self_.record["previous_input_dtypes"]
-                self_.carrier._output_dtypes = None
-                func(*args, **kwargs)
-                return
-            self_.parent.compute_dtypes_then_call(func, args, kwargs)
-            return
-        else:
-            func(*args, **kwargs)
-            return
 
     return wrapper
 
@@ -1193,12 +1148,6 @@ class ChainingMixin:
         """
         Creates the main footer bar (implementing chaining options)
         """
-        def _on_sel_change(change: Any) -> None:
-            if change["new"] and self._output_dtypes is not None:
-                btn.disabled = False
-            else:
-                btn.disabled = True
-
         after_run_bar = None
         guest = self.guest
         if hasattr(guest, "after_run"):
@@ -1222,6 +1171,13 @@ class ChainingMixin:
                 disabled=False,
                 style={"description_width": "initial"},
             )
+            def _on_sel_change(change: Any) -> None:
+                if change["new"] and self._output_dtypes is not None:
+                    btn.disabled = False
+                    alias.value = ""
+                else:
+                    btn.disabled = True
+
             self._chain_it_btn = btn = make_button(
                 "Chain it", disabled=True, cb=self._make_btn_chain_it_cb(sel, alias)
             )
@@ -1559,69 +1515,6 @@ class GuestWidget:
                 value["previous_input_dtypes"] = self.input_dtypes
             amend_last_record({"frozen": value})
 
-    def _make_guess_types(
-        self, fun: Callable[..., None], args: Iterable[Any], kw: dict[str, Any]
-    ) -> Callable[[Module, int], None]:
-        """
-        Provides the callback required by `compute_dtypes_then_call()` function below
-
-        Args:
-            fun: the function to be called when dtypes are available
-            *args: positional args for fun
-            **kw: named args for fun
-
-        Returns:
-            the required callback
-        """
-        def _guess2(m: Module, run_number: int) -> None:
-            assert hasattr(m, "result")
-            if m.result is None:
-                return
-            self.output_dtypes = {
-                k: "datetime64" if str(v)[0] == "6" else v
-                for (k, v) in m.result.items()
-            }
-            if hasattr(fun, "__self__"):  # i.e. fun is a bound method
-                self_ = fun.__self__
-            else:
-                self_ = args[0]  # type: ignore
-            self_.carrier._dtypes = self.output_dtypes
-            fun(*args, **kw)
-            with m.scheduler as dataflow:
-                deps = dataflow.collateral_damage(m.name)
-                dataflow.delete_modules(*deps)
-
-        return _guess2
-
-    def compute_dtypes_then_call(
-        self,
-        func: Callable[..., None],
-        args: Iterable[Any] = (),
-        kw: dict[str, Any] = {},
-    ) -> None:
-        """
-        When `func` (in practice `initialize()`) ask for dtypes (via @need_dtypes) this function
-        may be called (as a last resort). In order to "catch" the parent output table structure it
-        create an ephemeral module (DataShape) chained to the same parent module with an on_after_run
-        callback which sets dtypes when available then call `func()` and delete the DataShape module.
-
-        Args:
-            func: the function to be called when dtypes are available
-            *args: positional args for fun
-            **kw: named args for fun
-
-        """
-        if is_replay_batch():
-            self.output_dtypes = {}
-            return
-        s = self.output_module.scheduler
-        with s:
-            ds = DataShape(scheduler=s)
-            ds.input.table = self.output_module.output.result
-            ds.on_after_run(self._make_guess_types(func, args, kw))
-            sink = Sink(scheduler=s)
-            sink.input.inp = ds.output.result
-
     @property
     def widget_dir(self) -> str:
         """
@@ -1950,7 +1843,7 @@ def restore_on_replay(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyT
 def output_dtypes_proc_factory(guest: GuestWidget) -> Callable[..., AnyType]:
     """
     Provides an `on_after_run` callback capable tu provide the module output_dtypes when
-    missing. Triggered on `@module_producer`
+    missing. Triggered on `@modules_producer`
 
     Args:
         guest: a GuestWidget
@@ -1968,7 +1861,7 @@ def output_dtypes_proc_factory(guest: GuestWidget) -> Callable[..., AnyType]:
         }
         guest.output_dtypes = dtypes
         for fnc in m._after_run:
-            if fnc.__name__ == "dtype_proc_cb":
+            if getattr(fnc, "__name__", None) == "dtype_proc_cb":
                 m._after_run.remove(fnc)
                 break
         carrier = guest.carrier
@@ -2001,7 +1894,13 @@ def modules_producer(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyTy
             mods_after = set(s.modules().keys())
         self_.carrier.managed_modules = mods_after.difference(mods_before)
         if ret_m is not None and self_.output_dtypes is None:
-            ret_m.on_after_run(output_dtypes_proc_factory(self_))
+            try:
+                ret_m.on_after_run(output_dtypes_proc_factory(self_))
+            except AttributeError:
+                if isinstance(ret_m, SnippetResult):
+                    ret_m.output_module.on_after_run(output_dtypes_proc_factory(self_))
+                else:
+                    raise
         return ret_m
 
     return _wrapper

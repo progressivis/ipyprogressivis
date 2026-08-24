@@ -4,7 +4,6 @@ from .utils import (
     chaining_widget,
     VBox,
     runner,
-    needs_dtypes,
     modules_producer,
     restore_on_replay
 )
@@ -32,7 +31,6 @@ class QuantilesW(VBox):
             if (t.startswith("float") or t.startswith("int"))
         ]
 
-    @needs_dtypes
     @restore_on_replay
     def initialize(self) -> None:
         self.output_dtypes = self.dtypes

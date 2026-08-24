@@ -1,5 +1,5 @@
 from .utils import (VBox, chaining_widget, starter_callback,
-                    disable_all, runner, needs_dtypes, labcommand, modules_producer, restore_on_replay)
+                    disable_all, runner, labcommand, modules_producer, restore_on_replay)
 
 import ipywidgets as ipw
 from itertools import chain, batched
@@ -29,7 +29,6 @@ _ = register_snippet, SnippetResult
 
 @chaining_widget(label="Snippet")
 class SnippetW(VBox):
-    @needs_dtypes
     @restore_on_replay
     def initialize(self) -> None:
         from .custom import CUSTOMER_SNIPPET
