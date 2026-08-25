@@ -93,7 +93,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "ipyprogressivis"
-copyright = "2018-2026, Inria, Jean-Daniel Fekete and the Pprogressivis contributors"
+copyright = "2018-2026, Inria, Jean-Daniel Fekete and the ProgressiVis contributors"
 authors = "Jean-Daniel Fekete, Christian Poli"
 
 # The version info for the project you're documenting, acts as replacement for

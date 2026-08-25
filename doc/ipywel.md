@@ -1,5 +1,7 @@
 # [ipy]WEL - an [ipy]Widgets Expression Language
 
+(ipywel-intro)=
+
 ## Introduction
 
 Interfaces created with [ipywidgets](https://ipywidgets.readthedocs.io/en/stable/) typically have a tree structure (boxes and other nested containers that, at the deepest level, contain "leaf" widgets that perform other functions). [DAG](https://en.wikipedia.org/wiki/Directed_acyclic_graph) structures are theoretically possible (when a widget is shared by two or more containers) but they are not currently present in [ipyprogressivis](https://progressivis.readthedocs.io/en/latest/notebooks.html#chaining-widgets) (and it would be possible to handle them if necessary with minimal effort).
@@ -164,7 +166,7 @@ The {py:meth}`~ipyprogressivis.ipywel.Proxy.widget` property provides access to 
 ### Naming and Referencing Widgets-The Trio of {py:meth}`uid() <ipyprogressivis.ipywel.Proxy.uid>`, {py:meth}`lookup() <ipyprogressivis.ipywel.Proxy.lookup>`, and {py:meth}`~ipyprogressivis.ipywel.Proxy.that`
 
 
-Some widgets in the tree (but not all) need to be accessed individually for specific processing. We illustrated this in the initial example with the checkbox. Naming is done using the {py:meth}`uid() <ipyprogressivis.ipywel.Proxy.uid>` method, and access by name is done either using the {py:meth}`lookup() <ipyprogressivis.ipywel.Proxy.lookup>` method or the {py:meth}`~ipyprogressivis.ipywel.Proxy.that` property.
+Some widgets in the tree (but not necessarilly all) need to be accessed individually for specific processing. We illustrated this in the initial example with the checkbox. Naming is done using the {py:meth}`uid() <ipyprogressivis.ipywel.Proxy.uid>` method, and access by name is done either using the {py:meth}`lookup() <ipyprogressivis.ipywel.Proxy.lookup>` method or the {py:meth}`~ipyprogressivis.ipywel.Proxy.that` property.
 
 ```{eval-rst}
 
@@ -427,11 +429,8 @@ ui.widget
 
 Using lamba functions as widget calbacks is also possible:
 
-from ipyprogressivis.ipywel import vbox, hbox, checkbox, label, button, Proxy
-from typing import Any
-
 ```python
-from ipyprogressivis.ipywel import vbox, hbox, checkbox, label, button
+from ipyprogressivis.ipywel import vbox, hbox, checkbox, label, button, Proxy
 
 def ui_func():
     return vbox(
@@ -467,7 +466,7 @@ ui.widget
 
 ### Wrapping custom widgets
 
-To integrate custom ipywidgets, you need to write a wrapper function for your custom widget based on a similar example. For example:
+To integrate custom ipywidgets, you need to write a wrapper function for your custom widget based on a similar example available in `ipywel.py`. For example:
 
 ```python
 from ipyprogressivis.widgets.json_editor import JsonEditor

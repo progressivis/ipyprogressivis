@@ -1,4 +1,6 @@
-# Documentation tools HOWTO
+# Documentation tools
+
+(merge-nb-markdown)=
 
 ## Merging ProgressiBooks and markdown files (`merge_nb_markdown.py` script)
 
@@ -34,6 +36,8 @@ Options:
   --help                    Show this message and exit.
 
 ```
+
+(nb-to-doc-html)=
 
 ## Generating HTML files from ProgressiBooks (`nb_to_doc_html.py` script)
 
