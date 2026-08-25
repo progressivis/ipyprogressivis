@@ -3,7 +3,7 @@
 ## Why isn't `ProgressiBook` a notebook like the others?
 
 
-In a standard notebook, any creation, execution, or deletion of a cell is triggered by a user action (a graphical event). The order in which cells are executed is not enforced by the system (though it may be enforced by the semantics of the code).
+In a standard notebook, any creation, execution, or deletion of a cell is triggered by a user action (a graphical event) 100% frontend side, without kernel's involvement. The order in which cells are executed is not enforced by the system (though it may be enforced by the semantics of the code).
 
 In contrast, in a `ProgressiBook`, all of these actions (with the exception of bootstrap and snippets) are triggered programmatically by the kernel in response to graphical events initiated by the user via ipywidgets (clicks, selections, etc.).
 
@@ -19,8 +19,9 @@ When created, a `ProgressiBook` is never empty; it already contains two cells:
 Without going into detail (which is covered more extensively in the comments in [utils.py](https://github.com/progressivis/ipyprogressivis/blob/main/ipyprogressivis/widgets/chaining/utils.py)), here are the actions performed by the bootstrap (code below):
 
 * get the header,  an (unique) object which groups toghether all the components necessary for the bootstrap process described below (`Talker`, `BackupWidget` etc.)
-* display of the `Talker` widget (a custom ipywidget) that facilitates communication between the kernel and the frontend via standard [JupyterLab commands](https://jupyterlab.readthedocs.io/en/stable/user/commands.html) as well as [custom commands](https://github.com/progressivis/ipyprogressivis/blob/main/ipyprogressivis/js/src/labplugin.js). This dialogue is one-way.
-* display of the `BackupWidget`. Since the dialogue via commands is one-way, it is not sufficient to ensure the backup, which must be both written (for the backup) and read (for the replay). This is where the `BackupWidget` comes into play.
+* display of the `Talker` widget (a custom ipywidget) that facilitates communication between the kernel and the frontend via standard [JupyterLab commands](https://jupyterlab.readthedocs.io/en/stable/user/commands.html) as well as [jupyterlab-alike custom commands](https://github.com/progressivis/ipyprogressivis/blob/main/ipyprogressivis/js/src/labplugin.js). This dialogue is one-way (no return).
+* display of the `BackupWidget`. Since the dialogue via commands is one-way, it is not sufficient to ensure the backup, which requires write capabilities (for the backup) and read calabilities(for the replay). This is where the `BackupWidget` comes into play.
+<!-- TOTO: Talker and BackupWidget may be merged -->
 * header.board displays (in a separate panel) a dashboard that allows you to monitor the activity of the progressive modules.
 * header.manager displays (in another panel) the DAG of the `c-widgets`.
 
@@ -66,7 +67,7 @@ Each new chained element consists of two parts:
   * hosting the chaining widget (`c-widget`)
   * the chaining logic
   * displaying information common to all `c-widgets` (progress bar, quality bar)
-* a specialized, "hosted" by the "carrier" above (red rectangle below) component capable of performing the task selected in "Next stage". In the rest of this document, when there is no possibility of confusion with the "carrier" we will refer to it as chaining widget or `c-widget`. It's Python implementation is often called "guest" (e.g. [utils.py](https://github.com/progressivis/ipyprogressivis/blob/main/ipyprogressivis/widgets/chaining/utils.py)).
+* a specialized component, embedded in the "carrier" component above (red rectangle below) capable of performing the concrete task selected in "Next stage" (). In the rest of this document, when there is no possibility of confusion with the "carrier" we will refer to it as `chaining widget` or `c-widget`. It's `Python` implementation is often called "guest" (e.g. [utils.py](https://github.com/progressivis/ipyprogressivis/blob/main/ipyprogressivis/widgets/chaining/utils.py)).
 
 ![](images/carrier_guest.png)
 
@@ -87,9 +88,9 @@ The bars are displayed by default when they are technically relevant, but they c
 
 In the following, we refer to the `ipyprogressivis.widgets.chaining.utils` module as `.utils`.
 
-A `c-widget` class is a class that inherits from `.utils.VBox`. To make it visible in the toolkit UI, it must be decorated with `@utils.chaining_widget(label="A label")`.
+A `c-widget` class is a class that inherits from `.utils.VBox` (currently c-widget classes have an name ending with the "W" letter (like AggregateW, GroupByW etc.). To make it visible in the toolkit UI, it must be decorated with `@utils.chaining_widget(label="A label")`.
 
-For example, the `c-widget` class AggregateW is defined as follows:
+For example, the `c-widget` class `AggregateW\  is defined as follows:
 
 ```python
 @chaining_widget(label="Aggregate")
@@ -124,8 +125,23 @@ The `c-widget` class constructor has several special features:
 - Instantiation is performed solely by the toolkit, without arguments, so every `c-widget` inherits a constructor without arguments.
 - The `c-widget` class can define its own constructor(mainly to define and initialize attributes, never to create sub-widgets), but it must also be without arguments and must call `super().__init__()`.
 
+### Mandatory methods
 
-### The initialize() method
+* `initialize()` : build the `c-widget` to be displayed
+* `run()` responsible of replay behaviour
+* a method decorated by `@starter_callback` which is a button callback triggering the underying processing
+* `init_modules()` the only method creating ProgressiVis modules. Usually it created a sub-graph of modules which is added to the global `ProgressiVis` `DAG` when the `@starter_callback` decorated method is triggered. This method is missing when the c-widget does not create modules
+
+.. note::
+       When ``init_modules()`` exists it should be called by the ``@starter_callback`` decorated method  and by ``run()``
+```
+
+
+
+
+
+
+#### The initialize() method
 
 - The `c-widget` class must always define an `initialize()` method that will be called by the toolkit after instantiation. This method is responsible for creating the sub-widgets that make up the initial composition of the `c-widget` and assigning them to the attributes declared by the Typed class using the syntax described above. This composition may evolve later as a result of interactions with the user.
 
@@ -156,6 +172,23 @@ The use of ipywel explains why the widget callbacks in existing `c-widgets` have
         ...
 
 ```
+
+#### The run() method
+
+This method do (at least) two mandatory things:
+
+* restore the c-widget state from the backup
+* call `init_modules()` with the parameters fetched  from the c-widget state
+
+#### The `@starter_callback` decorated  method
+
+This method do mandatory actions:
+
+* backup the current state of the c-widget (widget values, selections etc.)
+* call `init_modules()` with parameters fetched from the c-widget state
+
+Optionally it may perform some operations like disabling a part or the entire c-widget's sub-widgets.
+
 
 
 
