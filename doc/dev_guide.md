@@ -129,23 +129,19 @@ The `c-widget` class constructor has several special features:
 
 * `initialize()` : build the `c-widget` to be displayed
 * `run()` responsible of replay behaviour
-* a method decorated by `@starter_callback` which is a button callback triggering the underying processing
-* `init_modules()` the only method creating ProgressiVis modules. Usually it created a sub-graph of modules which is added to the global `ProgressiVis` `DAG` when the `@starter_callback` decorated method is triggered. This method is missing when the c-widget does not create modules
-
-.. note::
-       When ``init_modules()`` exists it should be called by the ``@starter_callback`` decorated method  and by ``run()``
-```
-
-
-
-
+* a method called `starter_callback` xor decorated by `@starter_callback` (we'll refer to it as `starter_callback` from now on) which is a button callback triggering the underying processing (see  {py:func}`starter_callback() <ipyprogressivis.widgets.chaining.utils.starter_callback>` for more details)
+* `init_modules()` the only method creating ProgressiVis modules. Usually it created a sub-graph of modules which is added to the global `ProgressiVis` `DAG` when the `starter_callback` method is triggered or on replaying (via `run()`). This method is missing when the c-widget does not create modules
+    ```{eval-rst}
+    .. note::
+	   When ``init_modules()`` exists it should be called by the ``starter_callback`` method  and by ``run()``
+    ```
 
 
 #### The initialize() method
 
-- The `c-widget` class must always define an `initialize()` method that will be called by the toolkit after instantiation. This method is responsible for creating the sub-widgets that make up the initial composition of the `c-widget` and assigning them to the attributes declared by the Typed class using the syntax described above. This composition may evolve later as a result of interactions with the user.
+- The `c-widget` class must always define an `initialize()` method (with no arguments) that will be called by the toolkit after instantiation. This method is responsible for creating the sub-widgets that make up the initial composition of the `c-widget`. This composition may evolve later as a result of interactions with the user (ex: when one click the `Sniff` button in the `CSV loader` UI the sniffer sub-widget appears).
 
-- When a scenario is replayed, the role of `initialize()` method is to restore the widget's state from the backup. This restoration occurs in exactly the same way in most cases. To avoid repetition, the `@restore_on_replay` decorator should be applied to `initialize()`, and the body of the method should provide only the logic for the first execution (see `aggregate.py`). When the decorator is not applied, the `initialize` method must handle both situations (first execution and replay) by checking the state of the `is_replaying` attribute (see [csv_loader.py](https://github.com/progressivis/ipyprogressivis/blob/main/ipyprogressivis/widgets/chaining/csv_loader.py) example).
+- When a scenario is replayed, the role of `initialize()` method is to restore the widget's state from the backup. This restoring occurs in exactly the same way in most cases. To avoid repetition, the `@restore_on_replay` decorator is silently applied by default to `initialize()` via the `@chaining_widget` class decorator, and the body of `initialize()` should provide only the logic for the initial execution (see, for example `aggregate.py`). When the default behaviour is not appropriate, `initialize()` must be decorated by `@customized_restore`. In this case, the `initialize` method must handle both situations (initial execution and replay) by checking the state of the `is_replaying` attribute (see [csv_loader.py](https://github.com/progressivis/ipyprogressivis/blob/main/ipyprogressivis/widgets/chaining/csv_loader.py) example).
 
 To ensure `c-widgets` persistence and enable replay, ipyprogressivis recommends building interfaces using `ipywel` (the ipywidgets expression language, described [here](ipywel-intro)). For this reason, the initialize() method typically has the following structure:
 
@@ -153,7 +149,6 @@ To ensure `c-widgets` persistence and enable replay, ipyprogressivis recommends 
 @chaining_widget(label="MyLabel")
 class MyCWidgetW(VBox):
     ...
-    @restore_on_replay
     def initialize(self) -> None:
         ...
         self._proxy = anybox(
@@ -180,16 +175,53 @@ This method do (at least) two mandatory things:
 * restore the c-widget state from the backup
 * call `init_modules()` with the parameters fetched  from the c-widget state
 
-#### The `@starter_callback` decorated  method
+#### The `starter_callback` method
 
-This method do mandatory actions:
+This method do (at least) two mandatory actions:
 
 * backup the current state of the c-widget (widget values, selections etc.)
-* call `init_modules()` with parameters fetched from the c-widget state
+* call `init_modules()` with parameters fetched from the c-widget state. Optionally it may perform some operations like disabling a part or the entire c-widget's sub-widgets.
 
-Optionally it may perform some operations like disabling a part or the entire c-widget's sub-widgets.
+    ```{eval-rst}
 
+    .. note::
+	   If you want to customize these other actions or trigger an action directly via ``initialize()``, you must call this method differently and decorate it with :py:func:`starter_callback() <ipyprogressivis.widgets.chaining.utils.starter_callback>` (see `csv_loader.py <https://github.com/progressivis/ipyprogressivis/blob/main/ipyprogressivis/widgets/chaining/csv_loader.py>`_ and `snippet.py <https://github.com/progressivis/ipyprogressivis/blob/main/ipyprogressivis/widgets/chaining/snippet.py>`_)
+    ```
 
+### Decorators
+
+#### @starter_callback
+
+When a method is named `starter_callback` this decorator is silently applied via `@chaining_widget` class decorator. See below the other cases detail:
+
+```{eval-rst}
+.. currentmodule:: ipyprogressivis.widgets.chaining.utils
+
+.. autofunction:: starter_callback
+```
+
+### `@runner`, `@modules_producer` and `@restore_on_replay` decorators
+
+These three decorators all have in common that they are applied by default via `@chaining_widget` class decorator as follows:
+
+* `@runner` is applied to `run()`
+* `@modules_producer` is applied to `init_modules()`
+* `@restore_on_replay` is applied to `initialize()`
+
+```{eval-rst}
+.. autofunction:: runner
+
+.. autofunction:: modules_producer
+
+.. autofunction:: restore_on_replay
+```
+
+### `@customized_restore`
+
+```{eval-rst}
+.. autofunction:: customized_restore
+
+```
 
 
 ### The different tasks of a `c-widget` class
@@ -197,7 +229,7 @@ Optionally it may perform some operations like disabling a part or the entire c-
 Usually a `c-widget` class can perform one or more tasks among:
 
 - enrich the existing dataflow with new modules
-- add callbacks to modules or the scheduler
+- add callbacks to modules or to the scheduler
 - produce a dynamic visualization, most often animated by a callback associated with a module or the scheduler
 - create virtual (calculated) columns on the output tables
 
@@ -205,26 +237,25 @@ Usually a `c-widget` class can perform one or more tasks among:
 
 The above roles can be performed in three modes:
 
-- Creation mode: most often triggered by the callback of a button often called `start_btn`, always decorated with `@starter_callback`
+- Creation mode: most often triggered by the callback of a button often named `start_btn`. The callback must be named `starter_callback` xor be decorated with `@starter_callback` (see  {py:func}`starter_callback() <ipyprogressivis.widgets.chaining.utils.starter_callback>` for more details)
 - Stirred (step-by-step) replay mode: a step-by-step and interactive replay of a scenario previously recorded. At each step the user has the choice between:
   - replaying the step as-is
   - edit/modify/replay the current stage or add new stages to the scenario.
 - Batch replay mode: replay in one go a scenario previously recorded.
 
-Both replay modes (stirred and batch) are processed via a method called `run` and decorated with `@runner`. The behaviour difference between the stirred mode and the batch mode is made by `@runner`.
+Both replay modes (stirred and batch) are processed via a method named `run` (internally decorated with `@runner`). The behaviour difference between the stirred mode and the batch mode is made by `@runner`.
 
 Since all modes trigger the same processing, their common core must be located in a unique, dedicated method.
 
-This method is usually called `init_modules()`, but this name is not mandatory.
+This method is always named `init_modules()`.
 
-If the method creates new modules (which is usually the case), it must be decorated with `@modules_producer`, which records useful information in case the widget and underlying modules are deleted and set the `output_dtypes` attribute.
+If the method creates new modules (which is usually the case), it is internally decorated with `@modules_producer`, which records useful information in case the widget and underlying modules are deleted and set the `output_dtypes` attribute.
 
 
 For example, the `c-widget` `AggregateW` has the following method:
 
 
 ```python
-    @modules_producer
     def init_modules(self, compute: AnyType) -> Aggregate:
     	...
 ```
@@ -236,8 +267,7 @@ It is called in two places:
 1. In the `start_btn` button callback for interactive mode:
 
     ```python
-	@starter_callback
-	def _start_btn_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+	def starter_callback(self, proxy: Proxy, btn: ipw.Button) -> None:
 	    compute = [
 		("" if col == RECORD else col, fnc)
 		for ((col, fnc), ck) in self.info_cbx_dict().items()
@@ -252,10 +282,10 @@ It is called in two places:
     ```{eval-rst}
 
     .. note::
-	   Since a widget can contain multiple buttons, the ``@starter_callback`` decorator is used only on the button that triggers the main processing (i.e. it calls ``self.init_modules()``). The decorator will add processing specific to that role.
+	   Since a widget can contain multiple buttons, the ``starter_callback`` name or decorator is used only on the button that triggers the main processing (i.e. it calls ``self.init_modules()``). The decorator will add processing specific to that role.
     ```
 
-2. in the `run()` method, decorated by `@runner` for the replay modes:
+2. in the `run()` method, (internally decorated by `@runner`) for the replay modes:
 
     ```python
 	def run(self) -> AnyType:
@@ -272,7 +302,7 @@ It is called in two places:
 We can see that in interactive mode, the content (the underlying `ipywel` widgets tree), available in `self._proxy` is saved for possible future use via `self.record` setting before being used to call init_modules().
 
 
-In replay mode , the call parameters for `init_modules()` are obtained from the widgets already restored thanks to the action `@restore_on_replay` decorator applied to `initialize()` (or by the action of `initialize()` when the decorator is missing):
+In replay mode , the call parameters for `init_modules()` are obtained from the widgets already restored thanks to the action `@restore_on_replay` decorator internally applied to `initialize()` (or by the action of `initialize()` when `@customized_restore` decorator is present):
 
 ### `c-widget` typology
 
@@ -322,7 +352,7 @@ Since the chaining bar is displayed by default in the footer, a `c-widget` class
 @is_leaf
 # ...
 @chaining_widget(label="Any Vega")
-class AnyVegaW(VBoxTyped):
+class AnyVegaW(VBox):
     ...
 ```
 
@@ -337,7 +367,7 @@ Additionnaly:
 @is_leaf
 @no_progress_bar
 @chaining_widget(label="Any Vega")
-class AnyVegaW(VBoxTyped):
+class AnyVegaW(VBox):
     ...
 ```
 
@@ -364,9 +394,8 @@ In general, the right place to implement steps 2, 3, and 4 is the init_modules()
 @is_leaf
 @no_progress_bar
 @chaining_widget(label="Heatmap")
-class HeatmapW(VBoxTyped):
+class HeatmapW(VBox):
      ...
-      @modules_producer
       def init_modules(self, ctx: dict[str, AnyType]) -> Heatmap:
          ...
          self.after_run = AfterRun(heatmap)

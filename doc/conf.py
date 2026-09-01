@@ -32,7 +32,7 @@ import os
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 # sys.path.append(os.path.abspath("./_ext"))
-# sys.path.append(os.path.abspath("./_params"))
+sys.path.append(os.path.abspath("./_params"))
 extensions = [
     "sphinxcontrib.mermaid",
     "myst_parser",
@@ -54,7 +54,7 @@ autodoc_typehints = "none"
 autodoc_member_order = 'bysource'
 autodoc_class_signature = "separated"
 napoleon_preprocess_types = True
-
+from progressivis_doc_params import napoleon_type_aliases  # noqa
 napoleon_use_param = True
 #autodoc_typehints_description_target = "documented"  # ou "documented_params"
 
