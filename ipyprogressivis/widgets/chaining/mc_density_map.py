@@ -1,13 +1,9 @@
 from .utils import (
-    starter_callback,
     is_leaf,
     no_progress_bar,
     chaining_widget,
     VBox,
-    runner,
-    Coro,
-    modules_producer,
-    restore_on_replay
+    Coro
 )
 
 import ipywidgets as ipw
@@ -64,7 +60,6 @@ class AfterRun(Coro):
 @no_progress_bar
 @chaining_widget(label="MCDensityMap")
 class MCDensityMapW(VBox):
-    @restore_on_replay
     def initialize(self) -> None:
         self.output_dtypes = self.dtypes
         self.col_types = {k: str(t) for (k, t) in self.dtypes.items()}
@@ -101,7 +96,7 @@ class MCDensityMapW(VBox):
             )
             .uid("columns")
             .layout(grid_template_columns="100px 100px 100px"),
-            button("Start").uid("start_btn").on_click(self._start_btn_cb),
+            button("Start").uid("start_btn").on_click(self.starter_callback),
             box().uid("image"),
         )
 
@@ -118,14 +113,12 @@ class MCDensityMapW(VBox):
             class_dict[cls]["name"] = cls
         return list(class_dict.values())
 
-    @starter_callback
-    def _start_btn_cb(self, p: Proxy, btn: ipw.Button) -> None:
+    def starter_callback(self, p: Proxy, btn: ipw.Button) -> None:
         assert self._proxy is not None
         ctx = self.get_params()
         self.record = self._proxy.dump()
         self.init_modules(ctx=ctx)
 
-    @modules_producer
     def init_modules(self, ctx: list[dict[str, AnyType]]) -> MCScatterPlot:
         assert self._proxy is not None
         assert isinstance(self.input_module, Module)
@@ -144,7 +137,6 @@ class MCDensityMapW(VBox):
             heatmap.on_after_run(after_run)  # Install the callback
             return heatmap
 
-    @runner
     def run(self) -> AnyType:
         ctx = self.get_params()
         self.output_module = self.init_modules(ctx)

@@ -1,12 +1,5 @@
 # type: ignore
-from .utils import (
-    starter_callback,
-    chaining_widget,
-    VBox,
-    runner,
-    modules_producer,
-    restore_on_replay
-)
+from .utils import chaining_widget, VBox
 import ipywidgets as ipw
 from progressivis import Quantiles
 from ipyprogressivis.ipywel import (
@@ -31,7 +24,6 @@ class QuantilesW(VBox):
             if (t.startswith("float") or t.startswith("int"))
         ]
 
-    @restore_on_replay
     def initialize(self) -> None:
         self.output_dtypes = self.dtypes
         self.col_types = {k: str(t) for (k, t) in self.dtypes.items()}
@@ -43,15 +35,13 @@ class QuantilesW(VBox):
             .observe(self._selection_cb),
             button("Start", disabled=True)
             .uid("start_btn")
-            .on_click(self._start_btn_cb),
+            .on_click(self.starter_callback),
         )
 
-    @runner
     def run(self) -> AnyType:
         self.output_module = self.init_modules(self._proxy.that.selection.widget.value)
         self.output_slot = "result"
 
-    @modules_producer
     def init_modules(self, content: list[str]) -> None:
         s = self.input_module.scheduler
         with s:
@@ -69,8 +59,7 @@ class QuantilesW(VBox):
     def _selection_cb(self, proxy: Proxy, change: AnyType) -> None:
         proxy.that.start_btn.attrs(disabled=not change["new"])
 
-    @starter_callback
-    def _start_btn_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+    def starter_callback(self, proxy: Proxy, btn: ipw.Button) -> None:
         self.record = self._proxy.dump()
         self.output_module = self.init_modules(proxy.that.selection.widget.value)
         proxy.that.selection.attrs(disabled=True)

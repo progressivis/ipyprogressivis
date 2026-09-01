@@ -1,11 +1,4 @@
-from .utils import (
-    starter_callback,
-    chaining_widget,
-    VBox,
-    runner,
-    modules_producer,
-    restore_on_replay
-)
+from .utils import chaining_widget, VBox
 import numpy as np
 from itertools import chain, batched
 from inspect import signature
@@ -149,7 +142,6 @@ def func_view(main: "ComputedViewW", abox: Proxy, colnames: list[str], fname: st
 
 @chaining_widget(label="Computed view")
 class ComputedViewW(VBox):
-    @restore_on_replay
     def initialize(self) -> None:
         cols_t = [f"{c}:{t}" for (c, t) in self.dtypes.items()]
         col_list = list(zip(cols_t, self.dtypes.keys()))
@@ -193,7 +185,7 @@ class ComputedViewW(VBox):
                 ).uid("stored_cols"),
                 checkbox("Select all").uid("keep_all").observe(self._keep_all_cb)
             ),
-            button("Apply").uid("apply_btn").on_click(self._apply_btn_cb)
+            button("Apply").uid("apply_btn").on_click(self.starter_callback)
 
         )
 
@@ -296,15 +288,13 @@ class ComputedViewW(VBox):
                        )
         return res
 
-    @starter_callback
-    def _apply_btn_cb(self, proxy: Proxy, btn: AnyType) -> None:
+    def starter_callback(self, proxy: Proxy, btn: AnyType) -> None:
         assert self._proxy is not None
         comp_list = self._make_computed_list()
         cols = list(self._proxy.that.stored_cols.widget.value)
         self.record = self._proxy.dump()
         self.output_module = self.init_modules(comp_list, columns=cols)
 
-    @runner
     def run(self) -> None:
         assert self._proxy is not None
         comp_list = self._make_computed_list()
@@ -312,19 +302,18 @@ class ComputedViewW(VBox):
         self.output_module = self.init_modules(comp_list, columns=cols)
         self.output_slot = "result"
 
-    @modules_producer
-    def init_modules(self, comp_list: list[dict[str, list[str]]],
+    def init_modules(self, comp_list: list[dict[str, str]],
                     columns: list[str]) -> Repeater:
         comp = Computed()
         from .custom import CUSTOMER_FNC
         ALL_FUNCS.update(UFUNCS)
         ALL_FUNCS.update(CUSTOMER_FNC)
         for d_ in comp_list:
-            func = ALL_FUNCS[d_["fname"]]  # type: ignore
+            func = ALL_FUNCS[d_["fname"]]
             cols = d_["cols"]
             if len(cols) == 1:
                 comp.add_ufunc_column(
-                    d_["wg_name"], cols[0], func, np.dtype(d_["wg_dtype"])  # type: ignore
+                    d_["wg_name"], cols[0], func, np.dtype(d_["wg_dtype"])
                 )
             else:
                 assert len(cols) > 1

@@ -1,16 +1,12 @@
 from .utils import (
-    starter_callback,
     is_leaf,
     no_progress_bar,
     chaining_widget,
     VBox,
     ModuleOrFacade,
-    runner,
     dot_progressivis,
     Coro,
-    json_editor,
-    modules_producer,
-    restore_on_replay
+    json_editor
 )
 from ..utils import historized_widget
 import ipywidgets as ipw
@@ -106,7 +102,6 @@ class AnyVegaW(VBox):
         self.cols_mapping: dict[str, Tuple[ModuleOrFacade, str, str, str]] = {}
         self._updates_count: int = 0
 
-    @restore_on_replay
     def initialize(self) -> None:
         self._proxy = anybox(
             self,
@@ -129,7 +124,7 @@ class AnyVegaW(VBox):
 
             ),
             gridbox().uid("grid").layout(grid_template_columns="100px 200px 100px 100px"),
-            button("Apply").on_click(self._btn_apply_cb),
+            button("Apply").on_click(self.starter_callback),
             hbox().uid("vega_box")
         )
 
@@ -232,15 +227,13 @@ class AnyVegaW(VBox):
             )
         return mapping_dict
 
-    @starter_callback
-    def _btn_apply_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+    def starter_callback(self, proxy: Proxy, btn: ipw.Button) -> None:
         assert self._proxy is not None
         mapping_dict = self.get_mapping_dict()
         js_val = self._proxy.that.editor.widget.data.copy()  # type: ignore
         self.record = self._proxy.dump()
         self.init_modules(mapping_dict=mapping_dict, vega_schema=js_val)
 
-    @modules_producer
     def init_modules(
         self, mapping_dict: dict[str, dict[str, str]], vega_schema: AnyType
     ) -> None:
@@ -282,7 +275,6 @@ class AnyVegaW(VBox):
         if not vegabox.children:
             vegabox.children = [VegaWidget(spec=vega_schema)]
 
-    @runner
     def run(self) -> None:
         mapping_dict = self.get_mapping_dict()
         js_val = self._proxy.that.editor.widget.data.copy()  # type: ignore

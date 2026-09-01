@@ -342,12 +342,18 @@ def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
     Decorator for the `run()` method, whitch defines for each c-widget
     the replay processing.
 
+    NB: In the vast majority of cases, you don't have to apply this decorator yourself.
+    This decorator is silently applied on the `run()` method via the `@chaining_widget`
+    class decorator. Only if `run()` is inherited from a class which is not `@chaining_widget`
+    decorated you have to explicitly decorate the `run()` method with `@runner`
+
     Args:
         func: the run() method to be wrapped
 
     Returns:
         the wrapper below
     """
+    @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> "NodeCarrier":
         """
         Wraps `func` in different ways depending on the replay mode:
@@ -398,12 +404,13 @@ def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
             )
             return self_.carrier
         else:  # batch mode
+            print("batch mode", self_)
             func(*args, **kwargs)
             content = copy.copy(self_.frozen_kw)
             if not is_replay_batch():
                 amend_last_record({"frozen": content})
             return self_.post_run(self_.carrier.title)
-
+    # wrapper._already_decorated = True  # avoids to decorate twice?
     return wrapper
 
 
@@ -1819,8 +1826,11 @@ class Coro:
 
 def restore_on_replay(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyType]:
     """
-    Decorate the `initialize()` method whenever restoration is desired during replay and
+    Decorate the ``initialize()`` method whenever restoration is desired during replay and
     the restoration does not involve any special considerations
+    NB: You don't have to apply this decorator yourself.
+    This decorator is silently applied on the ``initialize()`` method via the ``@chaining_widget``
+    class decorator unless initialize() is decorated with ``@customized_restore``
 
     Args:
         to_decorate: the `initialize()` method
@@ -1837,8 +1847,22 @@ def restore_on_replay(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyT
         if self_.is_replaying:
             return self_.process_replay()
         return to_decorate(self_, *args, **kwargs)
-
+    # _wrapper._already_decorated = True  # avoids to decorate twice?
     return _wrapper
+
+def customized_restore(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyType]:
+    """
+    Decorate the ``initialize()`` with customized_restore to prevent this method to be silently
+    decorated with ``restore_on_replay``
+
+    Args:
+        to_decorate: the `initialize()` method
+
+    Returns:
+        the function ``to_decorate`` tagged with the ``_customized_restore``
+    """
+    to_decorate._customized_restore = True  # type: ignore
+    return to_decorate
 
 def output_dtypes_proc_factory(guest: GuestWidget) -> Callable[..., AnyType]:
     """
@@ -1878,6 +1902,12 @@ def modules_producer(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyTy
 
     1. Determine the list of modules created by the current stage (useful on stage deletion)
     2. Compute triggers output_dtypes_proc_factory (see above)
+
+    NB: In the vast majority of cases, you don't have to apply this decorator yourself.
+    This decorator is silently applied on the `init_modules()` method via the `@chaining_widget`
+    class decorator. Only if `init_modules()` is inherited from a class which is not `@chaining_widget`
+    decorated you have to explicitly decorate the `init_modules()` method with `@modules_producer`
+
     """
 
     @wraps(to_decorate)
@@ -1902,7 +1932,7 @@ def modules_producer(to_decorate: Callable[..., AnyType]) -> Callable[..., AnyTy
                 else:
                     raise
         return ret_m
-
+    # _wrapper._already_decorated = True  # avoids to decorate twice?
     return _wrapper
 
 
@@ -1913,6 +1943,20 @@ def chaining_widget(label: str) -> Callable[..., AnyType]:
     """
     def decorator(cls: AnyType) -> AnyType:
         stage_register[label] = cls
+        if hasattr(cls, "run"):
+            cls.run = runner(cls.run)
+        else:
+            pass # logger.warning(f"'run()' method is missing on {cls.__name__}")
+        if hasattr(cls, "init_modules"):
+            cls.init_modules = modules_producer(cls.init_modules)
+        else:
+            pass # logger.warning(f"'init_modules()' method is missing on {cls.__name__}")
+        if hasattr(cls, "starter_callback"):
+            cls.starter_callback = starter_callback(cls.starter_callback)
+        else:
+            pass # logger.warning(f"'starter_callback()' method is missing on {cls.__name__}")
+        if not hasattr(cls.initialize, "_customized_restore"):  # initialize() is mandatory
+            cls.initialize = restore_on_replay(cls.initialize)
         return cls
 
     return decorator
@@ -1930,18 +1974,32 @@ def starter_callback(
     """
     Since a widget can contain multiple buttons, the `@starter_callback` decorator is used
     only on the button that triggers the processing to declare its role. The decorator
-    will add post-processing specific to that role. Each guest must define one button with
-    a callback decorated this way
+    will add post-processing specific to that role. When no button push (or any other event)
+    is necessary to start the c-widget @starter_callback must decorate the ``initialize()``
+    method (ex: ``DumpTableW``)
+
+    NB: Technically ``starter_callback(...)`` with parenthesis is not a decorator but a
+    function returning a decorator. In the vast majority of cases, you don't have to apply
+    ``starter_callback(...)`` yourself.
+    If all default parameter values are convenient for you, it's enough to give the name
+    "starter_callback" ``to func``. In this case, ``starter_callback`` is silently applied on the
+    ``func`` method via the ``@chaining_widget`` class decorator. On the other hand, if you want to
+    apply ``@starter_callback`` with customized (i.e. non default) parameter values you have to
+    explicitly decorate the ``func`` callback with the present decorator. In this case the name
+    of func must be different from "starter_callback" (for an example see SnippetW)
 
     Args:
         func: the raw callback
         disable_btn: disabled the current button after being clicked (to prevent other clicks)
         disable_ui: disable the entire UI after current button being clicked when subsequent UI
-            actions are not pertinent
+            actions are not pertinent anymore after current button being clicked
         footer: when False prevent displaying the standard footer (used when displaying
             the footer is not pertinent)
         dag_running: mark the underlying node as "running" in the DAG widget
         manage_display: allow chaining the next step
+
+    Returns:
+        the parameterized decorator
     """
     def decorator(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
         @wraps(func)

@@ -1,13 +1,9 @@
 from .utils import (
     is_leaf,
     no_progress_bar,
-    starter_callback,
     chaining_widget,
     VBox,
-    runner,
-    Coro,
-    modules_producer,
-    restore_on_replay
+    Coro
 )
 import asyncio as aio
 import ipywidgets as ipw
@@ -100,7 +96,6 @@ class MBKMeansW(VBox):
             if (t.startswith("float") or t.startswith("int"))
         ] + [""]
 
-    @restore_on_replay
     def initialize(self) -> None:
         self.output_dtypes = self.dtypes
         self.col_types = {k: str(t) for (k, t) in self.dtypes.items()}
@@ -129,12 +124,11 @@ class MBKMeansW(VBox):
                 "N clusters:",
                 value=5,
             ).uid("n_clusters"),
-            button("Start").uid("start_btn").on_click(self._start_btn_cb),
+            button("Start").uid("start_btn").on_click(self.starter_callback),
             box().uid("scatterplot_"),
         )
 
-    @starter_callback
-    def _start_btn_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+    def starter_callback(self, proxy: Proxy, btn: ipw.Button) -> None:
         assert self._proxy is not None
         assert self.column_x and self.column_y
         content = self._proxy.dump()
@@ -152,7 +146,6 @@ class MBKMeansW(VBox):
             n_clusters=self_proxy.that.n_clusters.widget.value,
         )
 
-    @modules_producer
     def init_modules(self, ctx: dict[str, AnyType]) -> MCScatterPlot:
         assert self._proxy is not None
         assert isinstance(self.input_module, Module)
@@ -197,7 +190,6 @@ class MBKMeansW(VBox):
             #sp.on_after_run(after_run)  # Install the callback
             return sp
 
-    @runner
     def run(self) -> AnyType:
         content = self.fetch_parameters()
         self.output_module = self.init_modules(content)

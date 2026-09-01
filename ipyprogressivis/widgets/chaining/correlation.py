@@ -1,14 +1,10 @@
 # type: ignore
 from .utils import (
-    starter_callback,
     is_leaf,
     no_progress_bar,
     chaining_widget,
     VBox,
-    runner,
-    modules_producer,
-    Coro,
-    restore_on_replay
+    Coro
 )
 from ..utils import sanitize
 import ipywidgets as ipw
@@ -47,7 +43,6 @@ class AfterRun(Coro):
 @no_progress_bar
 @chaining_widget(label="Corr")
 class CorrelationW(VBox):
-    @restore_on_replay
     def initialize(self) -> None:
         self.output_dtypes = self.dtypes
         self.col_types = {k: str(t) for (k, t) in self.dtypes.items()}
@@ -78,12 +73,10 @@ class CorrelationW(VBox):
                    disabled=True
                    )
             .uid("start_btn")
-            .on_click(self._start_btn_cb),
+            .on_click(self.starter_callback),
             box().uid("vega_box")
         )
 
-
-    @runner
     def run(self) -> AnyType:
         content = dict(
             selection=self._proxy.that.selection.widget.value,
@@ -91,7 +84,6 @@ class CorrelationW(VBox):
             )
         self.init_modules(content)
 
-    @modules_producer
     def init_modules(self, content: dict[str, AnyType]) -> None:
         s = self.input_module.scheduler
         mode = content["mode"]
@@ -114,8 +106,7 @@ class CorrelationW(VBox):
     def _selection_cb(self, proxy: Proxy, change: AnyType) -> None:
         self._proxy.that.start_btn.attrs(disabled = len(change["new"]) < 2)
 
-    @starter_callback
-    def _start_btn_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+    def starter_callback(self, proxy: Proxy, btn: ipw.Button) -> None:
         content = dict(
             selection=self._proxy.that.selection.widget.value,
             mode=self._proxy.that.mode.widget.value

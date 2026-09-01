@@ -1,9 +1,7 @@
 from .utils import (
     chaining_widget,
-    starter_callback,
     VBox,
-    runner,
-    modules_producer,
+    customized_restore
 )
 import ipywidgets as ipw
 import json
@@ -59,6 +57,7 @@ class JoinW(VBox):
         super().__init__()
         self._proxy: Proxy | None = None
 
+    @customized_restore
     def initialize(self) -> None:
         if self.is_replaying:
             return self.init_ui()
@@ -110,7 +109,7 @@ class JoinW(VBox):
                     value="inner",
                     style={"description_width": "initial"},
                 ).uid("how_dd"),
-                button("Start", disabled=True).uid("start_btn").on_click(self._start_btn_cb),
+                button("Start", disabled=True).uid("start_btn").on_click(self.starter_callback),
             ),
         )
         self._primary_wg: VBox | None = None
@@ -187,8 +186,7 @@ class JoinW(VBox):
             how=self._proxy.that.how_dd.widget.value,
         )
 
-    @starter_callback
-    def _start_btn_cb(self, proxy: Proxy, btn: Any) -> None:
+    def starter_callback(self, proxy: Proxy, btn: Any) -> None:
         assert self._proxy is not None
         self.record = self._proxy.dump()
         join_kw = self.get_join_parameters()
@@ -213,7 +211,6 @@ class JoinW(VBox):
             self._related_wg = self.parent
         self.dag.add_parent(self.title, self._related_wg.title)
 
-    @runner
     def run(self) -> None:
         assert self._proxy is not None
         primary_inp = json.loads(self._proxy.that.primary_wg_frozen.widget.value)
@@ -232,7 +229,6 @@ class JoinW(VBox):
         self.output_module = self.init_modules(**content)
         self.output_slot = "result"
 
-    @modules_producer
     def init_modules(
         self,
         primary_cols: list[str],

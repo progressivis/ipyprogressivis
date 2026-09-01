@@ -5,14 +5,13 @@ from progressivis.core.api import Module, Sink
 from progressivis.table.api import PTable, Constant
 from .custom import register_function
 from .utils import (
-    starter_callback,
     get_schema,
     VBox,
-    runner,
     dot_progressivis,
     expand_urls,
     shuffle_urls,
-    modules_producer,
+    chaining_widget,
+    customized_restore,
     labcommand,
 )
 from ipyprogressivis.csv_sniffer.sniffer import sniffer, _sniffer
@@ -100,7 +99,7 @@ def combine_filters(
 layout_refresh = ipw.Layout(width="30px", height="30px")
 _ = register_function
 
-
+@chaining_widget(label="CSV loader")
 class CsvLoaderW(VBox):
     def btn_bar(self) -> Proxy:
         return hbox(
@@ -109,7 +108,7 @@ class CsvLoaderW(VBox):
             .on_click(self._sniffer_cb),
             stack(
                 button("Start loading csv ...")
-                .on_click(self._start_loader_cb)
+                .on_click(self.starter_callback)
                 .uid("start_btn"),
                 label(""),
                 selected_index=1,
@@ -192,7 +191,7 @@ class CsvLoaderW(VBox):
                 selected_index=1,
             ).uid("global_stack"),
         )
-
+    @customized_restore
     def initialize(
         self, urls: list[str] = [], to_sniff: str = "", lines: int = 100
     ) -> None:
@@ -330,8 +329,7 @@ class CsvLoaderW(VBox):
             filter_code=filter_code,
         )
 
-    @starter_callback
-    def _start_loader_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+    def starter_callback(self, proxy: Proxy, btn: ipw.Button) -> None:
         assert self._proxy is not None
         self_proxy = self._proxy
         sniffer = self_proxy._backends["sniffer"]()
@@ -357,7 +355,7 @@ class CsvLoaderW(VBox):
         with open(file_name, "w") as f:
             json.dump(self_proxy.dump(), f, indent=4)
 
-    @runner
+    #@runner
     def run(self) -> Any:
         assert self._proxy is not None
         self_proxy = self._proxy
@@ -386,7 +384,7 @@ class CsvLoaderW(VBox):
         self.output_slot = "result"
         self.output_dtypes = schema
 
-    @modules_producer
+    #@modules_producer
     def init_modules(
         self,
         urls: list[str] = [],

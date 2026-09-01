@@ -1,9 +1,4 @@
-from .utils import (VBox, chaining_widget,
-                    starter_callback,
-                    runner,
-                    modules_producer,
-                    restore_on_replay,
-                    )
+from .utils import VBox, chaining_widget
 from ipyprogressivis.ipywel import (
     Proxy,
     button,
@@ -30,7 +25,6 @@ from typing import Any as AnyType
 
 @chaining_widget(label="Group by")
 class GroupByW(VBox):
-    @restore_on_replay
     def initialize(self) -> None:
         self._proxy = anybox(
             self,
@@ -73,10 +67,10 @@ class GroupByW(VBox):
             ).uid("by_box"),
             button("Start",
                    disabled=True
-                   ).uid("start_btn").on_click(self._add_group_by_cb)
+                   ).uid("start_btn").on_click(self.starter_callback)
             )
 
-    @modules_producer
+    #@modules_producer
     def init_modules(self, by: AnyType) -> GroupBy:
         if isinstance(by, dict):
             by = SC(by["col"]).dt[by["subcols"]]
@@ -88,8 +82,8 @@ class GroupByW(VBox):
             sink.input.inp = grby.output.result
             return grby
 
-    @starter_callback
-    def _add_group_by_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+    #@starter_callback
+    def starter_callback(self, proxy: Proxy, btn: ipw.Button) -> None:
         assert self._proxy is not None
         if self._proxy.that.grouping_mode_radio.widget.value == "columns":
             by = self._proxy.that.by_box_selm.widget.value
@@ -108,7 +102,7 @@ class GroupByW(VBox):
         self.output_module = self.init_modules(by)
         self.output_slot = "result"
 
-    @runner
+    #@runner
     def run(self) -> AnyType:
         assert self._proxy is not None
         self_proxy = self._proxy

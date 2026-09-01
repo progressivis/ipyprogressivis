@@ -1,6 +1,4 @@
-from .utils import (VBox, chaining_widget, starter_callback,
-                    disable_all, runner, labcommand, modules_producer, restore_on_replay)
-
+from .utils import VBox, chaining_widget, starter_callback, disable_all, labcommand
 import ipywidgets as ipw
 from itertools import chain, batched
 from progressivis.core.api import Sink
@@ -29,7 +27,6 @@ _ = register_snippet, SnippetResult
 
 @chaining_widget(label="Snippet")
 class SnippetW(VBox):
-    @restore_on_replay
     def initialize(self) -> None:
         from .custom import CUSTOMER_SNIPPET
         inp_module = self.input_module
@@ -142,7 +139,6 @@ class SnippetW(VBox):
             custom_widget.children = [res.widget]
         disable_all(self, exceptions=(res.widget,))
 
-    @runner
     def run(self) -> AnyType:
         assert self._proxy is not None
         mode = self._proxy.that.cols_mode.widget.value
@@ -150,7 +146,7 @@ class SnippetW(VBox):
         from .custom import CUSTOMER_SNIPPET
         choice = self._proxy.that.choice.widget.value
         snippet = CUSTOMER_SNIPPET[choice]
-        res = self.eval_snippet(snippet, columns)
+        res = self.init_modules(snippet, columns)
         self.output_module = res.output_module
         self.output_slot = res.output_slot
         if res.widget is not None:
@@ -158,6 +154,5 @@ class SnippetW(VBox):
             assert isinstance(custom_widget, ipw.Box)
             custom_widget.children = [res.widget]
 
-    @modules_producer
-    def eval_snippet(self, snippet: Callable[..., AnyType], columns: list[str]) -> AnyType:
+    def init_modules(self, snippet: Callable[..., AnyType], columns: list[str] | dict[str, str]) -> AnyType:
         return snippet(self.input_module, self.input_slot, columns)

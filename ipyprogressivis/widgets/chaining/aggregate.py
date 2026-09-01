@@ -1,7 +1,4 @@
-from .utils import (VBox, chaining_widget, runner,
-                    modules_producer, starter_callback,
-                    restore_on_replay
-                    )
+from .utils import VBox, chaining_widget
 import ipywidgets as ipw
 from progressivis.table.api import Aggregate
 from progressivis.core.api import Sink
@@ -35,7 +32,6 @@ def is_disabled(dt: str, op: str) -> bool:
 @chaining_widget(label="Aggregate")
 class AggregateW(VBox):
 
-    @restore_on_replay
     def initialize(self) -> None:
         fncs = ["hide"] + list(Aggregate.registry.keys())
         self.all_functions = dict(zip(fncs, fncs))
@@ -57,7 +53,7 @@ class AggregateW(VBox):
             ).layout(grid_template_columns=f"200px repeat({len(self.all_functions)}, 70px)").uid("grid"),
             button("Start",
                    disabled=True
-                   ).uid("start_btn").on_click(self._start_btn_cb)
+                   ).uid("start_btn").on_click(self.starter_callback)
         )
     @property
     def hidden_cols(self) -> list[str]:
@@ -69,7 +65,7 @@ class AggregateW(VBox):
     @property
     def visible_cols(self) -> list[str]:
         return [col for col in self.all_columns if col not in self.hidden_cols]
-    @modules_producer
+
     def init_modules(self, compute: AnyType) -> Aggregate:
         s = self.input_module.scheduler
         with s:
@@ -113,8 +109,7 @@ class AggregateW(VBox):
         assert self._proxy is not None
         return {_fnc(key): pr for (key, pr) in self._proxy._registry.items() if key.startswith("cbx/")}
 
-    @starter_callback
-    def _start_btn_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+    def starter_callback(self, proxy: Proxy, btn: ipw.Button) -> None:
         compute = [
             ("" if col == RECORD else col, fnc)
             for ((col, fnc), ck) in self.info_cbx_dict().items()
@@ -125,7 +120,6 @@ class AggregateW(VBox):
         self.output_module = self.init_modules(compute)
         self.output_slot = "result"
 
-    @runner
     def run(self) -> AnyType:
         # get compute
         compute = [

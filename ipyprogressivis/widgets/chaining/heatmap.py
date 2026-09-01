@@ -1,13 +1,9 @@
 from .utils import (
-    starter_callback,
     is_leaf,
     no_progress_bar,
     chaining_widget,
     VBox,
-    runner,
     Coro,
-    modules_producer,
-    restore_on_replay
 )
 from ipyprogressivis.ipywel import (
     Proxy,
@@ -102,7 +98,6 @@ class HeatmapW(VBox):
     def has_quantiles(self) -> bool:
         return isinstance(self.input_module, Quantiles)
 
-    @restore_on_replay
     def initialize(self) -> None:
         print("initialize heatmap", self.dtypes, flush=True)
         self.output_dtypes = self.dtypes
@@ -152,7 +147,7 @@ class HeatmapW(VBox):
             )
             .uid("gaussian_blur")
             .observe(self.obs_gaussian_blur),
-            button("Start").uid("start_btn").on_click(self._start_btn_cb),
+            button("Start").uid("start_btn").on_click(self.starter_callback),
             image(width=512, height=512).uid("image"),
         )
 
@@ -171,15 +166,13 @@ class HeatmapW(VBox):
             blur=self_proxy.that.gaussian_blur.widget.value,
         )
 
-    @starter_callback
-    def _start_btn_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+    def starter_callback(self, proxy: Proxy, btn: ipw.Button) -> None:
         assert self._proxy is not None
         content = self._proxy.dump()
         self.record = content  # saved for replay
         xy = self.fetch_parameters()
         self.output_module = self.init_modules(xy)
 
-    @modules_producer
     def init_modules(self, ctx: dict[str, AnyType]) -> Heatmap:
         col_x = ctx["X"]
         col_y = ctx["Y"]
@@ -215,7 +208,6 @@ class HeatmapW(VBox):
             self.after_run.proxy = self._proxy
             return heatmap
 
-    @runner
     def run(self) -> AnyType:
         content = self.fetch_parameters()
         self.output_module = self.init_modules(content)
