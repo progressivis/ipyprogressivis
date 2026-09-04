@@ -63,6 +63,8 @@
     "webpack-dev-server": "^3.10.3"
   },
   "dependencies": {
+    "@deck.gl/core": "^9.3.6",
+    "mdm-deckgl": "*",
     "@jupyter-widgets/base": "^1.1 || ^2 || ^3 || ^4 || ^6",
     "@jupyterlab/filebrowser": "^4.0.12",
     "@jupyterlab/notebook": "^4.0.3",
@@ -76,7 +78,6 @@
     "jupyter-tablewidgets": "^0.3.2",
     "jupyter-vega": "^4.0.0",
     "license-webpack-plugin": "^4.0.2",
-    "multiclass-density-maps": "^0.1.5",
     "ndarray": "^1.0.19",
     "ndarray-unpack": "^1.0.0",
     "sorttable": "^1.0.2",

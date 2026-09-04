@@ -3,7 +3,9 @@ import * as widgets from "@jupyter-widgets/base";
 import $ from "jquery";
 import { new_id } from "./base";
 import { elementReady } from "./es6-element-ready";
-import { Config, Interpreter } from "multiclass-density-maps";
+import { Deck } from "@deck.gl/core";
+import * as mdm from "mdm-deckgl";
+const MdmLayer = mdm.MdmLayer;
 import * as colormaps from "./colormaps";
 import * as d3 from "d3";
 import History from "./history";
@@ -15,6 +17,7 @@ import "../css/scatterplot.css";
 const DEFAULT_SIGMA = 0;
 const DEFAULT_FILTER = "default";
 const MAX_PREV_IMAGES = 3;
+const ZOOM = 6.63; // magic value ...
 import { table_serialization } from "jupyter-tablewidgets";
 
 window.ndarray = ndarray;
@@ -71,6 +74,7 @@ export class ScatterplotView extends widgets.DOMWidgetView {
   // Defines how the widget gets rendered into the DOM
 
   viewElement = null; //document.createElement("div");
+  deck = null;
   render() {
     this.id = "view_" + new_id();
     const scatterplot = Scatterplot(this);
@@ -203,7 +207,7 @@ function Scatterplot(ipyView) {
       </div>
     </div>
   </div>
-  <div id="heatmapContainer" style="width:512px; height:512px;display: none;"></div>
+  <div id="heatmapContainer" style="width:512px; height:512px;position: absolute; left: -99999px; top: -99999px"></div>
   <!-- MDM form -->
   <div id="mdm-form" style="display: none;">
     <div >
@@ -307,19 +311,47 @@ function Scatterplot(ipyView) {
       data_.buffers[i].binnedPixels = ndarray_unpack(histograms.data[col]);
     }
     function render(spec, data) {
-      const config = new Config(spec);
-      config.loadJson(data).then(() => {
-        const interp = new Interpreter(config);
-        elementReady(s(heatmapContainer)).then(() => {
-          interp.interpret();
-          return interp.render(document.getElementById(heatmapContainer));
+      if (spec.rebin !== undefined && spec.rebin.type === "none") {
+        delete spec.rebin;
+      }
+      //const config = new Config(spec);
+      //config.loadJson(data).then(() => {
+      //const interp = new Interpreter(config);
+      let root = document.getElementById(heatmapContainer);
+      spec.data = { json: data };
+      if (ipyView.deck === null) {
+        ipyView.deck = new Deck({
+          parent: root,
+          width: histograms.size,
+          height: histograms.size,
+          controller: true,
+          initialViewState: {
+            longitude: 0.0,
+            latitude: 0.0,
+            zoom: ZOOM,
+          },
+          layers: [],
         });
+      }
+      //$(heatmapContainer).attr("style", "width:512px; height:512px;")
+      ipyView.deck.setProps({
+        layers: [
+          new MdmLayer({
+            id: heatmapContainer,
+            data: [{ position: [0.0, 0.0], radius: 100000 }],
+            getFillColor: (d) => d.color,
+            getRadius: (d) => d.radius * 1.02,
+            mdmSpecs: { specs: spec },
+          }),
+        ],
       });
     }
-    render(ipyView.scatterplot.cedit.conf.spec, data_);
+    elementReady(s(heatmapContainer)).then(() => {
+      render(ipyView.scatterplot.cedit.conf.spec, data_);
+    });
     elementReady(`#${heatmapContainer} canvas`).then((that) => {
       dataURL = $(that)[0].toDataURL();
-      ipyView.scatterplot.cedit.conf.spec.data = {}; // do not remove!
+
       imageHistory.enqueueUnique(dataURL);
       $(`${swith_id("map-legend")}`).empty();
       $(`#${heatmapContainer} svg`)
@@ -328,10 +360,12 @@ function Scatterplot(ipyView) {
         .appendTo(`#${with_id("map-legend")}`);
       $(`#${heatmapContainer} canvas`)
         .last()
-        .detach()
-        .attr("style", "position: relative; left: -120px; top: 10px;")
+        //.detach()
+        .clone()
+        .attr("id", heatmapContainer + "_canvas")
+        .attr("style", "position: relative; left: -1200px; top: 100px;")
         .appendTo(swith_id("map-legend")); //blend
-      $(s(heatmapContainer)).html("");
+
       if (prevBounds == null) {
         // first display, not refresh
         prevBounds = bounds;
@@ -349,7 +383,6 @@ function Scatterplot(ipyView) {
         const iy = y(bounds.ymax);
         const iw = x(bounds.xmax) - ix;
         const ih = y(bounds.ymin) - iy;
-
         zoomable
           .append("image")
           .attr("class", "heatmap")
@@ -454,7 +487,7 @@ function Scatterplot(ipyView) {
         .attr("height", 5)
         .remove();
 
-      const dots = zoomable.selectAll(".dot").data(rows); //, (d, i) => index[i]);
+      const dots = zoomable.selectAll(".dot").data(rows);
 
       dots
         .enter()
@@ -475,16 +508,7 @@ function Scatterplot(ipyView) {
       dots.order();
     }); //end elementReady
   }
-  /*
-    function multiclass2d_zoomed(event, t) {
-    if (t === undefined) t = event.transform;
-    transform = t;
-    gX.call(xAxis.scale(transform.rescaleX(x)));
-    gY.call(yAxis.scale(transform.rescaleY(y)));
-    zoomable.attr('transform', transform);
-    svg.selectAll('.dot').attr('r', 3.5 / transform.k);
-  }
-*/
+
   function multiclass2d_zoomed_impl(transform) {
     gX.call(xAxis.scale(transform.rescaleX(x)));
     gY.call(yAxis.scale(transform.rescaleY(y)));
@@ -524,11 +548,6 @@ function Scatterplot(ipyView) {
     });
   }
 
-  // function multiclass2d_filter_debug() {
-  //     ipyView.model.set('value', 333);
-  //     //ipyView.model.save_changes();
-  //     ipyView.touch();
-  // }
   function multiclass2d_filter() {
     const xscale = xAxis.scale();
     const xmin = xscale.invert(0);
@@ -554,7 +573,6 @@ function Scatterplot(ipyView) {
     console.log("min:", min);
     console.log("max:", max);
     ipyView.model.set("value", { min: min, max: max });
-    //ipyView.model.save_changes();
     ipyView.touch();
   }
 
@@ -621,8 +639,7 @@ function Scatterplot(ipyView) {
     $(swith_id("filter"))
       .unbind("click")
       .click(() => multiclass2d_filter());
-    $(swith_id("init_centroids"))
-      .click(() => move_centroids());
+    $(swith_id("init_centroids")).click(() => move_centroids());
     $(swith_id("cancel_centroids"))
       .click(() => cancel_centroids())
       .hide();
