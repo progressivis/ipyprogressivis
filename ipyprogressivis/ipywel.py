@@ -116,7 +116,7 @@ def make_autodoc() -> str:
     To be used with print(make_autodoc())
     """
     from io import StringIO
-    from more_itertools import bucket
+    from more_itertools import bucket  # type: ignore
     sio = StringIO()
     s = bucket(_sphinx_list, key=lambda x: x[0].split('.')[0])
     keys = list(s)
