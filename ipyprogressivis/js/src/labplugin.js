@@ -199,30 +199,9 @@ export const progressivisPlugin = {
       }
     };
 
-    const CellOutView = class extends DOMWidgetView {
-      render() {
-        this.el.innerHTML = "<div></div>";
-        this.tag_changed();
-        this.touch();
-      }
-      tag_changed() {
-        let tag = this.model.get("tag");
-        var crtWidget = nbtracker.currentWidget;
-        // var notebook = crtWidget.content;
-        try {
-          let inner_html = crtWidget.onloading_cells_content[tag];
-          this.el.innerHTML = inner_html;
-        } catch {
-          this.el.innerHTML = "X?";
-        }
-        this.touch();
-      }
-    };
-
     let pwidgets_ = { ...pwidgets };
     pwidgets_.TalkerView = TalkerView;
     pwidgets_.BackupView = BackupView;
-    pwidgets_.CellOutView = CellOutView;
     widgets.registerWidget({
       name: "jupyter-progressivis",
       version: "0.1.0",

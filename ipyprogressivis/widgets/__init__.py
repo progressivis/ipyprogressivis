@@ -11,7 +11,6 @@ from .sparkline_progressbar import *
 from .plotting_progressbar import *
 from .dag_widget import *
 from .vega import VegaWidget
-from .cell_out import CellOut
 from .knn_kernel import KNNDensity
 from .contour_density import ContourDensity  # type: ignore
 from .quality_visualization import QualityVisualization

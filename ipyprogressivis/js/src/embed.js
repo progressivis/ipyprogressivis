@@ -24,7 +24,6 @@ import {
 import { DagWidgetModel, DagWidgetView } from "./dag_widget";
 import { BackupModel } from "./backup";
 import { TalkerModel } from "./talker";
-import { CellOutModel } from "./cell_out";
 import { VegaWidgetModel, VegaWidget } from "jupyter-vega/dist/index";
 import { KNNKernelModel, KNNKernelView } from "./knn_kernel";
 import { ContourDensityModel, ContourDensityView } from "./contour_density";
@@ -55,7 +54,6 @@ export {
   VegaWidget,
   BackupModel,
   TalkerModel,
-  CellOutModel,
   DataTableModel,
   DataTableView,
   SensitiveHTMLModel,
