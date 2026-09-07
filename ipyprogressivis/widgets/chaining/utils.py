@@ -404,7 +404,6 @@ def runner(func: Callable[..., AnyType]) -> Callable[..., AnyType]:
             )
             return self_.carrier
         else:  # batch mode
-            print("batch mode", self_)
             func(*args, **kwargs)
             content = copy.copy(self_.frozen_kw)
             if not is_replay_batch():
@@ -1400,6 +1399,19 @@ class ChainingWidget:
             return cast(str, self._dag._alias)
         return f"{self.label}[{self.number}]" if self.number else self.label
 
+METH_BACKWARD_COMPAT = dict(
+    AggregateW=dict(_start_btn_cb="starter_callback"),
+    AnyVegaW=dict(_btn_apply_cb="starter_callback"),
+    ComputedViewW=dict(_apply_btn_cb="starter_callback"),
+    CorrelationW=dict(_start_btn_cb="starter_callback"),
+    CsvLoaderW=dict(_start_loader_cb="starter_callback"),
+    GroupByW=dict(_add_group_by_cb="starter_callback"),
+    HeatmapW=dict(_start_btn_cb="starter_callback"),
+    JoinW=dict(_start_btn_cb="starter_callback"),
+    MBKMeansW=dict(_start_btn_cb="starter_callback"),
+    MCDensityMapW=dict(_start_btn_cb="starter_callback"),
+    QuantilesW=dict(_start_btn_cb="starter_callback"),
+)
 
 class GuestWidget:
     """
@@ -1424,11 +1436,14 @@ class GuestWidget:
             cls = type(self)
             m = importlib.import_module(cls.__module__)
             content = self.record
-            self._proxy = restore(content, m.__dict__, obj=self, custom=dict(JsonEditor=json_editor))
+            self._proxy = restore(content,
+                                  m.__dict__,
+                                  obj=self,
+                                  custom=dict(JsonEditor=json_editor),
+                                  meth_backward_compat=METH_BACKWARD_COMPAT
+                                  )
             assert hasattr(self._proxy.widget, "children")
             self.children = self._proxy.widget.children
-            #for bk in self._proxy._backends.values():
-            #    bk().update_backend(self._proxy)
 
     def initialize(self) -> None:
         pass

@@ -70,7 +70,6 @@ class GroupByW(VBox):
                    ).uid("start_btn").on_click(self.starter_callback)
             )
 
-    #@modules_producer
     def init_modules(self, by: AnyType) -> GroupBy:
         if isinstance(by, dict):
             by = SC(by["col"]).dt[by["subcols"]]
@@ -82,7 +81,6 @@ class GroupByW(VBox):
             sink.input.inp = grby.output.result
             return grby
 
-    #@starter_callback
     def starter_callback(self, proxy: Proxy, btn: ipw.Button) -> None:
         assert self._proxy is not None
         if self._proxy.that.grouping_mode_radio.widget.value == "columns":
@@ -102,7 +100,6 @@ class GroupByW(VBox):
         self.output_module = self.init_modules(by)
         self.output_slot = "result"
 
-    #@runner
     def run(self) -> AnyType:
         assert self._proxy is not None
         self_proxy = self._proxy

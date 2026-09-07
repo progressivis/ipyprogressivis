@@ -13,6 +13,7 @@ from .utils import (
     chaining_widget,
     customized_restore,
     labcommand,
+    METH_BACKWARD_COMPAT
 )
 from ipyprogressivis.csv_sniffer.sniffer import sniffer, _sniffer
 from ipyprogressivis.csv_sniffer.backend import CSVSniffer
@@ -245,7 +246,13 @@ class CsvLoaderW(VBox):
         backends = restore_backends(content, globals())
         # self.backends = backends
         stuff = _sniffer(backends["sniffer"])
-        self._proxy = restore(content, globals(), obj=self, lambdas=stuff._lambda)
+        self._proxy = restore(
+            content,
+            globals(),
+            obj=self,
+            lambdas=stuff._lambda,
+            meth_backward_compat=METH_BACKWARD_COMPAT
+        )
 
     def init_ui(self) -> None:
         content = self.record
@@ -355,7 +362,6 @@ class CsvLoaderW(VBox):
         with open(file_name, "w") as f:
             json.dump(self_proxy.dump(), f, indent=4)
 
-    #@runner
     def run(self) -> Any:
         assert self._proxy is not None
         self_proxy = self._proxy
@@ -384,7 +390,6 @@ class CsvLoaderW(VBox):
         self.output_slot = "result"
         self.output_dtypes = schema
 
-    #@modules_producer
     def init_modules(
         self,
         urls: list[str] = [],

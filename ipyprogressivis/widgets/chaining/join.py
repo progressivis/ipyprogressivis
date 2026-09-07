@@ -1,7 +1,8 @@
 from .utils import (
     chaining_widget,
     VBox,
-    customized_restore
+    customized_restore,
+    METH_BACKWARD_COMPAT
 )
 import ipywidgets as ipw
 import json
@@ -194,7 +195,13 @@ class JoinW(VBox):
 
     def init_ui(self) -> None:
         content = self.record
-        self._proxy = restore(content, globals(), obj=self)
+        self._proxy = restore(
+            content,
+            globals(),
+            obj=self,
+            meth_backward_compat=METH_BACKWARD_COMPAT
+
+        )
         assert self._proxy is not None
         assert hasattr(self._proxy.widget, "children")
         self.children = self._proxy.widget.children

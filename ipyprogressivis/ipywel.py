@@ -116,7 +116,7 @@ def make_autodoc() -> str:
     To be used with print(make_autodoc())
     """
     from io import StringIO
-    from more_itertools import bucket  # type: ignore
+    from more_itertools import bucket
     sio = StringIO()
     s = bucket(_sphinx_list, key=lambda x: x[0].split('.')[0])
     keys = list(s)
@@ -813,11 +813,12 @@ def restore_backends(bulk: dict[str, Any], ctx: dict[str, Any]) -> dict[str, Bac
 
 
 def restore(
-    bulk: dict[str, Any],
-    ctx: dict[str, Any],
-    obj: Any | None = None,
-    lambdas: dict[str, Any] | None = None,
-    custom: dict[str, Any] = dict()
+        bulk: dict[str, Any],
+        ctx: dict[str, Any],
+        obj: Any | None = None,
+        lambdas: dict[str, Any] | None = None,
+        custom: dict[str, Any] = dict(),
+        meth_backward_compat: dict[str, dict[str, str]] = dict(),
 ) -> Proxy:
     """
     This function restores an UI from a previous dump (``bulk`` variable)
@@ -836,9 +837,13 @@ def restore(
                 See the user guide for more information.
         custom: Similar to X, but intended for widget functions and proprietary widgets
                 that are not part of the language.
+        meth_backward_compat: method aliases for backward compatibility
     Returns:
         the proxy of the UI root
     """
+    obj_class = ""
+    if obj is not None:
+        obj_class = type(obj).__name__
     def _restore_impl(bulk: dict[str, Any]) -> Proxy:
         assert isinstance(bulk, dict)
         classname = bulk["classname"]
@@ -880,6 +885,8 @@ def restore(
         if fname := bulk.get("on_click"):
             if hasattr(obj, fname):
                 func = getattr(obj, fname)
+            elif obj_class in meth_backward_compat and fname in meth_backward_compat[obj_class]:
+                func = getattr(obj, meth_backward_compat[obj_class][fname])
             elif fname == "<lambda>":
                 assert lambdas is not None
                 assert proxy._uid is not None
@@ -890,6 +897,8 @@ def restore(
         if fname := bulk.get("observe"):
             if hasattr(obj, fname):
                 func = getattr(obj, fname)
+            elif obj_class in meth_backward_compat and fname in meth_backward_compat[obj_class]:
+                func = getattr(obj, meth_backward_compat[obj_class][fname])
             elif fname == "<lambda>":
                 assert lambdas is not None
                 assert proxy._uid is not None
