@@ -130,7 +130,7 @@ class SnippetW(VBox):
         mode = self._proxy.that.cols_mode.widget.value
         columns: list[str] | dict[str, str] = self.get_params(mode)
         self.record = self._proxy.dump()
-        res = snippet(self.input_module, self.input_slot, columns)
+        res = self.init_modules(snippet, columns)
         self.output_module = res.output_module
         self.output_slot = res.output_slot
         if res.widget is not None:

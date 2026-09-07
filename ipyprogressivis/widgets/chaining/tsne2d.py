@@ -1,65 +1,61 @@
 from .utils import (
-    make_button,
-    starter_callback,
     chaining_widget,
-    VBoxTyped,
-    TypedBase,
-    replay_next,
-    is_recording,
-    amend_last_record,
-    runner,
-    IpyHBoxTyped,
+    VBox,
     Coro,
-    modules_producer
+    is_leaf,
+    no_progress_bar
+)
+from ipyprogressivis.ipywel import (
+    Proxy,
+    button,
+    anybox,
+    box,
+    hbox,
+    int_text,
+    float_text,
+    dropdown,
 )
 import ipywidgets as ipw
 from ..contour_density import ContourDensity  # type: ignore
 from progressivis.core.api import Module, Sink, asynchronize
 from progressivis.stats.tsne import TSNE
-from typing import Any as AnyType
+from typing import Any as AnyType, cast
 
 WidgetType = AnyType
 
-class InfoBar(IpyHBoxTyped):
-    class Typed(TypedBase):
-        rows: ipw.IntText
-        iteration: ipw.IntText
-        quality: ipw.FloatText
-
-
 class AfterRun(Coro):
-    widget: ContourDensity | None = None
     async def action(self, m: Module, run_number: int) -> None:
         try:
             assert isinstance(m, TSNE)
             if m.result is None:
                 return
             def _func() -> None:
-                assert self.widget is not None
-                self.widget.child.image.update(m.result)
-                info = self.widget.child.info
-                assert info is not None
-                info.child.rows.value = len(self.widget.input_module.result)
-                info.child.iteration.value = self.widget._init_max_iter - m._max_iter
-                info.child.quality.value = m.tsne.get_error()  # type: ignore
+                assert self.leaf is not None
+                assert self.leaf._proxy is not None
+                proxy = self.leaf._proxy
+                image_box = cast(ipw.Box, self.leaf._proxy.that.image.widget)
+                if not image_box.children:
+                    return
+                contour_density = cast(ContourDensity, image_box.children[0])
+                contour_density.update(m.result)
+                proxy.that.rows.attrs(
+                    value=len(self.leaf.input_module.result)  # type: ignore
+                )
+                proxy.that.iteration.attrs(
+                    value=self.leaf._init_max_iter - m._max_iter  # type: ignore
+                )
+                proxy.that.quality.attrs(value=m.tsne.get_error())  # type: ignore
             await asynchronize(_func)
         except Exception as exc:
             print("ERRR", type(exc), exc, exc.args)
             raise
 
+@is_leaf
+@no_progress_bar
 @chaining_widget(label="T-SNE 2D")
-class TSNE2DW(VBoxTyped):
-    class Typed(TypedBase):
-        col_choice: ipw.Dropdown
-        max_iter: ipw.IntText
-        qual_lim: ipw.FloatText
-        start_btn: ipw.Button
-        image: ContourDensity
-        info: InfoBar
-
+class TSNE2DW(VBox):
     def __init__(self) -> None:
         super().__init__()
-        self.array_column: str = ""
         self._init_max_iter = 0
 
     def initialize(self) -> None:
@@ -70,57 +66,60 @@ class TSNE2DW(VBoxTyped):
             for (col, (c, t)) in self.col_typed_names.items()
             if "*" in t
         ]
-        self.child.col_choice = ipw.Dropdown(
-            options=arr_cols + [""],
-            value="",
-            description="Array column",
-            disabled=False,
-            style={"description_width": "initial"},
-            # layout={"width": "initial"},
-        )
-        self.child.col_choice.observe(self.obs_columns, "value")
-        self.child.max_iter = ipw.IntText(
-            value=1000, description="Max iterations:", disabled=False,
-            style={"description_width": "initial"},
-        )
-        self.child.qual_lim = ipw.FloatText(
-            value=2., description="Quality to reach:", disabled=False,
-            style={"description_width": "initial"},
+        self._proxy = anybox(
+            self,
+            dropdown(
+                "Array column",
+                options=arr_cols + [""],
+                style={"description_width": "initial"}
+            ).uid("col_choice").observe(self.obs_columns),
+            int_text(
+                "Max iterations:",
+                value=1000,
+                style={"description_width": "initial"}
+            ).uid("max_iter"),
+            float_text(
+                "Quality to reach:",
+                value=2.,
+                style={"description_width": "initial"}
+            ).uid("qual_lim"),
+            button("Start")
+            .uid("start_btn")
+            .on_click(self.starter_callback),
+            box().uid("image"),
+            hbox(
+                int_text("Rows:").uid("rows"),
+                int_text("Iteration:").uid("iteration"),
+                float_text("Error:").uid("quality"),
+
+            )
         )
 
-        self.child.start_btn = make_button(
-            "Start", cb=self._start_btn_cb, disabled=True
+    def obs_columns(self, proxy: Proxy, change: dict[str, AnyType]) -> None:
+        assert self._proxy is not None
+        self._proxy.that.start_btn.attrs(
+            disabled=not self._proxy.that.col_choice.widget.value
         )
-        replay_next()
 
-    def obs_columns(self, change: dict[str, AnyType]) -> None:
-        if self.child.col_choice.value:
-            self.child.start_btn.disabled = False
-            self.array_column = self.child.col_choice.value.split(":")[0]
-        else:
-            self.child.start_btn.disabled = True
+    def starter_callback(self, proxy: Proxy, btn: ipw.Button) -> None:
+        assert self._proxy is not None
+        array_column = self._proxy.that.col_choice.widget.value.split(":")[0]
+        assert array_column
+        params = dict(array=array_column,
+                      max_iter=self._proxy.that.max_iter.widget.value,
+                      qual_lim=self._proxy.that.qual_lim.widget.value)
+        self.record = self._proxy.dump()
+        self.init_modules(params)
 
-    @starter_callback
-    def _start_btn_cb(self, btn: ipw.Button) -> None:
-        assert self.array_column
-        params = dict(array=self.array_column,
-                      max_iter=self.child.max_iter.value,
-                      qual_lim=self.child.qual_lim.value)
-        if is_recording():
-            amend_last_record({"frozen": params})
-        self.init_module(params)
-
-    @modules_producer
-    def init_module(self, ctx: dict[str, AnyType]) -> Module:
+    def init_modules(self, ctx: dict[str, AnyType]) -> Module:
+        assert self._proxy is not None
         array = ctx["array"]
         self._init_max_iter = ctx["max_iter"]
         qual_lim = ctx["qual_lim"]
-        self.child.image = ContourDensity()
-        self.child.info = InfoBar()
-        self.child.info.child.rows = ipw.IntText(description="Rows:")
-        self.child.info.child.iteration = ipw.IntText(description="Iteration:")
-        self.child.info.child.quality = ipw.FloatText(description="Error:")
-
+        image_box =  self._proxy.that.image.widget
+        assert hasattr(image_box, "children")
+        if not image_box.children:
+            image_box.children = [ContourDensity()]
         s = self.input_module.scheduler
         with s:
             tsne = TSNE(array_col=array,
@@ -132,12 +131,15 @@ class TSNE2DW(VBoxTyped):
             sink = Sink(scheduler=s)
             sink.input.inp = tsne.output.result
             self.after_run = AfterRun()
-            self.after_run.widget = self
             tsne.on_after_run(self.after_run)  # Install the callback
         return tsne
 
-    @runner
     def run(self) -> AnyType:
-        content = self.frozen_kw
-        self.output_module = self.init_module(content)
+        assert self._proxy is not None
+        array_column = self._proxy.that.col_choice.widget.value.split(":")[0]
+        assert array_column
+        params = dict(array=array_column,
+                      max_iter=self._proxy.that.max_iter.widget.value,
+                      qual_lim=self._proxy.that.qual_lim.widget.value)
+        self.output_module = self.init_modules(params)
         self.output_slot = "result"

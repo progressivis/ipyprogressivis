@@ -764,6 +764,11 @@ def int_slider(descr: str | None = None, **kw: Any) -> Proxy:
 
 # Float valued widget functions
 
+@ipw_leaf(widget="float.FloatText", verbose=True)
+def float_text(descr: str | None = None, **kw: Any) -> Proxy:
+    kw2 = dict() if descr is None else dict(description=descr)
+    return _value_widget(ipw.FloatText(), **kw, **kw2)
+
 @ipw_leaf(widget="float.BoundedFloatText", verbose=True)
 def bounded_float_text(descr: str | None = None, **kw: Any) -> Proxy:
     kw2 = dict() if descr is None else dict(description=descr)

@@ -1942,6 +1942,13 @@ def chaining_widget(label: str) -> Callable[..., AnyType]:
     It is mandatory on all GuestWidget subclasses
     """
     def decorator(cls: AnyType) -> AnyType:
+        """
+        Registers cls as a chaining widget
+        Decorates the following cls methods:
+        * init_module decorated with module_producer
+        * starter_callback decorated with starter_callback
+        * initialize decorated with restore_on_replay (only if it is not decorated with customized_restore)
+        """
         stage_register[label] = cls
         if hasattr(cls, "run"):
             cls.run = runner(cls.run)
