@@ -8,11 +8,11 @@ from .utils import (
 )
 from ..utils import sanitize
 import ipywidgets as ipw
+from itertools import product
 from progressivis.stats.api import Corr
 from progressivis.core.api import Sink, Module, asynchronize
 from .._corr_schema import corr_spec_no_data
 from ..vega import VegaWidget
-from .desc_stats import corr_as_vega_dataset
 from ipyprogressivis.ipywel import (
     Proxy,
     button,
@@ -21,9 +21,38 @@ from ipyprogressivis.ipywel import (
     box,
     select_multiple,
 )
-from typing import Any as AnyType
+from typing import Any as AnyType, Sequence, cast
 
 WidgetType = AnyType
+
+
+def corr_as_vega_dataset(
+    mod: Corr, columns: Sequence[str] | None = None
+) -> Sequence[dict[str, AnyType]]:
+    """ """
+    if columns is None:
+        columns = mod.columns
+        assert columns
+
+    def _c(kx: str, ky: str) -> float:
+        assert mod.result is not None
+        res: dict[AnyType, float] = cast(dict[AnyType, float], mod.result)
+        try:
+            return res[(kx, ky)]
+        except KeyError:
+            return res[(ky, kx)]
+        # return mod.result[frozenset([kx, ky])]  # type: ignore
+
+    return [
+        dict(corr=_c(kx, ky),
+             corr_label=f"{_c(kx, ky):.2f}",
+             var=kx,
+             var2=ky)
+        for (kx, ky) in product(columns, columns)
+    ]
+
+
+
 
 class AfterRun(Coro):
     async def action(self, m: Module, run_number: int) -> None:

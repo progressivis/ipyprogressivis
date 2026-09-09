@@ -377,7 +377,6 @@ class CsvLoaderW(VBox):
         schema = content["schema"]
         filter_ = content["filter_"]
         filter_code = content.get("filter_code", "")
-        print("content", content)
         csv_module = self.init_modules(
             urls=urls,
             throttle=throttle,

@@ -9,14 +9,12 @@ from progressivis.io.api import ParquetLoader
 from .utils import (
     VBox,
     is_recording,
-    starter_callback,
     amend_last_record,
     dot_progressivis,
-    runner,
     expand_urls,
     shuffle_urls,
     relative_urls,
-    modules_producer,
+    chaining_widget
 )
 
 from .parquet_sniffer import (
@@ -63,7 +61,7 @@ def _cleanup(raw: str) -> list[str]:
 
 ROWS = 20
 
-
+@chaining_widget(label="PARQUET loader")
 class ParquetLoaderW(VBox):
 
     def btn_bar(self) -> Proxy:
@@ -73,7 +71,7 @@ class ParquetLoaderW(VBox):
             .on_click(self._sniffer_cb),
             stack(
                 button("Start loading csv ...")
-                .on_click(self._start_loader_cb)
+                .on_click(self.starter_callback)
                 .uid("start_btn"),
                 label(""),
                 selected_index=1,
@@ -220,8 +218,8 @@ class ParquetLoaderW(VBox):
         sniff_stack.attrs(selected_index=0)
         self_proxy.that.sniff_btn.attrs(disabled=True)
 
-    @starter_callback
-    def _start_loader_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
+
+    def starter_callback(self, proxy: Proxy, btn: ipw.Button) -> None:
         assert self._proxy is not None
         self_proxy = self._proxy
         urls = relative_urls(self._urls)
@@ -245,7 +243,6 @@ class ParquetLoaderW(VBox):
         with open(file_name, "w") as f:
             json.dump(self._proxy.dump(), f, indent=4)
 
-    @runner
     def run(self) -> Any:
         content = self.frozen_kw
         urls = content["urls"]
@@ -259,7 +256,6 @@ class ParquetLoaderW(VBox):
         self.output_slot = "result"
         self.output_dtypes = dtypes
 
-    @modules_producer
     def init_modules(
         self,
         urls: list[str] | None,

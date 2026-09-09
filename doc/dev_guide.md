@@ -67,7 +67,7 @@ Each new chained element consists of two parts:
   * hosting the chaining widget (`c-widget`)
   * the chaining logic
   * displaying information common to all `c-widgets` (progress bar, quality bar)
-* a specialized component, embedded in the "carrier" component above (red rectangle below) capable of performing the concrete task selected in "Next stage" (). In the rest of this document, when there is no possibility of confusion with the "carrier" we will refer to it as `chaining widget` or `c-widget`. It's `Python` implementation is often called "guest" (e.g. [utils.py](https://github.com/progressivis/ipyprogressivis/blob/main/ipyprogressivis/widgets/chaining/utils.py)).
+* a specialized component, embedded in the "carrier" component above (red rectangle below) capable of performing the concrete task selected in "Next stage". In the rest of this document, when there is no possibility of confusion with the "carrier" we will refer to it as `chaining widget` or `c-widget`. It's `Python` implementation is often called "guest" (e.g. [utils.py](https://github.com/progressivis/ipyprogressivis/blob/main/ipyprogressivis/widgets/chaining/utils.py)).
 
 ![](images/carrier_guest.png)
 
@@ -88,13 +88,15 @@ The bars are displayed by default when they are technically relevant, but they c
 
 In the following, we refer to the `ipyprogressivis.widgets.chaining.utils` module as `.utils`.
 
-A `c-widget` class is a class that inherits from `.utils.VBox` (currently c-widget classes have an name ending with the "W" letter (like AggregateW, GroupByW etc.). To make it visible in the toolkit UI, it must be decorated with `@utils.chaining_widget(label="A label")`.
+A `c-widget` class is a class that inherits from `.utils.VBox` (currently c-widget classes have an name ending with the "W" letter (like `AggregateW`, `GroupByW` etc.). To make it visible in the toolkit UI, it must be decorated with `@utils.chaining_widget(label="A label")`.
 
-For example, the `c-widget` class `AggregateW\  is defined as follows:
+For example, the `c-widget` class `AggregateW`  is defined as follows:
 
 ```python
+from .utils import VBox, chaining_widget
+
 @chaining_widget(label="Aggregate")
-class AggregateW(VBoxTyped):
+class AggregateW(VBox):
     ...
 ```
 
@@ -103,7 +105,7 @@ and it will be visible in the interface with the label "Aggregate".
 
 ### Inheritance
 
-The `c-widget` class inherits three important instance attributes:
+Any `c-widget` class inherits (from `.utils.VBox`) three important instance attributes:
 
 - `self.input_module: Module` representing the `ProgressiVis` module provided as input
 - `self.input_slot: str` the name of the default slot
@@ -119,15 +121,15 @@ The `ProgressiVis` scheduler is accessible via `self.input_module.scheduler`.
 
 ### Constructor
 
-The `c-widget` class constructor has several special features:
+The `c-widget` class constructor has several singularities:
 
 - It is not intended to be called in the user's code.
 - Instantiation is performed solely by the toolkit, without arguments, so every `c-widget` inherits a constructor without arguments.
-- The `c-widget` class can define its own constructor(mainly to define and initialize attributes, never to create sub-widgets), but it must also be without arguments and must call `super().__init__()`.
+- The `c-widget` class can define its own constructor(mainly to define and initialize attributes, never to create sub-widgets). The constructor must always be defined without arguments and it must call `super().__init__()`.
 
 ### Mandatory methods
 
-* `initialize()` : build the `c-widget` to be displayed
+* `initialize()` : build the `c-widget` UI to be displayed
 * `run()` responsible of replay behaviour
 * a method called `starter_callback` xor decorated by `@starter_callback` (we'll refer to it as `starter_callback` from now on) which is a button callback triggering the underying processing (see  {py:func}`starter_callback() <ipyprogressivis.widgets.chaining.utils.starter_callback>` for more details)
 * `init_modules()` the only method creating ProgressiVis modules. Usually it created a sub-graph of modules which is added to the global `ProgressiVis` `DAG` when the `starter_callback` method is triggered or on replaying (via `run()`). This method is missing when the c-widget does not create modules
@@ -146,6 +148,8 @@ The `c-widget` class constructor has several special features:
 To ensure `c-widgets` persistence and enable replay, ipyprogressivis recommends building interfaces using `ipywel` (the ipywidgets expression language, described [here](ipywel-intro)). For this reason, the initialize() method typically has the following structure:
 
 ```python
+from .utils import VBox, chaining_widget
+
 @chaining_widget(label="MyLabel")
 class MyCWidgetW(VBox):
     ...
@@ -349,6 +353,8 @@ The typical case is that of a `c-widget` producing a visualization.
 Since the chaining bar is displayed by default in the footer, a `c-widget` class must be decorated with `@is_leaf` to prevent the chaining bar from being displayed. For example:
 
 ```python
+from .utils import VBox, chaining_widget, is_leaf
+
 @is_leaf
 # ...
 @chaining_widget(label="Any Vega")
@@ -364,6 +370,8 @@ Additionnaly:
 * `@no_quality_bar`  prevents the quality bar from being displayed when irrelevant
 
 ```python
+from .utils import VBox, chaining_widget, is_leaf, no_progress_bar
+
 @is_leaf
 @no_progress_bar
 @chaining_widget(label="Any Vega")
@@ -391,6 +399,8 @@ class AfterRun(Coro):
 In general, the right place to implement steps 2, 3, and 4 is the init_modules() method. For example:
 
 ```python
+from .utils import VBox, chaining_widget, is_leaf, no_progress_bar
+
 @is_leaf
 @no_progress_bar
 @chaining_widget(label="Heatmap")
@@ -410,9 +420,13 @@ class HeatmapW(VBox):
 
 
 ```python
+from .utils import VBox, chaining_widget, is_leaf, no_progress_bar
+
+@is_leaf
+@no_progress_bar
+@chaining_widget(label="Any Vega")
 class AnyVegaW(VBox):
     ...
-    @modules_producer
     def init_modules(
         self, mapping_dict: dict[str, dict[str, str]], vega_schema: AnyType
     ) -> None:
@@ -447,3 +461,17 @@ jupyter trust /path/to/my/file.ipynb
 ```
 
 **NB:** Recent versions of JupyterLab (>=4.6.0) detect untrusted notebooks when they are opened and allow you to mark them as trusted with a single click.
+
+## Removed c-widgets
+
+The following widgets, which have not been maintained for a long time, have been removed either because they duplicated the functionality of newer widgets or because they did not prove effective:
+
+ * DescStatsW
+ * MultiSeriesW
+ * HistogramW
+ * ScalerW
+ * FacadeCreatorW
+ * RangeQuery2DW
+ * ScatterplotW
+
+They are still visible in v0.3.5
