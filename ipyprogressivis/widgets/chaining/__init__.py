@@ -7,7 +7,6 @@ from .aggregate import AggregateW
 from .dump_table import DumpPTableW
 from .join import JoinW
 from .computed_view import ComputedViewW
-from .histogram import HistogramW
 from .any_vega import AnyVegaW
 from .quantiles import QuantilesW
 from .snippet import SnippetW
