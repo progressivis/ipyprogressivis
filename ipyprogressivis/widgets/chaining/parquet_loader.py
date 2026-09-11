@@ -8,13 +8,13 @@ from progressivis.table.api import PTable, Constant
 from progressivis.io.api import ParquetLoader
 from .utils import (
     VBox,
-    is_recording,
-    amend_last_record,
     dot_progressivis,
     expand_urls,
     shuffle_urls,
     relative_urls,
-    chaining_widget
+    chaining_widget,
+    customized_restore,
+    METH_BACKWARD_COMPAT
 )
 
 from .parquet_sniffer import (
@@ -27,7 +27,6 @@ from .parquet_sniffer import (
 
 from ipyprogressivis.ipywel import (
     Proxy,
-    # Backend,
     button,
     anybox,
     vbox,
@@ -63,7 +62,6 @@ ROWS = 20
 
 @chaining_widget(label="PARQUET loader")
 class ParquetLoaderW(VBox):
-
     def btn_bar(self) -> Proxy:
         return hbox(
             button("Sniff ...", disabled=True)
@@ -134,14 +132,16 @@ class ParquetLoaderW(VBox):
 
     def __init__(self) -> None:
         super().__init__()
-        self._urls: list[str] = []
         self._to_sniff: str = ""
 
     def _activate_reuse_cb(self, proxy: Proxy, change: dict[str, Any]) -> None:
         assert self._proxy is not None
         self._proxy.that.reuse_btn.attrs(disabled=not proxy.widget.value)
 
+    @customized_restore
     def initialize(self) -> None:
+        if self.is_replaying:
+            return self.init_ui()
         pv_dir = dot_progressivis()
         bookmarks = [
             f"no '{pv_dir}/' directory found",
@@ -162,34 +162,52 @@ class ParquetLoaderW(VBox):
         assert self._proxy is not None
         self._proxy.that.save_btn.attrs(disabled=not change["new"])
 
+    def restore_ui(self, content: dict[str, Any]) -> None:
+        backends = restore_backends(content, globals())
+        stuff = _sniffer(backends["sniffer"])
+        self._proxy = restore(
+            content,
+            globals(),
+            obj=self,
+            lambdas=stuff._lambda,
+            meth_backward_compat=METH_BACKWARD_COMPAT
+        )
+
+    def init_ui(self) -> None:
+        content = self.record
+        self.restore_ui(content)
+        assert self._proxy is not None
+        assert hasattr(self._proxy.widget, "children")
+        self.children = self._proxy.widget.children
+
     def _reuse_cb(self, proxy: Proxy, b: ipw.Button) -> None:
         assert self._proxy is not None
         base_name = self._proxy.that.reuse_file.widget.value
         file_name = f"{self.widget_dir}/{base_name}"
         with open(file_name) as f:
             content = json.load(f)
-        backends = restore_backends(content, globals())
-        stuff = _sniffer(backends["_"])
-        self._proxy = restored = restore(content, globals(), obj=self, lambdas=stuff._lambda)
-        assert hasattr(restored.widget, "children")
-        self.children = restored.widget.children
-        self._to_sniff_cb(restored, dict())  # sets self._urls self._to_sniff
+        self.restore_ui(content)
+        assert self._proxy is not None
+        assert hasattr(self._proxy.widget, "children")
+        self.children = self._proxy.widget.children
+        self._to_sniff_cb(self._proxy, dict())  # sets self._urls self._to_sniff
 
     def _reuse_ck_cb(self, proxy: Proxy, change: dict[str, Any]) -> None:
         assert self._proxy is not None
         self._proxy.that.global_stack.attrs(selected_index=not change["new"])
 
+    def get_urls(self) -> list[str]:
+        assert self._proxy is not None
+        bookmarks = self._proxy.that.bookmarks
+        urls_wg = self._proxy.that.urls_wg
+        urls = list(bookmarks.widget.value) + urls_wg.widget.value.strip().split("\n")
+        return [elt for elt in urls if elt]
+
     def _to_sniff_cb(self, proxy: Proxy, change: dict[str, Any]) -> None:
         assert self._proxy is not None
-        self_proxy = self._proxy
-        to_sniff = self_proxy.that.to_sniff
-        bookmarks = self_proxy.that.bookmarks
-        urls_wg = self_proxy.that.urls_wg
-        urls = list(bookmarks.widget.value) + urls_wg.widget.value.strip().split("\n")
-        urls = [elt for elt in urls if elt]
-        if not urls:
+        to_sniff = self._proxy.that.to_sniff
+        if not (urls := self.get_urls()):
             return
-        self._urls = urls
         to_sniff_url = ""
         to_sniff_lst = expand_urls([to_sniff.widget.value.strip()])
         if to_sniff_lst:
@@ -200,13 +218,10 @@ class ParquetLoaderW(VBox):
         if not to_sniff_url:
             return
         self._to_sniff = to_sniff_url
-        sniff_btn = self_proxy.that.sniff_btn
+        sniff_btn = self._proxy.that.sniff_btn
         sniff_btn.attrs(disabled=not self._to_sniff)
 
     def _sniffer_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
-        # to_sniff = proxy.lookup("to_sniff")
-        # bookmarks = proxy.lookup("bookmarks")
-        # urls_wg = proxy.lookup("urls_wg")
         assert self._proxy is not None
         self_proxy = self._proxy
         for uid in ("start_stack", "save_stack", "save_file_stack"):
@@ -218,21 +233,26 @@ class ParquetLoaderW(VBox):
         sniff_stack.attrs(selected_index=0)
         self_proxy.that.sniff_btn.attrs(disabled=True)
 
+    def get_content(self) -> dict[str, Any]:
+        assert self._proxy is not None
+        self_proxy = self._proxy
+        urls = relative_urls(self.get_urls())
+        throttle = self_proxy.that.throttle.widget.value
+        shuffle = self_proxy.that.shuffle_ck.widget.value
+        dtypes = get_dtypes(self_proxy)
+        return dict(urls=urls, throttle=throttle, shuffle=shuffle, dtypes=dtypes)
 
     def starter_callback(self, proxy: Proxy, btn: ipw.Button) -> None:
         assert self._proxy is not None
         self_proxy = self._proxy
-        urls = relative_urls(self._urls)
-        throttle = self_proxy.that.throttle.widget.value
-        shuffle = self_proxy.that.shuffle_ck.widget.value
-        dtypes = get_dtypes(self_proxy)
-        kw = dict(urls=urls, throttle=throttle, shuffle=shuffle, dtypes=dtypes)
-        if is_recording():
-            amend_last_record({"frozen": kw})
+        sniffer = self_proxy._backends["sniffer"]()
+        assert sniffer is not None
+        self.record = self._proxy.dump()
+        kw = self.get_content()
         pq_module = self.init_modules(**kw)
         self.output_module = pq_module
         self.output_slot = "result"
-        self.output_dtypes = dtypes
+        self.output_dtypes = kw["dtypes"]
 
     def _save_cb(self, proxy: Proxy, btn: ipw.Button) -> None:
         assert self._proxy is not None
@@ -244,17 +264,11 @@ class ParquetLoaderW(VBox):
             json.dump(self._proxy.dump(), f, indent=4)
 
     def run(self) -> Any:
-        content = self.frozen_kw
-        urls = content["urls"]
-        throttle = content["throttle"]
-        shuffle = content.get("shuffle", False)
-        dtypes = content["dtypes"]
-        pq_module = self.init_modules(
-            urls=urls, throttle=throttle, shuffle=shuffle, dtypes=dtypes
-        )
+        kw = self.get_content()
+        pq_module = self.init_modules(**kw)
         self.output_module = pq_module
         self.output_slot = "result"
-        self.output_dtypes = dtypes
+        self.output_dtypes = kw["dtypes"]
 
     def init_modules(
         self,
@@ -265,8 +279,8 @@ class ParquetLoaderW(VBox):
         **kw: Any,
     ) -> ParquetLoader:
         if urls is None:
-            urls = expand_urls(self._urls)
-            throttle = 0 #self.c_.throttle.value
+            urls = expand_urls(self.get_urls())
+            throttle = 0
         else:
             urls = expand_urls(urls)
         if shuffle:

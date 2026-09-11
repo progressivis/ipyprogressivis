@@ -151,7 +151,7 @@ def _sniffer(bk: Backend) -> Proxy:
             layout=layout_solid,
         )
         .uid("main")
-        .backend(bk)
+        .backend(bk, name="sniffer")
     )
 
 
