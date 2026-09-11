@@ -26,7 +26,7 @@ WidgetType = AnyType
 class AfterRun(Coro):
     async def action(self, m: Module, run_number: int) -> None:
         try:
-            if m.result is None:
+            if getattr(m, "result", None) is None:
                 return
             assert isinstance(m, TSNE)
             def _func() -> None:
