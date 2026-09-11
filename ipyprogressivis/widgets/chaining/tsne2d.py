@@ -26,9 +26,9 @@ WidgetType = AnyType
 class AfterRun(Coro):
     async def action(self, m: Module, run_number: int) -> None:
         try:
-            assert isinstance(m, TSNE)
             if m.result is None:
                 return
+            assert isinstance(m, TSNE)
             def _func() -> None:
                 assert self.leaf is not None
                 assert self.leaf._proxy is not None

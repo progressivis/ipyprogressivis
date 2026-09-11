@@ -473,5 +473,6 @@ The following widgets, which have not been maintained for a long time, have been
  * FacadeCreatorW
  * RangeQuery2DW
  * ScatterplotW
+ * KNNDensityW
 
 They are still visible in v0.3.5
